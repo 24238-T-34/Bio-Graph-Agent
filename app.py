@@ -1816,7 +1816,7 @@ with st.sidebar:
         st.markdown("---")
         with st.expander(t("sidebar_contact")):
             st.markdown(t("contact_desc"))
-            st.link_button(t("contact_github"), "https://github.com/24238-T-34/-Bio-Graph-Agent-Hy3-", use_container_width=True)
+            st.link_button(t("contact_github"), "https://github.com/24238-T-34/Bio-Graph-Agent", use_container_width=True)
             st.caption(t("contact_email"))
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n...")
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nit's a bug\nif you see this")

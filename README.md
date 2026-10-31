@@ -187,8 +187,8 @@
 ### 1. 克隆仓库与安装依赖
 
 ```bash
-git clone https://github.com/24238-T-34/-Bio-Graph-Agent-Hy3-
-cd -Bio-Graph-Agent-Hy3-
+git clone https://github.com/24238-T-34/Bio-Graph-Agent
+cd Bio-Graph-Agent
 pip install -r requirements.txt
 ```
 
