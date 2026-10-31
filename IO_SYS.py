@@ -536,18 +536,20 @@ class GraphVisualizer:
         ent_cat_defs = ontology.get("entity_categories", {})
         rel_cat_defs = ontology.get("relation_categories", {})
 
-        # 学术科研调色板与几何形态池 (Nature/Science 风格，无 Emoji)
+        # 学术科研实体调色板 (扩充至 12 种高对比中立学术色彩，严格剔除容易产生生物极性混淆的红与绿)
         SCIENTIFIC_PALETTE = [
-            "#2563eb",  # 皇家深蓝
-            "#d97706",  # 琥珀金黄
-            "#dc2626",  # 砖石深红
-            "#059669",  # 翡翠墨绿
-            "#7c3aed",  # 稳重紫罗兰
-            "#0891b2",  # 蓝青
-            "#ea580c",  # 珊瑚橙
-            "#db2777",  # 洋红粉
-            "#0d9488",  # 墨松绿
-            "#4f46e5",  # 经典靛蓝
+            "#2563eb",  # 皇家深蓝 (Royal Blue)
+            "#d97706",  # 暖金琥珀 (Amber Gold)
+            "#7c3aed",  # 稳重紫罗兰 (Royal Violet)
+            "#0891b2",  # 清爽青蓝 (Cyan Teal)
+            "#ea580c",  # 活力珊瑚橙 (Coral Orange)
+            "#db2777",  # 优雅洋红粉 (Magenta Pink)
+            "#4f46e5",  # 经典深靛蓝 (Deep Indigo)
+            "#0284c7",  # 晴空蔚蓝 (Sky Blue)
+            "#9333ea",  # 兰花深紫 (Orchid Purple)
+            "#b45309",  # 赭石棕黄 (Ochre Brown)
+            "#0e7490",  # 深松青 (Deep Teal)
+            "#c026d3",  # 亮紫红 (Fuchsia)
         ]
         SCIENTIFIC_SHAPES = [
             "dot",
@@ -558,15 +560,6 @@ class GraphVisualizer:
             "star",
             "box",
             "triangleDown"
-        ]
-        RELATION_PALETTE = [
-            "#16a34a",  # 翠绿 (正调控/激活)
-            "#dc2626",  # 赤红 (负调控/抑制)
-            "#2563eb",  # 蔚蓝 (结合/互作)
-            "#d97706",  # 琥珀黄 (靶向/催化)
-            "#9333ea",  # 稳重紫 (代谢/转化)
-            "#0891b2",  # 青蓝 (生物过程)
-            "#64748b",  # 中性蓝灰 (相关/伴随)
         ]
 
         # 动态映射实体分类色彩与形态（按 JSON 定义顺序自动分配）
@@ -583,14 +576,6 @@ class GraphVisualizer:
                 s = cat_def.get("shape") or SCIENTIFIC_SHAPES[ent_idx % len(SCIENTIFIC_SHAPES)]
                 entity_style_map[cat_id] = {"color": c, "shape": s}
                 ent_idx += 1
-
-        # 动态映射关系分类色彩（按 JSON 定义顺序自动分配）
-        relation_style_map = {}
-        rel_idx = 0
-        for rel_id, rel_def in rel_cat_defs.items():
-            rc = rel_def.get("color") or RELATION_PALETTE[rel_idx % len(RELATION_PALETTE)]
-            relation_style_map[rel_id] = {"color": rc}
-            rel_idx += 1
 
         net = Network(
             height="750px",
@@ -625,6 +610,7 @@ class GraphVisualizer:
         # 记录出现过的类别以动态构建图例
         present_entity_cats = set()
         present_relation_cats = set()
+        present_relation_polarities = set()
 
         # 3. 绘制带有几何形态与颜色的实体节点
         for std_name, info in entity_info_map.items():
@@ -720,11 +706,42 @@ class GraphVisualizer:
                 present_relation_cats.add(mech_cat)
 
             rel_def = rel_cat_defs.get(mech_cat, {}) if mech_cat else {}
-            edge_color = relation_style_map.get(mech_cat, {}).get("color", "#aaaaaa") if mech_cat else "#aaaaaa"
             rel_cat_lbl = ((rel_def.get("en_name") or rel_def.get("en_label") or mech_cat) if is_en else (rel_def.get("name") or rel_def.get("label") or mech_cat)) or rel_type
 
             display_width = 1.5 + (rel_weight * 0.6)
             edge_label = mech_verb if mech_verb else rel_type
+
+            # 确定生物学连线极性、颜色与线型规范 (严格对齐经典生物论文与原图谱表达)
+            is_positive = (rel_type == "正作用") or (mech_cat and any(k in str(mech_cat).lower() for k in ["positive", "activation", "induction", "agonism", "stimulat"]))
+            is_negative = (rel_type == "负作用") or (mech_cat and any(k in str(mech_cat).lower() for k in ["negative", "inhibition", "degradation", "lysis", "exhaustion", "inactivation", "block", "suppress"]))
+            is_component = (rel_type == "包含") or (mech_cat and any(k in str(mech_cat).lower() for k in ["hierarchy", "component", "scaffold", "subunit", "complex"]))
+
+            if is_positive and not is_negative:
+                edge_color = "#10b981"  # 经典科研绿 (正向调控 / 激活 / 促进)
+                is_dashed = False
+                arrows_val = "to"
+                edge_width = display_width
+                polarity_type = "positive"
+            elif is_negative:
+                edge_color = "#ef4444"  # 经典科研红 (负向调控 / 抑制 / 阻断)
+                is_dashed = False
+                arrows_val = "to"
+                edge_width = display_width + 1.0  # 抑制实线加粗以突出阻断特征
+                polarity_type = "negative"
+            elif is_component:
+                edge_color = "#8b5cf6"  # 经典科技紫 (包含 / 复合体组成)
+                is_dashed = False
+                arrows_val = "to"
+                edge_width = display_width
+                polarity_type = "component"
+            else:
+                edge_color = "#9ca3af"  # 中性灰色 (相关 / 结合伴随 / 未决)
+                is_dashed = True
+                arrows_val = ""
+                edge_width = display_width
+                polarity_type = "neutral"
+
+            present_relation_polarities.add(polarity_type)
 
             # 构建连线科学悬停说明 (学术文字排版，无 Emoji)
             lbl_edge_mech = "Mechanism" if is_en else "深层机制"
@@ -746,10 +763,6 @@ class GraphVisualizer:
 
             edge_title = "\n".join(edge_title_lines)
 
-            # 区分虚线/实线与箭头
-            is_dashed = (rel_type not in ["正作用", "负作用", "包含"]) and (not mech_cat or mech_cat == "Association_Correlation")
-            arrows_val = "to"
-
             net.add_edge(
                 source,
                 target,
@@ -757,7 +770,7 @@ class GraphVisualizer:
                 title=edge_title,
                 color=edge_color,
                 arrows=arrows_val,
-                width=display_width,
+                width=edge_width,
                 dashes=is_dashed,
                 font={"color": "#d1d5db", "size": 11, "align": "middle", "strokeWidth": 2, "strokeColor": "#111827"}
             )
@@ -771,7 +784,7 @@ class GraphVisualizer:
 
             legend_title = "Ontology Legend" if is_en else "本体分类图例"
             entity_sec_title = "Entity Categories" if is_en else "实体分类 (形态 & 色彩)"
-            rel_sec_title = "Mechanisms" if is_en else "深层机制 (连线色彩)"
+            rel_sec_title = "Relation Semantics" if is_en else "关系作用极性 (连线语义)"
             toggle_tip = "Click to collapse / expand" if is_en else "点击折叠/展开"
             btn_collapse = "Collapse" if is_en else "折叠"
             btn_expand = "Expand" if is_en else "展开"
@@ -797,16 +810,21 @@ class GraphVisualizer:
                     </div>
                     """)
 
-            # 动态生成关系图例项目 (无 Emoji，纯色线标)
+            # 动态生成关系图例项目 (经典生物学四类极性规范，无 Emoji)
             rel_legend_items = []
-            for cat_id, rel_info in rel_cat_defs.items():
-                if cat_id in present_relation_cats or not present_relation_cats:
-                    lbl = (rel_info.get("en_name") or rel_info.get("en_label", cat_id)) if is_en else (rel_info.get("name") or rel_info.get("label", cat_id))
-                    color = relation_style_map.get(cat_id, {}).get("color", "#9ca3af")
+            rel_polarity_specs = [
+                ("positive", "Positive / Activation" if is_en else "正向调控 / 激活 / 促进", "#10b981", False),
+                ("negative", "Negative / Inhibition" if is_en else "负向调控 / 抑制 / 阻断", "#ef4444", False),
+                ("component", "Component / Complex" if is_en else "包含 / 复合体组成", "#8b5cf6", False),
+                ("neutral", "Correlation / Association" if is_en else "相关 / 伴随 / 未决", "#9ca3af", True),
+            ]
+            for pol_key, pol_lbl, pol_color, pol_dash in rel_polarity_specs:
+                if pol_key in present_relation_polarities or not present_relation_polarities:
+                    dash_css = "border-top:2px dashed " + pol_color + ";height:0px;" if pol_dash else f"background:{pol_color};height:3px;"
                     rel_legend_items.append(f"""
                     <div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
-                        <span style="background:{color};width:16px;height:3px;display:inline-block;border-radius:2px;"></span>
-                        <span style="font-size:12px;color:#e5e7eb;font-weight:500;">{lbl}</span>
+                        <span style="{dash_css}width:16px;display:inline-block;border-radius:2px;"></span>
+                        <span style="font-size:12px;color:#e5e7eb;font-weight:500;">{pol_lbl}</span>
                     </div>
                     """)
 

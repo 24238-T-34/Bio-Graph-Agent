@@ -33,18 +33,25 @@ In this workbench, we strictly enforce the "Minimalist 3-Element" scientific sta
    Do NOT declare "color" or "shape" attributes in the JSON files!
    The visualization engine (IO_SYS.py) embeds high-clarity Nature/Science-inspired palettes
    and Vis.js geometric shape pools:
-   - Entity Node Color Palette: Royal Blue (#2563eb), Amber Gold (#d97706), Ruby Red (#dc2626),
-     Emerald Green (#059669), Purple Violet (#7c3aed), Cyan Teal (#0891b2), Coral Orange (#ea580c),
-     Magenta Pink (#db2777), etc.
+   - Entity Node Color Palette (expanded to 12 neutral academic colors, strictly excluding red and green
+     to avoid semantic polarity conflict with biological inhibition/activation lines):
+     Royal Blue (#2563eb), Amber Gold (#d97706), Royal Violet (#7c3aed), Cyan Teal (#0891b2),
+     Coral Orange (#ea580c), Magenta Pink (#db2777), Deep Indigo (#4f46e5), Sky Blue (#0284c7),
+     Orchid Purple (#9333ea), Ochre Brown (#b45309), Deep Teal (#0e7490), Fuchsia (#c026d3).
    - Entity Geometry Shape Pool: dot, diamond, square, triangle, hexagon, star, box, triangleDown.
    - The engine automatically cycles through the palettes based on the sequential reading order
      of categories defined in your JSON schema.
    - The default fallback category "Uncertain" is consistently assigned neutral gray (#9ca3af)
      and smooth ellipse geometry.
 
-4. Relation Mechanism Categories (relation_categories):
-   Likewise, relation categories only contain name/en_name and description/en_description.
-   Edge mechanism colors are sequentially allocated from the engine's edge palette.
+4. Relation Edge Semantics & Line Style Specification (Biological Paper Standards):
+   Edge line colors and shapes adhere strictly to international biological pathway conventions:
+   - Positive Regulation / Activation / Stimulation: Scientific Emerald Green (#10b981) + Solid line + Arrow
+   - Negative Regulation / Inhibition / Blockade: Scientific Ruby Red (#ef4444) + Bold solid line + Arrow
+   - Hierarchy / Component / Complex Subunit: Tech Violet (#8b5cf6) + Solid line + Arrow
+   - Association / Binding / Correlation / Pending: Neutral Gray (#9ca3af) + Dashed line + No arrow
+   When deep mechanism predicates are distilled by LLM (e.g., "Catalytic phosphorylation"),
+   they are rendered directly as readable labels on the curve.
 
 --------------------------------------------------------------------------------
 2. Regular Expression (patterns) Engineering & Best Practices
