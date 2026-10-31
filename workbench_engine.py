@@ -17,347 +17,101 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 
 
 class RulePreFilter:
-    """基于生物医学命名规则与权威词缀的高速 0-Token 正则预分类器"""
+    """
+    完全基于本体标准配置文件 (ontology_presets/*.json) 中 rules 定义的数据驱动规则分类器。
+    无任何写死在代码中的领域字典或硬编码规则，严格根据当前加载的标准进行确定性匹配。
+    """
 
-    # 1. 物种、宿主与模式生物 (Species / Organism)
-    SPECIES_PATTERNS = [
-        r'^(?:human|humans|patient|patients|host|hosts|homo sapiens)$',
-        r'^(?:mouse|mice|mus musculus|murine)$',
-        r'^(?:rat|rats|rattus|rattus norvegicus)$',
-        r'^(?:zebrafish|danio rerio)$',
-        r'^(?:drosophila|drosophila melanogaster|fruit fly|fruit flies)$',
-        r'^(?:c\. ?elegans|caenorhabditis elegans|nematode|nematodes)$',
-        r'^(?:yeast|saccharomyces|saccharomyces cerevisiae|s\. ?cerevisiae)$',
-        r'^(?:primate|primates|non-human primate|nhp|macaque|rhesus|chimpanzee)$',
-        r'^(?:pig|pigs|swine|porcine|rabbit|rabbits|canine|dog|dogs|bovine|cow|cows)$',
-        r'^(?:人类|患者|宿主|小鼠|大鼠|斑马鱼|果蝇|线虫|酵母|灵长类|恒河猴|猕猴|黑猩猩|猪|兔|犬|牛)$'
-    ]
-
-    KNOWN_SPECIES = {
-        'human', 'homo sapiens', 'mouse', 'mus musculus', 'rat', 'rattus',
-        'zebrafish', 'danio rerio', 'drosophila', 'c. elegans', 'yeast',
-        's. cerevisiae', 'macaque', 'rhesus', 'pig', 'rabbit', 'dog',
-        '人类', '小鼠', '大鼠', '斑马鱼', '果蝇', '线虫', '酵母', '灵长类'
-    }
-
-    # 2. 微生物、病原体、细菌与病毒 (Microbe / Pathogen)
-    MICROBE_PATTERNS = [
-        r'.*(?:virus|viral|viridae)$',
-        r'.*病毒$',
-        r'.*(?:bacteria|bacterium|bacillus|coccus|spirillum|mycoplasma|chlamydia)$',
-        r'.*(?:microbiome|microbiota|gut flora|pathogen|pathogens)$',
-        r'.*(?:细菌|杆菌|球菌|真菌|支原体|衣原体|菌群|病原体|寄生虫)$',
-        r'^[a-z]\. ?(?:coli|aureus|pylori|pneumoniae|tuberculosis)$'
-    ]
-
-    KNOWN_PATHOGENS = {
-        'sars-cov-2', 'covid-19', 'coronavirus', 'hiv', 'hbv', 'hcv', 'hpv', 'ebv', 'cmv',
-        'influenza', 'influenza virus', 'zika', 'dengue', 'hsv', 'vzv', 'rsv',
-        'e. coli', 'escherichia coli', 's. aureus', 'staphylococcus', 'staphylococcus aureus',
-        'h. pylori', 'helicobacter pylori', 'm. tuberculosis', 'mycobacterium tuberculosis',
-        'candida albicans', 'c. albicans', 'aspergillus', 'salmonella', 'pseudomonas',
-        'pseudomonas aeruginosa', 'streptococcus', 'streptococcus pneumoniae',
-        'plasmodium', 'plasmodium falciparum', 'gut microbiota', 'microbiome'
-    }
-
-    # 3. 组织器官、解剖结构与宏观生理系统 (Organ / Tissue / Anatomy)
-    ORGAN_PATTERNS = [
-        r'.*(?:tissue|organ|liver|lung|lungs|kidney|kidneys|heart|brain|spleen|pancreas|colon|stomach|bone marrow|blood|serum|plasma|cortex|stroma|endothelium|epithelium|system|tract|barrier|vessel|artery|vein|lymph node|gut|intestine|skin|retina)$',
-        r'.*(?:组织|器官|肝脏|肺|肾脏|心脏|脑|大脑|小脑|脾脏|胰腺|结肠|胃|骨髓|血液|血清|血浆|皮质|基质|系统|管腔|通路|屏障|血管|动脉|静脉|淋巴结|肠道|肠|皮肤|视网膜)$',
-        r'.*(?:blood-brain barrier|bbb|central nervous system|cns|cardiovascular system|immune system|circulatory system|digestive system)$',
-        r'.*(?:血脑屏障|中枢神经系统|心血管系统|免疫系统|循环系统|消化系统)$'
-    ]
-
-    # 4. 细胞亚群与模式细胞系 (Cell / Cell Line)
-    CELL_PATTERNS = [
-        r'.*(?:cell|cells)$', r'.*细胞$',
-        r'.*(?:lymphocyte|monocyte|macrophage|neutrophil|fibroblast|platelet|splenocyte)$',
-        r'.*(?:淋巴细胞|单核细胞|巨噬细胞|中性粒细胞|成纤维细胞|血小板)$',
-        r'.*(?:t[- ]?cell|b[- ]?cell|nk[- ]?cell|dendritic cell|treg|th1|th2|th17)$',
-        r'.*(?:t细胞|b细胞|nk细胞|树突状细胞|调节性t细胞)$',
-        r'.*(?:neuron|astrocyte|microglia|myocyte|adipocyte|hepatocyte|podocyte)$',
-        r'.*(?:神经元|星形胶质细胞|小胶质细胞|肌细胞|脂肪细胞|肝实质细胞|足细胞)$'
-    ]
-
-    CELL_LINES = {
-        'hela', 'hek293', 'hek293t', 'mcf-7', 'mcf7', 'a549', 'jurkat', 'pc3', 'u2os',
-        'k562', 'thp-1', 'thp1', 'raw264.7', 'cos-7', 'cho', 'nih3t3', 'hl-60', 'sk-br-3',
-        'hct116', 'sw480', 'mdamb231', 'mda-mb-231', 'b16f10', '4t1', 'panc-1', 'hep-g2', 'hepg2'
-    }
-
-    # 5. 药物与化学小分子 (INN 权威国际非专利药品规范)
-    INN_DRUG_PATTERNS = [
-        r'.*tinib$',     # 酪氨酸激酶抑制剂 (Imatinib, Gefitinib, Erlotinib)
-        r'.*rafenib$',   # RAF激酶抑制剂 (Sorafenib, Vemurafenib)
-        r'.*lisib$',     # PI3K抑制剂 (Alpelisib, Idelalisib)
-        r'.*ciclib$',    # CDK抑制剂 (Palbociclib, Ribociclib)
-        r'.*parib$',     # PARP抑制剂 (Olaparib, Rucaparib)
-        r'.*zomib$',     # 蛋白酶体抑制剂 (Bortezomib, Carfilzomib)
-        r'.*nib$',       # 通用激酶抑制剂 (Dasatinib, Sunatinib, Sunitinib)
-        r'.*mab$',       # 单克隆抗体 (Trastuzumab, Pembrolizumab, Rituximab)
-        r'.*cept$',      # 受体融合蛋白 (Etanercept, Aflibercept)
-        r'.*statin$',    # 他汀类降脂药 (Simvastatin, Atorvastatin, Rosuvastatin)
-        r'.*stat$',      # 酶抑制剂 (Cilastatin, Ubenimex)
-        r'.*prazole$',   # 质子泵抑制剂 (Omeprazole, Pantoprazole)
-        r'.*mycin$',     # 抗生素 (Streptomycin, Rapamycin)
-        r'.*sartan$',    # ARB受体阻滞剂 (Losartan, Valsartan)
-        r'.*dipine$',    # 钙通道阻滞剂 (Amlodipine, Nifedipine)
-        r'.*afil$',      # PDE5抑制剂 (Sildenafil, Tadalafil)
-        r'.*gliflozin$', # SGLT2抑制剂 (Empagliflozin, Dapagliflozin)
-        r'.*glitazone$', # PPAR-γ激动剂 (Pioglitazone, Rosiglitazone)
-        r'.*oxacin$',    # 喹诺酮类抗生素 (Ciprofloxacin, Levofloxacin)
-        r'.*vir$',       # 抗病毒药 (Acyclovir, Remdesivir)
-        r'.*vudine$',    # 核苷逆转录酶抑制剂 (Lamivudine, Zidovudine)
-    ]
-
-    CHEM_COMPOUND_PATTERNS = [
-        r'.*acid$', r'.*酸$',
-        r'.*ester$', r'.*酯$',
-        r'.*phosphate$', r'.*磷酸盐$',
-        r'.*sulfate$', r'.*硫酸盐$',
-        r'.*chloride$', r'.*氯化物$',
-        r'.*acetate$', r'.*乙酸盐$',
-        r'.*oxide$', r'.*氧化物$',
-        r'.*inhibitor$', r'.*抑制剂$',
-        r'.*agonist$', r'.*激动剂$',
-        r'.*antagonist$', r'.*拮抗剂$'
-    ]
-
-    METABOLITES_AND_IONS = {
-        'atp', 'adp', 'amp', 'gtp', 'gdp', 'gmp', 'ctp', 'utp', 'camp', 'cgmp',
-        'nadh', 'nad+', 'nadph', 'nadp+', 'fadh2', 'fad',
-        'ros', 'no', 'ca2+', 'mg2+', 'k+', 'na+', 'fe2+', 'fe3+', 'zn2+',
-        'glucose', 'glutamine', 'lactate', 'pyruvate', 'citrate', 'cholesterol',
-        'lipid', 'fatty acid', 'glutathione', 'gsh', 'gssg', 'acetyl-coa'
-    }
-
-    # 6. 酶、蛋白质与受体
-    ENZYME_PATTERNS = [
-        r'.*kinase$', r'.*激酶$',
-        r'.*phosphatase$', r'.*磷酸酶$',
-        r'.*synthase$', r'.*合成酶$',
-        r'.*synthetase$', r'.*合酶$',
-        r'.*transferase$', r'.*转移酶$',
-        r'.*polymerase$', r'.*聚合酶$',
-        r'.*ligase$', r'.*连接酶$',
-        r'.*hydrolase$', r'.*水解酶$',
-        r'.*peptidase$', r'.*肽酶$',
-        r'.*protease$', r'.*蛋白酶$',
-        r'.*dehydrogenase$', r'.*脱氢酶$',
-        r'.*oxygenase$', r'.*加氧酶$',
-        r'.*reductase$', r'.*还原酶$',
-        r'.*dismutase$', r'.*歧化酶$',
-        r'.*isomerase$', r'.*异构酶$',
-        r'.*acetylase$', r'.*乙酰化酶$',
-        r'.*deacetylase$', r'.*去乙酰化酶$',
-        r'.*methylase$', r'.*甲基化酶$',
-        r'.*demethylase$', r'.*去甲基化酶$',
-        r'.*caspase[-0-9]*$',
-        r'.*proteasome.*$', r'.*蛋白酶体.*$'
-    ]
-
-    RECEPTOR_PATTERNS = [
-        r'.*receptor$', r'.*受体$',
-        r'.*gpcr$',
-        r'^[a-z0-9]{2,6}r[0-9]+$',   # e.g., tgfbr1, ifngr1, il6r2
-        r'^[a-z0-9]+rec$',
-    ]
-
-    RNA_PATTERNS = [
-        r'^(?:mir|mirna|microrna|lncrna|circrna|sncrna|sirna|pirna)[\-_].*',
-        r'.*[\-_](?:mir|mirna|microrna|lncrna|circrna|sirna)$'
-    ]
-
-    GENE_SYMBOL_REGEX = re.compile(r'^[A-Z][A-Z0-9]{1,8}(?:-[A-Z0-9]+)?$')
-    KNOWN_MAJOR_GENES = {
-        'TP53', 'EGFR', 'KRAS', 'NRAS', 'HRAS', 'MYC', 'STAT3', 'STAT1', 'CDK4', 'CDK6',
-        'BRCA1', 'BRCA2', 'VEGFA', 'VEGFR', 'IL6', 'TNF', 'AKT1', 'AKT2', 'MTOR', 'BRAF',
-        'PIK3CA', 'PTEN', 'MAPK1', 'MAPK3', 'CTNNB1', 'HIF1A', 'CASP3', 'BCL2', 'BAX',
-        'JUN', 'FOS', 'NFKB1', 'RELA', 'SMAD3', 'SMAD4', 'ERBB2', 'MET', 'ALK', 'RET',
-        'ATM', 'ATR', 'CHEK1', 'CHEK2', 'NOTCH1', 'JAK1', 'JAK2', 'TYK2', 'SRC', 'ABL1',
-        'MAPK', 'ERK', 'JNK', 'P38', 'WNT', 'TGFB', 'IFNG', 'PDCD1', 'CD274', 'CTLA4'
-    }
-
-    # 7. 疾病与病理表型模式
-    DISEASE_PATTERNS = [
-        r'.*(?:oma|itis|pathy|osis|emia|syndrome|carcinoma|sarcoma|melanoma|leukemia|lymphoma|failure|disorder|infection)$',
-        r'.*(?:瘤|炎|病|综合征|癌|肉瘤|白血病|淋巴瘤|衰竭|障碍|感染)$',
-        r'.*(?:cancer|tumor|neoplasm|hypertension|diabetes|asthma|stroke|infarction|alzheimer|parkinson|fibrosis|cirrhosis|sepsis|metastasis)$',
-        r'.*(?:癌症|肿瘤|高血压|糖尿病|哮喘|中风|心肌梗死|阿尔茨海默病|帕金森病|纤维化|肝硬化|脓毒症|转移)$'
-    ]
-
-    # 8. 生物学过程与通路模式 (包含 -ptosis 等程序性死亡模式)
-    PROCESS_PATTERNS = [
-        r'.*ptosis$',   # apoptosis, ferroptosis, pyroptosis, necroptosis
-        r'.*(?:pathway|signaling|cascade|apoptosis|autophagy|proliferation|differentiation|migration|invasion|angiogenesis|metastasis|glycolysis|metabolism|transcription|translation|ferroptosis|pyroptosis|cell cycle|immune response)$',
-        r'.*(?:通路|信号转导|级联反应|凋亡|自噬|增殖|分化|迁移|侵袭|血管生成|糖酵解|代谢|转录|翻译|铁死亡|焦亡|细胞周期|免疫反应)$'
-    ]
-
-    # 9. 突变位点与序列变异模式
-    VARIANT_PATTERNS = [
-        r'^rs\d+$',
-        r'^[a-z]\d+[a-z]$',          # e.g., v600e, t790m, g12d
-        r'^p\.[a-z]\d+[a-z]$',        # e.g., p.v600e
-        r'.*(?:exon|intron)\s*\d+.*',
-        r'.*(?:mutation|mutant|variant|polymorphism|snp|indel|duplication|deletion)$',
-        r'.*(?:突变|变异|多态性|缺失|重复)$'
-    ]
+    _compiled_pattern_cache: Dict[str, Optional[re.Pattern]] = {}
 
     @classmethod
-    def classify(cls, node_name: str, aliases: Optional[List[str]] = None, ontology: Optional[Dict[str, Any]] = None, language: str = "zh") -> Optional[Dict[str, Any]]:
+    def _get_compiled_regex(cls, pattern_str: str) -> Optional[re.Pattern]:
+        if pattern_str not in cls._compiled_pattern_cache:
+            try:
+                cls._compiled_pattern_cache[pattern_str] = re.compile(pattern_str, re.IGNORECASE)
+            except Exception as e:
+                print(f"⚠️ [RulePreFilter] 正则编译失败: {pattern_str} ({e})")
+                cls._compiled_pattern_cache[pattern_str] = None
+        return cls._compiled_pattern_cache[pattern_str]
+
+    @classmethod
+    def classify(cls, node_name: str, aliases: Optional[List[str]] = None,
+                 ontology: Optional[Dict[str, Any]] = None, language: str = "zh") -> Optional[Dict[str, Any]]:
         """
-        尝试使用基于医学规则的快速分类 (覆盖宏观物种、微生物、器官、细胞至分子突变，支持中英双语推理理由输出)
+        根据当前本体预设中显式声明的 rules 列表进行确定性匹配。
+        - 优先检查 exact_matches (哈希 O(1) 匹配)
+        - 其次检查 patterns 正则模式
+        - 若当前标准未定义 rules 或均未命中，安全返回 None，平滑交由后续大模型阶段处理，不进行任何臆测推导
         """
+        if not ontology or not isinstance(ontology, dict):
+            return None
+
+        rules = ontology.get("rules", [])
+        if not rules or not isinstance(rules, list):
+            return None
+
         raw_name = node_name.strip()
         lower_name = raw_name.lower()
         all_candidates = [lower_name]
         if aliases:
             all_candidates.extend([a.strip().lower() for a in aliases if a.strip()])
 
-        target_categories = set(ontology.get("entity_categories", {}).keys()) if ontology else set()
         is_en = "en" in str(language).lower()
+        target_categories = set(ontology.get("entity_categories", {}).keys())
 
-        def make_res(cat_id: str, sub_type: str, tag: str, conf: float, reason_zh: str, reason_en: str) -> Optional[Dict[str, Any]]:
-            final_cat = cat_id
-            if target_categories:
-                if final_cat not in target_categories:
-                    # 兼容性映射
-                    if cat_id in ["Cell_CellLine", "Organ_Tissue"] and "Cell_Tissue" in target_categories:
-                        final_cat = "Cell_Tissue"
-                    elif "Species_Organism" in target_categories and cat_id == "Species_Organism":
-                        final_cat = "Species_Organism"
-                    elif "Microbe_Pathogen" in target_categories and cat_id == "Microbe_Pathogen":
-                        final_cat = "Microbe_Pathogen"
-                    elif "Kinase_Phosphatase" in target_categories and "kinase" in sub_type.lower():
-                        final_cat = "Kinase_Phosphatase"
-                    elif "Small_Molecule_Drug" in target_categories and cat_id == "Chemical_Drug":
-                        final_cat = "Small_Molecule_Drug"
-                    elif "Druggable_Target" in target_categories and ("receptor" in sub_type.lower() or "kinase" in sub_type.lower()):
-                        final_cat = "Druggable_Target"
-                    elif "Immune_Cell_Subset" in target_categories and cat_id == "Cell_CellLine":
-                        final_cat = "Immune_Cell_Subset"
-                    elif "Disease_Indication" in target_categories and cat_id == "Disease_Phenotype":
-                        final_cat = "Disease_Indication"
-                    elif "Pathway_Module" in target_categories and cat_id == "Biological_Process":
-                        final_cat = "Pathway_Module"
-                    elif cat_id not in target_categories:
-                        return None
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
 
-            return {
-                "primary_type": final_cat,
-                "sub_type": sub_type,
-                "tags": [tag],
-                "confidence": conf,
-                "reasoning": reason_en if is_en else reason_zh,
-                "round": 0,
-                "status": "resolved"
-            }
+            cat_id = rule.get("category")
+            # 严格保障：非当前标准原本合法类别的规则一律跳过，确保 100% 对齐原本类别
+            if target_categories and cat_id not in target_categories:
+                continue
 
-        # 1. 检查是否为物种/宿主/模式生物 (Species / Organism)
-        for cand in all_candidates:
-            if cand in cls.KNOWN_SPECIES:
-                return make_res("Species_Organism", "Model Organism / Species", "Species", 0.98,
-                                "匹配权威生物物种与模式生物词库", "Matched canonical model organism / species database")
-            for pat in cls.SPECIES_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Species_Organism", "Host / Organism", "Species", 0.95,
-                                    f"匹配生物学物种命名规则: {pat}", f"Matched binomial species nomenclature rule: {pat}")
+            sub_type = rule.get("sub_type", "")
+            sub_type_zh = rule.get("sub_type_zh", sub_type)
+            tag = rule.get("tag", cat_id)
+            conf = float(rule.get("confidence", 0.95))
+            reason_zh = rule.get("reason_zh", f"匹配【{cat_id}】命名规范规则")
+            reason_en = rule.get("reason_en", f"Matched [{cat_id}] nomenclature rule")
 
-        # 2. 检查是否为微生物/病原体/细菌/病毒 (Microbe / Pathogen)
-        for cand in all_candidates:
-            if cand in cls.KNOWN_PATHOGENS:
-                return make_res("Microbe_Pathogen", "Microorganism / Pathogen", "Pathogen", 0.98,
-                                "匹配权威病原微生物/细菌/病毒词库", "Matched authoritative pathogen / microbe vocabulary")
-            for pat in cls.MICROBE_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Microbe_Pathogen", "Microbe / Pathogen", "Microbiology", 0.92,
-                                    f"匹配微生物/病毒命名规则: {pat}", f"Matched microbe / virus naming pattern: {pat}")
+            # 1. 优先极速哈希匹配 exact_matches (O(1))
+            exact_matches = rule.get("exact_matches", [])
+            if exact_matches:
+                exact_set = {str(w).strip().lower() for w in exact_matches if str(w).strip()}
+                for cand in all_candidates:
+                    if cand in exact_set or raw_name in exact_matches:
+                        return {
+                            "primary_type": cat_id,
+                            "sub_type": sub_type if is_en else sub_type_zh,
+                            "tags": [tag],
+                            "confidence": conf,
+                            "reasoning": reason_en if is_en else reason_zh,
+                            "round": 0,
+                            "status": "resolved"
+                        }
 
-        # 3. 检查是否为变异位点
-        for cand in all_candidates:
-            for pat in cls.VARIANT_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Sequence_Variant", "Sequence Mutation", "Gene Variant", 0.95,
-                                    f"匹配权威基因变异/突变命名规则: {pat}", f"Matched canonical sequence variant / mutation rule: {pat}")
+            # 2. 正则模式匹配 patterns
+            patterns = rule.get("patterns", [])
+            if patterns:
+                for pat_str in patterns:
+                    compiled = cls._get_compiled_regex(pat_str)
+                    if not compiled:
+                        continue
+                    for cand in all_candidates:
+                        if compiled.match(cand):
+                            match_reason_zh = f"{reason_zh} (模式: {pat_str})"
+                            match_reason_en = f"{reason_en} (Pattern: {pat_str})"
+                            return {
+                                "primary_type": cat_id,
+                                "sub_type": sub_type if is_en else sub_type_zh,
+                                "tags": [tag],
+                                "confidence": conf,
+                                "reasoning": match_reason_en if is_en else match_reason_zh,
+                                "round": 0,
+                                "status": "resolved"
+                            }
 
-        # 4. 检查是否为代谢物或无机离子
-        for cand in all_candidates:
-            if cand in cls.METABOLITES_AND_IONS:
-                return make_res("Chemical_Drug", "Metabolite / Ion", "Biochemical Molecule", 0.96,
-                                "匹配权威内源性代谢小分子/离子词库", "Matched endogenous metabolite / biochemical ion library")
-
-        # 5. 检查 INN 药物词缀
-        for cand in all_candidates:
-            for pat in cls.INN_DRUG_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Chemical_Drug", "Targeted / Synthetic Drug", "INN Pharmaceutical", 0.96,
-                                    f"匹配 INN 国际权威药名词缀规则: {pat}", f"Matched INN international pharmaceutical stem rule: {pat}")
-
-        # 6. 检查通用化合物词缀
-        for cand in all_candidates:
-            for pat in cls.CHEM_COMPOUND_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Chemical_Drug", "Chemical Compound", "Compound", 0.88,
-                                    f"匹配化学分子词缀: {pat}", f"Matched chemical compound nomenclature affix: {pat}")
-
-        # 7. 检查非编码 RNA
-        for cand in all_candidates:
-            for pat in cls.RNA_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Gene_Protein", "Non-coding RNA", "RNA", 0.95,
-                                    f"匹配非编码 RNA 命名规则: {pat}", f"Matched non-coding RNA naming convention: {pat}")
-
-        # 8. 检查酶/激酶
-        for cand in all_candidates:
-            for pat in cls.ENZYME_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Gene_Protein", "Enzyme / Kinase", "Catalytic Protein", 0.92,
-                                    f"匹配酶学催化蛋白质命名词缀: {pat}", f"Matched enzymatic catalytic protein suffix: {pat}")
-
-        # 9. 检查受体
-        for cand in all_candidates:
-            for pat in cls.RECEPTOR_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Gene_Protein", "Receptor Protein", "Receptor", 0.90,
-                                    f"匹配生物膜/细胞受体命名规则: {pat}", f"Matched membrane / cellular receptor nomenclature: {pat}")
-
-        # 10. 检查标准知名基因符号 (TP53, EGFR 等)
-        if raw_name in cls.KNOWN_MAJOR_GENES:
-            return make_res("Gene_Protein", "Protein / Gene", "Canonical Gene", 0.98,
-                            "匹配权威人类核心基因/蛋白数据库列表", "Matched canonical human core gene / protein database")
-
-        # 11. 检查细胞系与细胞类型 (Cell / CellLine)
-        for cand in all_candidates:
-            if cand in cls.CELL_LINES:
-                return make_res("Cell_CellLine", "Cell Line", "Model Cell Line", 0.96,
-                                "匹配国际标准细胞系名称列表", "Matched international standard cell line registry")
-            for pat in cls.CELL_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Cell_CellLine", "Cell Subpopulation", "Cell Type", 0.92,
-                                    f"匹配细胞类型规则: {pat}", f"Matched cell subpopulation nomenclature pattern: {pat}")
-
-        # 12. 检查宏观组织器官与解剖结构 (Organ / Tissue)
-        for cand in all_candidates:
-            for pat in cls.ORGAN_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Organ_Tissue", "Organ / Tissue / Anatomy", "Anatomy", 0.92,
-                                    f"匹配组织器官解剖系统规则: {pat}", f"Matched anatomical organ / tissue system pattern: {pat}")
-
-        # 13. 检查生物学过程与通路 (优先于疾病词缀以防 -ptosis/-osis 混淆)
-        for cand in all_candidates:
-            for pat in cls.PROCESS_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Biological_Process", "Biological Pathway / Process", "Process", 0.90,
-                                    f"匹配生物信号传导/生理通路词缀: {pat}", f"Matched biological pathway / signaling process suffix: {pat}")
-
-        # 14. 检查疾病与病理表型
-        for cand in all_candidates:
-            for pat in cls.DISEASE_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Disease_Phenotype", "Clinical Disease / Pathology", "Pathology", 0.90,
-                                    f"匹配医学病理学/疾病名称词缀: {pat}", f"Matched clinical pathology / disease suffix: {pat}")
-
-        # 规则无法明确判断，交由 LLM 状态机后续分轮处理
         return None
 
 
