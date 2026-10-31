@@ -699,7 +699,7 @@ class WorkbenchAnalysisEngine:
             "sub_type": "",
             "tags": [],
             "confidence": 0.0,
-            "reasoning": "Round 2 literature re-fetch unconfirmed" if is_en else "Round 2 原文回溯分析未果"
+            "reasoning": "Context in paper is insufficient to confirm category" if is_en else "文献上下文证据不足以明确分类"
         }
 
     def _llm_classify_entity_round3(self, node_name: str, language: str = "zh") -> Dict[str, Any]:
@@ -757,7 +757,7 @@ class WorkbenchAnalysisEngine:
             "sub_type": "",
             "tags": [],
             "confidence": 0.0,
-            "reasoning": "Round 3 world knowledge fallback unconfirmed" if is_en else "Round 3 通用知识兜底研判未果"
+            "reasoning": "Features remain insufficient to classify after multi-stage analysis" if is_en else "经多级综合研判，实体特征仍不足以明确分类"
         }
 
     def _llm_classify_relation(self, source: str, target: str, orig_rel: str, evidence: str, language: str = "zh") -> Dict[str, Any]:
@@ -869,7 +869,7 @@ class WorkbenchAnalysisEngine:
             # === Round 0: 快速规则匹配 (0 Token, 极速预过滤) ===
             r0_hits = 0
             if enable_round0_rules:
-                log("⚡ [Round 0: Fast Rule Pre-Filter] Executing 0-token rule & nomenclature screening..." if is_en else "⚡ [Round 0: 快速规则预分流] 正在执行无 Token 规则词缀初筛...")
+                log("⚡ [Stage 1: Nomenclature Recognition] Screening biomedical nomenclature & affixes..." if is_en else "⚡ [阶段一: 命名规范识别] 正在依据生物医学命名规范与权威词缀高速解析...")
                 for idx, node in enumerate(sorted_nodes):
                     if not force_reanalyze and node in self.entity_annotations:
                         cur = self.entity_annotations[node]
@@ -898,13 +898,13 @@ class WorkbenchAnalysisEngine:
                                 "status": "uncertain"
                             }
                 self.stats["round0_hits"] = r0_hits
-                log(f"✅ [Round 0 Complete] Successfully resolved {r0_hits} entities, saving LLM tokens!" if is_en else f"✅ [Round 0 完成] 极速命中 {r0_hits} 个实体，节省大量 LLM Token！")
+                log(f"✅ [Stage 1 Complete] Successfully identified {r0_hits} entities via nomenclature rules." if is_en else f"✅ [阶段一完成] 命名规范与词缀规则成功解析 {r0_hits} 个实体。")
 
             # === Round 1: 微上下文分析 (ThreadPoolExecutor 并发) ===
             if enable_round1_context and self.llm_agent:
                 r1_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r1 = len(r1_candidates)
-                log(f"🧠 [Round 1: Micro-Context Reasoning] {total_r1} candidates queued for LLM analysis ({workers_cnt} workers)..." if is_en else f"🧠 [Round 1: 局部微上下文分析] 共有 {total_r1} 个待决实体进入大模型并发分析 (Workers: {workers_cnt})...")
+                log(f"🧠 [Stage 2: Topology Reasoning] {total_r1} candidates queued for network topological analysis ({workers_cnt} workers)..." if is_en else f"🧠 [阶段二: 局部拓扑推理] 共有 {total_r1} 个待决实体进入网络拓扑并发分析 (并发数: {workers_cnt})...")
 
                 r1_lock = threading.Lock()
                 r1_done = 0
@@ -923,7 +923,7 @@ class WorkbenchAnalysisEngine:
                             if progress_callback:
                                 progress_callback(
                                     0.1 + 0.3 * (r1_done / max(1, total_r1)),
-                                    f"Round 1 Micro-Context ({r1_done}/{total_r1}): {node}" if is_en else f"Round 1 并发分析 ({r1_done}/{total_r1}): {node}"
+                                    f"Topology Reasoning ({r1_done}/{total_r1}): {node}" if is_en else f"局部拓扑推理 ({r1_done}/{total_r1}): {node}"
                                 )
                             cat = res.get("primary_type")
                             valid_cats = self.ontology.get("entity_categories", {})
@@ -942,13 +942,13 @@ class WorkbenchAnalysisEngine:
                                     "status": "uncertain"
                                 }
 
-                log(f"✅ [Round 1 Complete] Resolved {self.stats['round1_hits']} entities." if is_en else f"✅ [Round 1 完成] 成功解析 {self.stats['round1_hits']} 个实体。")
+                log(f"✅ [Stage 2 Complete] Resolved {self.stats['round1_hits']} entities." if is_en else f"✅ [阶段二完成] 局部拓扑推理成功解析 {self.stats['round1_hits']} 个实体。")
 
             # === Round 2: 文献正则精准回溯 (ThreadPoolExecutor 并发) ===
             if enable_round2_regex and self.llm_agent and self.paper_full_texts:
                 r2_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r2 = len(r2_candidates)
-                log(f"📖 [Round 2: Targeted In-Paper Regex Re-fetch] {total_r2} unresolved candidates queued for regex retrieval..." if is_en else f"📖 [Round 2: 文献精准原文回溯] 共有 {total_r2} 个顽固未决实体进入文献并发检索...")
+                log(f"📖 [Stage 3: Literature Grounding] {total_r2} unresolved candidates queued for full-text grounding..." if is_en else f"📖 [阶段三: 文献全文溯源] 共有 {total_r2} 个待决实体进入文献原文深度检索...")
 
                 r2_lock = threading.Lock()
                 r2_done = 0
@@ -969,7 +969,7 @@ class WorkbenchAnalysisEngine:
                             if progress_callback:
                                 progress_callback(
                                     0.4 + 0.2 * (r2_done / max(1, total_r2)),
-                                    f"Round 2 Regex Re-fetch ({r2_done}/{total_r2}): {node}" if is_en else f"Round 2 原文回溯 ({r2_done}/{total_r2}): {node}"
+                                    f"Literature Grounding ({r2_done}/{total_r2}): {node}" if is_en else f"文献全文溯源 ({r2_done}/{total_r2}): {node}"
                                 )
                             if had_sents and res:
                                 cat = res.get("primary_type")
@@ -989,13 +989,13 @@ class WorkbenchAnalysisEngine:
                                         "status": "uncertain"
                                     }
 
-                log(f"✅ [Round 2 Complete] Resolved {self.stats['round2_hits']} entities from paper text." if is_en else f"✅ [Round 2 完成] 文献回溯成功破解 {self.stats['round2_hits']} 个实体。")
+                log(f"✅ [Stage 3 Complete] Resolved {self.stats['round2_hits']} entities from paper text." if is_en else f"✅ [阶段三完成] 文献全文溯源成功解析 {self.stats['round2_hits']} 个实体。")
 
             # === Round 3: 通用常识兜底 (ThreadPoolExecutor 并发) ===
             if enable_round3_world and self.llm_agent:
                 r3_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r3 = len(r3_candidates)
-                log(f"🌐 [Round 3: World Knowledge Fallback] {total_r3} candidates queued for domain knowledge reasoning..." if is_en else f"🌐 [Round 3: 通用生物医学常识兜底] 共有 {total_r3} 个未决实体尝试领域常识研判...")
+                log(f"🌐 [Stage 4: Domain Prior Knowledge] {total_r3} candidates queued for biomedical knowledge reasoning..." if is_en else f"🌐 [阶段四: 全局先验研判] 共有 {total_r3} 个待决实体进入领域先验知识综合研判...")
 
                 r3_lock = threading.Lock()
                 r3_done = 0
@@ -1013,7 +1013,7 @@ class WorkbenchAnalysisEngine:
                             if progress_callback:
                                 progress_callback(
                                     0.6 + 0.15 * (r3_done / max(1, total_r3)),
-                                    f"Round 3 World Knowledge ({r3_done}/{total_r3}): {node}" if is_en else f"Round 3 常识研判 ({r3_done}/{total_r3}): {node}"
+                                    f"Domain Knowledge ({r3_done}/{total_r3}): {node}" if is_en else f"领域先验研判 ({r3_done}/{total_r3}): {node}"
                                 )
                             cat = res.get("primary_type")
                             valid_cats = self.ontology.get("entity_categories", {})
@@ -1032,7 +1032,7 @@ class WorkbenchAnalysisEngine:
                                     "status": "uncertain"
                                 }
 
-                log(f"✅ [Round 3 Complete] Resolved {self.stats['round3_hits']} entities via world knowledge." if is_en else f"✅ [Round 3 完成] 领域常识兜底解析出 {self.stats['round3_hits']} 个实体。")
+                log(f"✅ [Stage 4 Complete] Resolved {self.stats['round3_hits']} entities via domain prior knowledge." if is_en else f"✅ [阶段四完成] 领域先验知识研判成功解析 {self.stats['round3_hits']} 个实体。")
 
         # ----------------------------------------------------
         # 阶段 B: 关系机制深层分析与机制动词归纳 (ThreadPoolExecutor 并发)
