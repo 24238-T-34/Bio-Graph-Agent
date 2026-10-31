@@ -2237,16 +2237,77 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         if rsn:
                             st.caption(f"💡 {rsn}")
 
-        # 5. 拓扑画布展示
+        # 5. 拓扑画布展示与结果导出
         st.markdown("---")
         st.markdown(t("wb_canvas_title"))
+
+        wb_html_data = ""
         if os.path.exists(wb_html_file):
             try:
                 with open(wb_html_file, "r", encoding="utf-8") as f:
-                    wb_html = f.read()
-                components.html(wb_html, height=800, scrolling=True)
+                    wb_html_data = f.read()
             except Exception as e:
                 st.error(f"Error loading workbench html: {e}")
+
+        # 准备工作台导出数据 (包含本体分类与深层机制注解)
+        wb_ents_list = []
+        for e in ents:
+            item = dict(e)
+            sname = e.get("standard_name")
+            annot = ent_annots.get(sname, {})
+            item["primary_type"] = annot.get("primary_type", "Uncertain")
+            item["sub_type"] = annot.get("sub_type", "")
+            item["tags"] = annot.get("tags", [])
+            item["confidence"] = annot.get("confidence", 0.0)
+            item["reasoning"] = annot.get("reasoning", "")
+            item["round"] = annot.get("round", "")
+            wb_ents_list.append(item)
+
+        wb_entities_json = json.dumps(wb_ents_list, ensure_ascii=False, indent=2)
+
+        df_wb_entities = pd.DataFrame(wb_ents_list)
+        if 'aliases' in df_wb_entities.columns:
+            df_wb_entities['aliases'] = df_wb_entities['aliases'].apply(
+                lambda x: ", ".join(x) if isinstance(x, list) else x)
+        if 'tags' in df_wb_entities.columns:
+            df_wb_entities['tags'] = df_wb_entities['tags'].apply(
+                lambda x: ", ".join(x) if isinstance(x, list) else x)
+        csv_wb_entities = df_wb_entities.to_csv(index=False).encode('utf-8')
+
+        wb_rels_list = []
+        for r in rels:
+            item = dict(r)
+            src = r.get("source")
+            tgt = r.get("target")
+            rel = r.get("relation", "相关")
+            k = f"{src}|{tgt}|{rel}"
+            annot = rel_annots.get(k, {})
+            item["mechanism_category"] = annot.get("mechanism_category", "")
+            item["mechanism_verb"] = annot.get("mechanism_verb", rel)
+            item["confidence"] = annot.get("confidence", 0.0)
+            item["reasoning"] = annot.get("reasoning", "")
+            item["round"] = annot.get("round", "")
+            wb_rels_list.append(item)
+
+        df_wb_relations = pd.DataFrame(wb_rels_list)
+        csv_wb_relations = df_wb_relations.to_csv(index=False).encode('utf-8') if not df_wb_relations.empty else b""
+
+        wb_exp_col1, wb_exp_col2, wb_exp_col3, wb_exp_col4 = st.columns(4)
+        with wb_exp_col1:
+            st.download_button(t("btn_export_ent_json"), wb_entities_json, "bio_entities.json", "application/json",
+                               width="stretch", key="wb_dl_ent_json")
+        with wb_exp_col2:
+            st.download_button(t("btn_export_ent_csv"), csv_wb_entities, "bio_entities.csv", "text/csv",
+                               width="stretch", key="wb_dl_ent_csv")
+        with wb_exp_col3:
+            st.download_button(t("btn_export_rel_csv"), csv_wb_relations, "bio_relations.csv", "text/csv",
+                               width="stretch", key="wb_dl_rel_csv")
+        with wb_exp_col4:
+            st.download_button(t("btn_export_graph_html"), wb_html_data, "bio_graph.html", "text/html",
+                               width="stretch", key="wb_dl_graph_html")
+
+        if wb_html_data:
+            components.html(wb_html_data, height=800, scrolling=True)
 
         # 6. 人工专家调换工作台 (Human-in-the-Loop)
         st.markdown("---")
