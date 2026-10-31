@@ -991,14 +991,125 @@ class PathwayDecompositionEngine:
 
         return sorted(list(clean_docs))
 
+    def _fallback_text_match_score(self, node_name: str, user_query: str) -> float:
+        """纯文本匹配保底评分 (范围 0.0 ~ 5.0)"""
+        if not user_query or not node_name:
+            return 0.0
+        q_clean = user_query.strip().lower()
+        n_clean = node_name.strip().lower()
+        if n_clean == q_clean:
+            return 5.0
+        if n_clean in q_clean or q_clean in n_clean:
+            return 4.0
+        q_tokens = [w for w in re.split(r'[\s,，、;；。.!！?？]+', q_clean) if len(w) >= 2]
+        if any(tok in n_clean for tok in q_tokens):
+            return 2.5
+        return 0.0
+
+    def _llm_batch_score_nodes(self,
+                               candidate_nodes: List[Dict[str, Any]],
+                               user_query: str,
+                               language: str = "zh") -> Dict[str, Dict[str, Any]]:
+        """
+        利用大模型对候选节点进行自然语言假说意图相关性与生物学角色偏好综合评分 (范围 0.0 ~ 5.0)
+        - 核心语义关联度: 0.0 ~ 3.5 分
+        - 关键情境角色偏好 (疾病/表型/靶点/药物/关键调节因子): 0.0 ~ 1.5 分
+        - 未提及节点默认打分 0.0
+        """
+        if not self.llm_agent or not user_query or not candidate_nodes:
+            return {}
+
+        is_en = "en" in str(language).lower()
+
+        # 构建紧凑的节点列表文本
+        node_lines = []
+        for c in candidate_nodes[:80]:  # 限制在前 80 个高连通度实体，确保 prompt 精炼
+            n_name = c["name"]
+            cat = c.get("primary_type", "Uncertain")
+            sub = c.get("sub_type", "")
+            deg = c.get("degree", 0)
+            type_str = f"{cat}/{sub}".strip("/") if sub else cat
+            node_lines.append(f"- {n_name} [类型: {type_str}, 连接度: {deg}]" if not is_en else f"- {n_name} [Type: {type_str}, Degree: {deg}]")
+
+        nodes_text = "\n".join(node_lines)
+
+        if is_en:
+            sys_prompt = (
+                "You are an expert systems biologist and computational medicine specialist. "
+                "The researcher provides a scientific research inquiry or hypothesis, and a list of entities extracted from a knowledge graph.\n"
+                "Your task is to evaluate and score which entities are relevant to the researcher's query.\n\n"
+                "【Scoring Criteria (Total: 0.0 to 5.0)】:\n"
+                "1. Semantic & Mechanistic Relevance (0.0 - 3.5 pts): How directly does this entity relate to the queried biological question, process, or pathology?\n"
+                "2. Contextual Role Preference (0.0 - 1.5 pts): Dynamically elevate key functional anchors for this specific inquiry (e.g. disease phenotypes, drug targets, critical enzymes/transcription factors, virulence factors).\n"
+                "Total score must be between 0.0 and 5.0.\n\n"
+                "【Output Format】:\n"
+                "Return strictly a single JSON object mapping ONLY the relevant entities (score >= 1.0). Omit irrelevant entities (default to 0.0):\n"
+                "{\n"
+                "  \"EntityName\": {\"score\": 4.5, \"role\": \"Direct pathological endpoint or key regulator\"}\n"
+                "}"
+            )
+            user_prompt = (
+                f"【Researcher's Focus/Inquiry】: {user_query}\n\n"
+                f"【Candidate Entities】:\n{nodes_text}\n\n"
+                "Please output the JSON ranking relevant entities:"
+            )
+        else:
+            sys_prompt = (
+                "你是一位资深的系统生物学与计算分子医学专家。学者提出了一项科学假说或探索重点，你需要从给出的图谱候选实体中，"
+                "评估哪些实体与学者的探索假说高度相关，并评定其作为通路关键锚点的优先级。\n\n"
+                "【评分标准 (总分 0.0 ~ 5.0 分)】：\n"
+                "1. 假说机理相关性 (0.0 ~ 3.5 分)：该实体是否处于学者探索意图的核心因果链上（如上下游分子、生理过程、靶点）？\n"
+                "2. 动态情境角色偏好 (0.0 ~ 1.5 分)：根据本次研究问题的具体侧重点，天然倾斜重点生物学角色（若探究致病机理则侧重关键毒力因子/疾病表型；若探究药物机制则侧重药物/靶点激酶；若探究信号转导则侧重核心受体/转录因子）。\n"
+                "满分为 5.0 分。\n\n"
+                "【输出格式要求】：\n"
+                "仅需对得分 >= 1.0 的相关实体进行评分（无关实体无需输出，系统默认赋 0.0）。严格输出唯一的合法 JSON 对象：\n"
+                "{\n"
+                "  \"实体名称\": {\"score\": 4.5, \"role\": \"核心病理表型 / 关键上游调控因子\"}\n"
+                "}"
+            )
+            user_prompt = (
+                f"【学者探索重点/假说】: {user_query}\n\n"
+                f"【候选图谱实体列表】:\n{nodes_text}\n\n"
+                "请严格按照 JSON 格式输出相关实体评分："
+            )
+
+        try:
+            raw_resp = self.llm_agent._ask_llm(sys_prompt, user_prompt)
+            parsed = self._parse_llm_json(raw_resp)
+            if parsed and isinstance(parsed, dict):
+                cleaned_scores = {}
+                for k, v in parsed.items():
+                    if isinstance(v, dict):
+                        sc = float(v.get("score", 0.0))
+                        role = str(v.get("role", ""))
+                    elif isinstance(v, (int, float)):
+                        sc = float(v)
+                        role = ""
+                    else:
+                        continue
+                    sc = max(0.0, min(5.0, sc))
+                    if sc > 0:
+                        cleaned_scores[k] = {"score": sc, "role": role}
+                return cleaned_scores
+        except Exception as e:
+            print(f"⚠️ [PathwayDecompositionEngine] LLM 批处理节点评分异常: {e}")
+
+        return {}
+
     def score_candidate_seeds(self,
                               entities: List[Dict[str, Any]],
                               relations: List[Dict[str, Any]],
                               user_query: str = "",
-                              max_seeds: int = 15) -> List[Tuple[str, float, Dict[str, Any]]]:
+                              max_seeds: int = 15,
+                              language: str = "zh") -> List[Tuple[str, float, Dict[str, Any]]]:
         """
-        多维综合评分候选节点发现 (Multi-Criteria Node Scoring)
-        综合考量有向度数、介数中心度、生物学类别软先验与意图关键词提权
+        大模型与图论混合双轨评分候选节点发现 (LLM & Graph-Theory Hybrid Node Scoring)
+        - 图论拓扑基础分 (0.0 ~ 5.0): deg_norm (0~2.5) + bet_norm (0~2.5)
+        - 若有 user_query:
+          - LLM 语义与情境角色打分 (0.0 ~ 5.0)
+          - 总分 = graph_score + llm_score (理论满分 10.0)
+        - 若 user_query 为空:
+          - 全局自主模式，使用纯图论拓扑分 + 基础本体先验权重
         """
         if not relations:
             return []
@@ -1022,48 +1133,83 @@ class PathwayDecompositionEngine:
         except Exception:
             betweenness_dict = {}
 
-        q_terms = [w.lower() for w in re.split(r'[\s,，、;；。.!！?？]+', user_query) if len(w) >= 2]
-        query_lower = user_query.strip().lower()
+        candidate_nodes_meta = []
+        for n in G.nodes():
+            cat_annot = self.entity_annotations.get(n, {})
+            primary_type = str(cat_annot.get("primary_type", "Uncertain"))
+            sub_type = str(cat_annot.get("sub_type", ""))
+            candidate_nodes_meta.append({
+                "name": n,
+                "primary_type": primary_type,
+                "sub_type": sub_type,
+                "degree": deg_dict.get(n, 0)
+            })
+
+        candidate_nodes_meta.sort(key=lambda x: x["degree"], reverse=True)
+
+        user_query_clean = user_query.strip()
+        llm_scores = {}
+        if user_query_clean and self.llm_agent:
+            llm_scores = self._llm_batch_score_nodes(candidate_nodes_meta, user_query_clean, language=language)
 
         scores = []
         for n in G.nodes():
             deg_val = deg_dict.get(n, 0)
             deg_norm = (deg_val / max_deg) * 2.5
             bet_norm = betweenness_dict.get(n, 0.0) * 2.5
+            graph_score = deg_norm + bet_norm  # [0.0, 5.0]
 
             cat_annot = self.entity_annotations.get(n, {})
             primary_type = str(cat_annot.get("primary_type", "")).lower()
             sub_type = str(cat_annot.get("sub_type", "")).lower()
             combined_type = f"{primary_type} {sub_type}"
 
-            cat_weight = 0.0
-            if any(k in combined_type for k in ["疾病", "disease", "表型", "phenotype", "pathology", "cancer", "tumor", "syndrome", "死", "凋亡", "自噬"]):
-                cat_weight += 2.0
-            elif any(k in combined_type for k in ["药物", "drug", "化学", "chemical", "small molecule", "compound", "inhibitor", "agonist"]):
-                cat_weight += 1.8
-            elif any(k in combined_type for k in ["激酶", "kinase", "受体", "receptor", "转录因子", "transcription factor"]):
-                cat_weight += 1.6
-            elif any(k in combined_type for k in ["基因", "gene", "蛋白", "protein"]):
-                cat_weight += 1.2
-            elif any(k in combined_type for k in ["过程", "process", "通路", "pathway"]):
-                cat_weight += 1.4
+            if user_query_clean:
+                # 模式 B: 焦点导向定向模式 (Targeted Mode)
+                llm_item = llm_scores.get(n, {})
+                llm_val = float(llm_item.get("score", 0.0))
+                llm_role = str(llm_item.get("role", ""))
 
-            query_boost = 0.0
-            if query_lower:
-                n_lower = n.lower()
-                if n_lower in query_lower or query_lower in n_lower:
-                    query_boost += 3.5
-                elif any(term in n_lower for term in q_terms):
-                    query_boost += 2.0
+                # 如果 LLM 未返回任何结果（如断网或模型故障），执行保底文本匹配
+                if not llm_scores:
+                    llm_val = self._fallback_text_match_score(n, user_query_clean)
+                    if llm_val > 0:
+                        llm_role = "文本模糊匹配保底"
 
-            total_score = deg_norm + bet_norm + cat_weight + query_boost
-            meta = {
-                "degree": deg_val,
-                "betweenness": betweenness_dict.get(n, 0.0),
-                "primary_type": cat_annot.get("primary_type", "Uncertain"),
-                "cat_weight": cat_weight,
-                "query_boost": query_boost
-            }
+                total_score = graph_score + llm_val  # [0.0, 10.0]
+                meta = {
+                    "degree": deg_val,
+                    "betweenness": betweenness_dict.get(n, 0.0),
+                    "primary_type": cat_annot.get("primary_type", "Uncertain"),
+                    "graph_score": round(graph_score, 3),
+                    "llm_score": round(llm_val, 3),
+                    "llm_role": llm_role,
+                    "mode": "targeted"
+                }
+            else:
+                # 模式 A: 全局自主涌现模式 (Global Emergent Mode)
+                cat_weight = 0.0
+                if any(k in combined_type for k in ["疾病", "disease", "表型", "phenotype", "pathology", "cancer", "tumor", "syndrome", "死", "凋亡", "自噬"]):
+                    cat_weight += 2.0
+                elif any(k in combined_type for k in ["药物", "drug", "化学", "chemical", "small molecule", "compound", "inhibitor", "agonist"]):
+                    cat_weight += 1.8
+                elif any(k in combined_type for k in ["激酶", "kinase", "受体", "receptor", "转录因子", "transcription factor"]):
+                    cat_weight += 1.6
+                elif any(k in combined_type for k in ["基因", "gene", "蛋白", "protein"]):
+                    cat_weight += 1.2
+                elif any(k in combined_type for k in ["过程", "process", "通路", "pathway"]):
+                    cat_weight += 1.4
+
+                total_score = graph_score + cat_weight
+                meta = {
+                    "degree": deg_val,
+                    "betweenness": betweenness_dict.get(n, 0.0),
+                    "primary_type": cat_annot.get("primary_type", "Uncertain"),
+                    "graph_score": round(graph_score, 3),
+                    "cat_weight": cat_weight,
+                    "mode": "global"
+                }
+
             scores.append((n, total_score, meta))
 
         scores.sort(key=lambda x: x[1], reverse=True)
@@ -1138,18 +1284,20 @@ class PathwayDecompositionEngine:
                                 upstream.append(p2)
             cascade_nodes.update(upstream[:4])
 
-            # 约束节点规模在 4~10 个之间
-            if len(cascade_nodes) < 3:
-                # 补充与其它高分种子的有向最短路径
-                for other in seeds:
-                    if other != seed and other in G_dir and len(cascade_nodes) < 7:
+            # 若处于定向探索模式或节点规模偏小，优先打通与其它高分焦点种子之间的有向最短路径
+            max_connect_limit = 8 if user_query else 6
+            if len(cascade_nodes) < max_connect_limit:
+                for other in seeds[:6]:
+                    if other != seed and other in G_dir and len(cascade_nodes) < 10:
                         try:
                             if nx.has_path(G_dir, seed, other):
                                 p = nx.shortest_path(G_dir, seed, other, weight="weight")
-                                cascade_nodes.update(p)
+                                if len(p) <= 4:
+                                    cascade_nodes.update(p)
                             elif nx.has_path(G_dir, other, seed):
                                 p = nx.shortest_path(G_dir, other, seed, weight="weight")
-                                cascade_nodes.update(p)
+                                if len(p) <= 4:
+                                    cascade_nodes.update(p)
                         except Exception:
                             pass
 
@@ -1371,6 +1519,7 @@ class PathwayDecompositionEngine:
             loops_desc.append(f"- 有向闭环: {lp.get('cycle_str')} [{ltype}]")
 
         if is_en:
+            focus_instruction = f"\n3. Since a specific user inquiry is provided ('{user_query}'), strictly center the scholarly title and mechanism narrative on elucidating how this subnetwork addresses, regulates, or mediates that biological process." if user_query else ""
             sys_prompt = (
                 "You are an expert in systems biology and molecular oncology. "
                 "You will be given an exact biological subnetwork module induced from a validated knowledge graph. "
@@ -1379,6 +1528,7 @@ class PathwayDecompositionEngine:
                 "(e.g. '$\\text{CRL5}^{\\text{SOCS4}}$-mediated ubiquitination pathway and neurodegeneration resistance'). "
                 "2. A concise 2-3 sentence executive summary explaining the molecular mechanism. "
                 "If a feedback loop is verified in the network, briefly discuss its dynamic role (homeostasis or bistable switch). "
+                f"{focus_instruction}\n"
                 "Do NOT invent or fabricate any relations not present in the graph."
             )
             user_prompt = (
@@ -1395,6 +1545,7 @@ class PathwayDecompositionEngine:
                 "}"
             )
         else:
+            focus_instruction = f"\n3. 学者指定了明确的研究焦点（'{user_query}'），请务必以此为核心视角，在学术命名与机制解读中深入阐明该子网络如何介导或调控该生物学/病理过程。" if user_query else ""
             sys_prompt = (
                 "你是一位资深的系统生物学与分子医学专家。你将接收从权威知识图谱中严格诱导出的局部生物机制子网络。"
                 "你的任务是：\n"
@@ -1402,6 +1553,7 @@ class PathwayDecompositionEngine:
                 "（如：$\\text{CRL5}^{\\text{SOCS4}}$ 介导的泛素化降解途径与神经退行抗性、$\\text{AMPK-mTOR}$ 介导的自噬调控轴）；\n"
                 "2. 用 2~3 句话精炼阐明该通路的分子传导逻辑与生理/病理意义；"
                 "如果给出的数据中检测到了真实的自反馈调节闭环，请在此适度剖析其自稳态或自促进效应。\n"
+                f"{focus_instruction}\n"
                 "⚠️ 严格禁止无中生有或捏造不存在的关系，节点与关系必须以给定数据为准！"
             )
             user_prompt = (
@@ -1483,11 +1635,19 @@ class PathwayDecompositionEngine:
             prog(1.0, "分析完成 (无有效通路)" if not is_en else "Completed (No relations)")
             return []
 
-        # 1. 种子节点多维打分与挑选
-        prog(0.15, "正在计算多维节点重要性得分..." if not is_en else "Computing multi-criteria node importance scores...")
-        seed_scores = self.score_candidate_seeds(entities, relations, user_query=user_query, max_seeds=18)
+        # 1. 种子节点多维打分与挑选 (大模型语义与图论混合双轨)
+        if user_query and self.llm_agent:
+            prog(0.12, "正在调用大模型进行假说意图相关性与生物角色智能打分..." if not is_en else "Invoking LLM to score node relevance and role preferences...")
+        else:
+            prog(0.12, "正在计算多维节点图论重要性得分..." if not is_en else "Computing multi-criteria graph importance scores...")
+
+        seed_scores = self.score_candidate_seeds(entities, relations, user_query=user_query, max_seeds=18, language=language)
         seed_names = [s[0] for s in seed_scores]
-        log(f"🎯 成功挑选出 {len(seed_names)} 个核心候选种子实体: {', '.join(seed_names[:8])}..." if not is_en else f"🎯 Identified {len(seed_names)} candidate seeds: {', '.join(seed_names[:8])}...")
+        if user_query:
+            top_scored_str = ", ".join([f"{s[0]}({s[1]:.1f}分)" for s in seed_scores[:6]])
+            log(f"🧠 [混合打分] 成功识别假说相关实体并排定种子优先级: {top_scored_str}" if not is_en else f"🧠 [Hybrid Scoring] Identified focus seeds: {top_scored_str}")
+        else:
+            log(f"🎯 成功挑选出 {len(seed_names)} 个核心候选种子实体: {', '.join(seed_names[:8])}..." if not is_en else f"🎯 Identified {len(seed_names)} candidate seeds: {', '.join(seed_names[:8])}...")
 
         # 2. 严格基于已知大图谱有向调控边诱导子图
         prog(0.30, "正在沿有向调控级联诱导真实子图..." if not is_en else "Inducing directed subgraphs along verified cascades...")
