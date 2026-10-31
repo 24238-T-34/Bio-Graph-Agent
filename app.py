@@ -1582,6 +1582,53 @@ UI_TEXT = {
     "btn_explain_edge": {"zh": "✨ 让 AI 深度解读该连线", "en": "✨ Let AI deeply explain this edge"},
     "msg_analyzing_edge": {"zh": "🧠 正在分析连线机制并生成解读...", "en": "🧠 Analyzing edge mechanism and generating explanation..."},
     "report_edge_title": {"zh": "### 📝 AI 连线机制解读报告", "en": "### 📝 AI Edge Mechanism Explanation Report"},
+    # 📊 图谱分析工作台 (Workbench i18n)
+    "wb_nav_bottom_btn": {"zh": "📊 前往图谱分析工作台 (实体与关系机制深度解析) ➔", "en": "📊 Open Graph Analysis Workbench (Entities & Mechanisms) ➔"},
+    "wb_btn_top_return": {"zh": "⬅️ 返回主图谱工作区", "en": "⬅️ Return to Main Workspace"},
+    "wb_title": {"zh": "📊 图谱分析工作台 (Graph Analysis Workbench)", "en": "📊 Graph Analysis Workbench"},
+    "wb_caption": {"zh": "🔬 支持基于 NIH BioRED 等多套本体预设的四级升级研判（0-Token初筛 ➔ 微上下文 ➔ 原文回溯 ➔ 常识兜底）、稀疏动态指标大盘与专家交互式调换。", "en": "🔬 Multi-tier escalation analysis (0-Token Rules ➔ Micro-Context ➔ In-Paper Regex ➔ World Knowledge) with authoritative ontologies, dynamic sparse dashboards, and expert curation."},
+    "wb_project_info": {"zh": "🗂️ 当前工程: **{name}** (`{id}`) | 实体总数: **{ents}** | 关系总数: **{rels}**", "en": "🗂️ Current Project: **{name}** (`{id}`) | Total Entities: **{ents}** | Total Relations: **{rels}**"},
+    "wb_warn_no_data": {"zh": "⚠️ 当前工程暂无图谱数据。请先返回主工作区上传解析文献或导入已有工程。", "en": "⚠️ No graph data in current project. Please return to the main workspace to upload papers or import a project first."},
+    "wb_base_graph_preview": {"zh": "🗺️ 查看基础图谱拓扑全景 (Base Graph Preview)", "en": "🗺️ Base Knowledge Graph Topology Preview"},
+    "wb_no_base_graph": {"zh": "暂无基础图谱拓扑数据", "en": "No base graph topology data available yet"},
+    "wb_config_title": {"zh": "⚙️ 分析预设与流水线控制", "en": "⚙️ Ontology Presets & Pipeline Control"},
+    "wb_preset_select": {"zh": "📚 选择分析本体预设体系", "en": "📚 Select Ontology Preset"},
+    "wb_custom_preset_upload": {"zh": "📥 导入自定义本体 JSON (可选)", "en": "📥 Import Custom Ontology JSON (Optional)"},
+    "wb_custom_preset_success": {"zh": "已成功加载并保存自定义预设: {name}", "en": "Successfully loaded and saved custom preset: {name}"},
+    "wb_custom_preset_invalid": {"zh": "JSON 格式不合法：缺少 entity_categories 字段", "en": "Invalid JSON format: missing entity_categories field"},
+    "wb_chk_entities": {"zh": "🧬 开启实体分级分类分析", "en": "🧬 Enable Entity Categorization"},
+    "wb_chk_relations": {"zh": "🔗 开启关系机制动词归纳", "en": "🔗 Enable Relation Mechanism Distillation"},
+    "wb_chk_force": {"zh": "🔄 忽略已有缓存强制全量重算", "en": "🔄 Force Full Re-analysis (Bypass Cache)"},
+    "wb_esc_title": {"zh": "⚙️ 分级升级机制高级配置 (4-Tier Escalation Settings)", "en": "⚙️ Advanced 4-Tier Escalation Settings"},
+    "wb_esc_r0": {"zh": "⚡ Round 0: 快速规则词缀预分流 (0 Token, 毫秒级初筛)", "en": "⚡ Round 0: Fast Rule Suffix Pre-Filter (0 Token, Sub-millisecond)"},
+    "wb_esc_r1": {"zh": "🧠 Round 1: 拓扑微上下文深度推理 (邻居三元组与提取证据)", "en": "🧠 Round 1: Topological Micro-Context Reasoning (Triples & Evidence)"},
+    "wb_esc_r2": {"zh": "📖 Round 2: 文献原文正则精准回溯 (针对顽固实体提取原文关键句)", "en": "📖 Round 2: Targeted In-Paper Regex Re-fetch (Key Sentence Grounding)"},
+    "wb_esc_r3": {"zh": "🌐 Round 3: 领域通用生物医学常识兜底 (大模型背景常识最终研判)", "en": "🌐 Round 3: Biomedical Domain World Knowledge Fallback"},
+    "wb_btn_start_run": {"zh": "🚀 启动/更新图谱分析工作台", "en": "🚀 Run / Update Graph Analysis Workbench"},
+    "wb_btn_rerender_canvas": {"zh": "🎨 仅重新渲染工作台画布", "en": "🎨 Re-render Workbench Canvas Only"},
+    "wb_metrics_title": {"zh": "### 📈 工作台科学指标大盘", "en": "### 📈 Workbench Scientific Metrics Dashboard"},
+    "wb_metric_total": {"zh": "📊 实体总数", "en": "📊 Total Entities"},
+    "wb_metric_resolved": {"zh": "✅ 已解析实体", "en": "✅ Resolved Entities"},
+    "wb_metric_uncertain": {"zh": "❓ 待定/未分类", "en": "❓ Uncertain / Pending"},
+    "wb_metric_relations": {"zh": "🔗 机制关系数", "en": "🔗 Mechanism Relations"},
+    "wb_sec_ent_dist": {"zh": "#### 🧬 实体分类分布 (稀疏展示: 数量 > 0)", "en": "#### 🧬 Entity Category Distribution (Sparse: Count > 0)"},
+    "wb_sec_rel_dist": {"zh": "#### 🔗 关系机制分布 (稀疏展示: 数量 > 0)", "en": "#### 🔗 Relation Mechanism Distribution (Sparse: Count > 0)"},
+    "wb_canvas_title": {"zh": "### 🌐 工作台科学拓扑图 (科学层级多形态机制图谱)", "en": "### 🌐 Workbench Scientific Multi-Shape Topology Graph"},
+    "wb_not_analyzed_hint": {"zh": "💡 尚未执行工作台分级深度解析。请在上方选择本体预设并点击【🚀 启动/更新图谱分析工作台】开始解析。", "en": "💡 Deep workbench analysis has not been executed yet. Select an ontology preset above and click [🚀 Run / Update Graph Analysis Workbench] to begin."},
+    "wb_override_title": {"zh": "### 🛠️ 专家人工分类与机制调换工作台 (Human-in-the-Loop)", "en": "### 🛠️ Scholar Manual Override Console (Human-in-the-Loop)"},
+    "wb_override_caption": {"zh": "支持学者对自动推理的实体分类与关系机制动词进行精细修正，修改后即时更新缓存与拓扑图。", "en": "Allows researchers to curate and override entity classifications and relation mechanisms with immediate cache & canvas updates."},
+    "wb_tab_ent_override": {"zh": "🧬 实体分类手动调换 (Entity Override)", "en": "🧬 Entity Reclassification"},
+    "wb_tab_rel_override": {"zh": "🔗 关系机制手动调换 (Relation Override)", "en": "🔗 Relation Mechanism Override"},
+    "wb_sel_ent_lbl": {"zh": "选择待调整的实体", "en": "Select Entity to Adjust"},
+    "wb_target_cat_lbl": {"zh": "调换目标类别", "en": "Target Category"},
+    "wb_sub_type_lbl": {"zh": "细分子类 / 具体功能 (可选)", "en": "Sub-type / Function (Optional)"},
+    "wb_reason_lbl": {"zh": "学者调换备注", "en": "Curation Note / Reason"},
+    "wb_btn_save_ent": {"zh": "💾 确认调换实体分类并即时更新", "en": "💾 Save & Reclassify Entity"},
+    "wb_sel_rel_lbl": {"zh": "选择待调整的关系连线", "en": "Select Relation Edge to Adjust"},
+    "wb_target_relcat_lbl": {"zh": "调换目标机制类别", "en": "Target Mechanism Category"},
+    "wb_verb_lbl": {"zh": "提炼机制谓词动词 (如: 催化磷酸化, 竞争性抑制)", "en": "Mechanism Verb (e.g. Phosphorylates, Inhibits)"},
+    "wb_btn_save_rel": {"zh": "💾 确认调换关系机制并即时更新", "en": "💾 Save & Override Mechanism"},
+    "wb_btn_bottom_return": {"zh": "⬅️ 返回主图谱构建工作区", "en": "⬅️ Return to Main Graph Workspace"},
 }
 
 
@@ -1640,6 +1687,37 @@ if not st.session_state.get("current_project_id"):
 
 # append_mode = True
 # ==========================================
+
+def render_sidebar_history_docs():
+    """在侧边栏持久化展示当前工程的历史分析文献列表与下载按钮 (无论处于哪个视图均稳定渲染)"""
+    cur_files = st.session_state.get("analyzed_files", [])
+    st.markdown("---")
+    st.header(t("history_sidebar_title"))
+    if not cur_files:
+        st.info(t("history_no_docs"))
+    else:
+        for fname in cur_files:
+            fpath = find_project_paper(fname)
+            if fpath and os.path.exists(fpath):
+                try:
+                    with open(fpath, "rb") as f:
+                        f_bytes = f.read()
+                    st.download_button(
+                        label=f"📄 {fname}",
+                        data=f_bytes,
+                        file_name=os.path.basename(fpath),
+                        mime="application/pdf",
+                        key=f"history_sb_{fname}_{st.session_state.get('current_view', 'main')}",
+                        width="stretch"
+                    )
+                except Exception as e:
+                    st.caption(f"📄 {fname}")
+            else:
+                if is_pmid_or_virtual_source(fname):
+                    st.caption(f"🌐 {fname}")
+                else:
+                    st.caption(f"📄 {fname} ({t('doc_file_missing')})")
+
 # 侧边栏配置：核心 API 和模型选择
 # ==========================================
 
@@ -1825,6 +1903,7 @@ with st.sidebar:
             st.markdown(t("contact_desc"))
             st.link_button(t("contact_github"), "https://github.com/24238-T-34/Bio-Graph-Agent", use_container_width=True)
             st.caption(t("contact_email"))
+        render_sidebar_history_docs()
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n...")
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nit's a bug\nif you see this")
 
@@ -1853,21 +1932,23 @@ def get_project_paper_full_texts(project_id: str) -> dict:
 
 
 def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: str):
-    """图谱分析工作台独立视图渲染 (Graph Analysis Workbench)"""
+    """图谱分析工作台独立视图渲染 (Graph Analysis Workbench) - 完整双语国际化与条件渲染"""
     from workbench_engine import OntologyManager, WorkbenchAnalysisEngine
     from IO_SYS import GraphVisualizer
     from collections import Counter
 
+    is_en = "en" in str(st.session_state.get("ui_language", "zh")).lower()
+
     # 1. 顶部返回导航栏与标题
     col_back1, col_back2 = st.columns([1, 4])
     with col_back1:
-        if st.button("⬅️ 返回主图谱工作区", key="btn_wb_top_return", width="stretch"):
+        if st.button(t("wb_btn_top_return"), key="btn_wb_top_return", width="stretch"):
             st.session_state.current_view = "main"
             st.rerun()
     with col_back2:
-        st.markdown("## 📊 图谱分析工作台 (Graph Analysis Workbench)")
+        st.markdown(f"## {t('wb_title')}")
 
-    st.caption("🔬 支持基于 NIH BioRED 等多套本体预设的四级升级研判（0-Token初筛 ➔ 微上下文 ➔ 原文回溯 ➔ 常识兜底）、稀疏动态指标大盘与专家交互式调换。")
+    st.caption(t("wb_caption"))
 
     proj_id = get_current_project_id()
     proj_name = get_current_project_name()
@@ -1875,13 +1956,36 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     ents = st.session_state.get("master_entities", [])
     rels = st.session_state.get("master_relations", [])
 
-    st.info(f"🗂️ 当前工程: **{proj_name}** (`{proj_id}`) | 实体总数: **{len(ents)}** | 关系总数: **{len(rels)}**")
+    st.info(t("wb_project_info").format(name=proj_name, id=proj_id, ents=len(ents), rels=len(rels)))
 
     if len(ents) == 0:
-        st.warning("⚠️ 当前工程暂无图谱数据。请先返回主工作区上传解析文献或导入已有工程。")
+        st.warning(t("wb_warn_no_data"))
         return
 
-    # 2. 本体预设与分析控制面板
+    # 检查工作台是否已具备分析结果
+    wb_cached = st.session_state.get("workbench_state", {})
+    ent_annots = wb_cached.get("entity_annotations", {})
+    rel_annots = wb_cached.get("relation_annotations", {})
+    wb_html_file = os.path.join(proj_dir, "workbench_graph.html")
+    has_analysis = bool(ent_annots and os.path.exists(wb_html_file))
+
+    # 2. 顶部嵌入基础图谱全景折叠预览 (Point 6)
+    with st.expander(t("wb_base_graph_preview"), expanded=False if has_analysis else True):
+        base_html = st.session_state.get("html_data", "")
+        if not base_html:
+            base_html_path = os.path.join(proj_dir, "graph.html")
+            if os.path.exists(base_html_path):
+                try:
+                    with open(base_html_path, "r", encoding="utf-8") as f:
+                        base_html = f.read()
+                except Exception:
+                    pass
+        if base_html:
+            components.html(base_html, height=480, scrolling=True)
+        else:
+            st.caption(t("wb_no_base_graph"))
+
+    # 3. 本体预设与分析控制面板
     mgr = OntologyManager()
     presets = mgr.list_presets()
     preset_map = {p["name"]: p for p in presets}
@@ -1893,64 +1997,64 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             break
 
     with st.container(border=True):
-        st.markdown("#### ⚙️ 分析预设与流水线控制")
+        st.markdown(f"#### {t('wb_config_title')}")
         col_p1, col_p2 = st.columns([3, 2])
         with col_p1:
-            selected_pname = st.selectbox("📚 选择分析本体预设体系", preset_names, index=default_idx, key="wb_preset_select")
+            selected_pname = st.selectbox(t("wb_preset_select"), preset_names, index=default_idx, key="wb_preset_select")
             selected_preset = preset_map[selected_pname]
             st.caption(f"ℹ️ {selected_preset.get('description', '')}")
         with col_p2:
-            custom_file = st.file_uploader("📥 导入自定义本体 JSON (可选)", type=["json"], key="wb_custom_preset_upload")
+            custom_file = st.file_uploader(t("wb_custom_preset_upload"), type=["json"], key="wb_custom_preset_upload")
             if custom_file:
                 try:
                     custom_data = json.load(custom_file)
                     if "entity_categories" in custom_data:
                         mgr.save_preset(custom_data)
-                        st.success(f"已成功加载并保存自定义预设: {custom_data.get('name', 'Custom')}")
+                        st.success(t("wb_custom_preset_success").format(name=custom_data.get('name', 'Custom')))
                         st.rerun()
                     else:
-                        st.error("JSON 格式不合法：缺少 entity_categories 字段")
+                        st.error(t("wb_custom_preset_invalid"))
                 except Exception as err:
-                    st.error(f"自定义预设解析失败: {err}")
+                    st.error(f"Error: {err}")
 
         c_t1, c_t2, c_t3 = st.columns(3)
         with c_t1:
-            enable_entities = st.checkbox("🧬 开启实体分级分类分析", value=True, key="wb_chk_entities")
+            enable_entities = st.checkbox(t("wb_chk_entities"), value=True, key="wb_chk_entities")
         with c_t2:
-            enable_relations = st.checkbox("🔗 开启关系机制动词归纳", value=True, key="wb_chk_relations")
+            enable_relations = st.checkbox(t("wb_chk_relations"), value=True, key="wb_chk_relations")
         with c_t3:
-            force_reanalyze = st.checkbox("🔄 忽略已有缓存强制全量重算", value=False, key="wb_chk_force")
+            force_reanalyze = st.checkbox(t("wb_chk_force"), value=False, key="wb_chk_force")
 
-        with st.expander("⚙️ 分级升级机制高级配置 (4-Tier Escalation Settings)", expanded=False):
+        with st.expander(t("wb_esc_title"), expanded=False):
             c_r0, c_r1 = st.columns(2)
             c_r2, c_r3 = st.columns(2)
             with c_r0:
-                enable_r0 = st.checkbox("⚡ Round 0: 快速规则词缀预分流 (0 Token, 毫秒级初筛)", value=True, key="wb_esc_r0")
+                enable_r0 = st.checkbox(t("wb_esc_r0"), value=True, key="wb_esc_r0")
             with c_r1:
-                enable_r1 = st.checkbox("🧠 Round 1: 拓扑微上下文深度推理 (邻居三元组与提取证据)", value=True, key="wb_esc_r1")
+                enable_r1 = st.checkbox(t("wb_esc_r1"), value=True, key="wb_esc_r1")
             with c_r2:
-                enable_r2 = st.checkbox("📖 Round 2: 文献原文正则精准回溯 (针对顽固实体提取原文关键句)", value=True, key="wb_esc_r2")
+                enable_r2 = st.checkbox(t("wb_esc_r2"), value=True, key="wb_esc_r2")
             with c_r3:
-                enable_r3 = st.checkbox("🌐 Round 3: 领域通用生物医学常识兜底 (大模型背景常识最终研判)", value=True, key="wb_esc_r3")
+                enable_r3 = st.checkbox(t("wb_esc_r3"), value=True, key="wb_esc_r3")
 
         col_btn1, col_btn2 = st.columns([2, 1])
         with col_btn1:
-            btn_run = st.button("🚀 启动/更新图谱分析工作台", type="primary", key="wb_btn_start_run", width="stretch")
+            btn_run = st.button(t("wb_btn_start_run"), type="primary", key="wb_btn_start_run", width="stretch")
         with col_btn2:
-            btn_rerender = st.button("🎨 仅重新渲染工作台画布", key="wb_btn_rerender_canvas", width="stretch")
+            btn_rerender = st.button(t("wb_btn_rerender_canvas"), key="wb_btn_rerender_canvas", width="stretch")
 
         if btn_run:
             needs_llm = (enable_r1 or enable_r2 or enable_r3 or enable_relations)
             current_key = api_key.strip() if api_key else ""
             if needs_llm and not current_key and "Ollama" not in st.session_state.get("api_provider", ""):
-                st.error("启动大模型推理需要提供有效的 API Key，请在左侧边栏输入。")
+                st.error(t("err_missing_api_key"))
                 st.stop()
 
             from LLM_SYS import BioBrainAgent
             llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url) if needs_llm else None
             paper_texts = get_project_paper_full_texts(proj_id) if enable_r2 else {}
 
-            wb_cached = st.session_state.get("workbench_state", {})
+            concurrency_val = int(st.session_state.get("concurrency_workers", 4))
             engine = WorkbenchAnalysisEngine(
                 llm_agent=llm_agent,
                 ontology=selected_preset,
@@ -1983,6 +2087,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 enable_round2_regex=enable_r2,
                 enable_round3_world=enable_r3,
                 force_reanalyze=force_reanalyze,
+                max_workers=concurrency_val,
                 progress_callback=on_prog,
                 log_callback=on_log
             )
@@ -2007,7 +2112,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             st.rerun()
 
         if btn_rerender:
-            wb_cached = st.session_state.get("workbench_state", {})
             vis = GraphVisualizer()
             wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
             vis.generate_workbench_html(
@@ -2022,194 +2126,141 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             st.toast("工作台画布重新渲染完成！", icon="🎨")
             st.rerun()
 
-    # 3. 动态稀疏指标大盘
-    wb_cached = st.session_state.get("workbench_state", {})
-    ent_annots = wb_cached.get("entity_annotations", {})
-    rel_annots = wb_cached.get("relation_annotations", {})
-    cur_ontology = wb_cached.get("ontology", selected_preset)
-    ent_cat_defs = cur_ontology.get("entity_categories", {})
-    rel_cat_defs = cur_ontology.get("relation_categories", {})
-
-    resolved_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "resolved")
-    uncertain_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "uncertain" or a.get("primary_type") == "Uncertain")
-    analyzed_rel_cnt = len(rel_annots)
-
-    st.markdown("### 📈 工作台科学指标大盘")
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("📊 实体总数", len(ents))
-    m2.metric("✅ 已解析实体", resolved_cnt)
-    m3.metric("❓ 待定/未分类", uncertain_cnt)
-    m4.metric("🔗 机制关系数", analyzed_rel_cnt)
-
-    col_ent_view, col_rel_view = st.columns([1, 1], gap="medium")
-
-    with col_ent_view:
-        st.markdown("#### 🧬 实体分类分布 (稀疏展示: 数量 > 0)")
-        cat_to_nodes = {}
-        for n in ents:
-            sname = n.get("standard_name")
-            cat = ent_annots.get(sname, {}).get("primary_type", "Uncertain")
-            cat_to_nodes.setdefault(cat, []).append(sname)
-
-        sorted_cats = sorted(cat_to_nodes.items(), key=lambda x: len(x[1]), reverse=True)
-        for cat_id, nodes in sorted_cats:
-            c_def = ent_cat_defs.get(cat_id, {})
-            c_lbl = c_def.get("label", cat_id)
-            c_icon = c_def.get("icon", "•")
-            pct = (len(nodes) / max(1, len(ents))) * 100
-            with st.expander(f"{c_icon} {c_lbl} — {len(nodes)} 个实体 ({pct:.1f}%)", expanded=False):
-                for nodename in nodes:
-                    a = ent_annots.get(nodename, {})
-                    sub = a.get("sub_type", "")
-                    rnd = a.get("round", "")
-                    conf = a.get("confidence", 0.0)
-                    rsn = a.get("reasoning", "")
-                    st.markdown(f"**{nodename}**" + (f" `[{sub}]`" if sub else "") + f" *(Round {rnd}, {int(conf*100)}%)*")
-                    if rsn:
-                        st.caption(f"💡 {rsn}")
-
-    with col_rel_view:
-        st.markdown("#### 🔗 关系机制分布 (稀疏展示: 数量 > 0)")
-        mech_to_edges = {}
-        for r in rels:
-            src = r.get("source")
-            tgt = r.get("target")
-            rel = r.get("relation", "相关")
-            k = f"{src}|{tgt}|{rel}"
-            mech_cat = rel_annots.get(k, {}).get("mechanism_category", "未分析")
-            mech_to_edges.setdefault(mech_cat, []).append((src, tgt, rel, k))
-
-        sorted_mechs = sorted(mech_to_edges.items(), key=lambda x: len(x[1]), reverse=True)
-        for mech_id, edge_tuples in sorted_mechs:
-            r_def = rel_cat_defs.get(mech_id, {})
-            r_lbl = r_def.get("label", mech_id)
-            r_icon = r_def.get("icon", "•")
-            with st.expander(f"{r_icon} {r_lbl} — {len(edge_tuples)} 条关系", expanded=False):
-                for src, tgt, rel, k in edge_tuples:
-                    a = rel_annots.get(k, {})
-                    verb = a.get("mechanism_verb", rel)
-                    conf = a.get("confidence", 0.0)
-                    rsn = a.get("reasoning", "")
-                    st.markdown(f"**{src}** ➔ **{tgt}** : `{verb}` *(原: {rel})*")
-                    if rsn:
-                        st.caption(f"💡 {rsn}")
-
-    # 4. 拓扑画布展示
-    st.markdown("---")
-    st.markdown("### 🌐 工作台科学拓扑图 (科学层级多形态机制图谱)")
-    wb_html_file = os.path.join(proj_dir, "workbench_graph.html")
-    if os.path.exists(wb_html_file):
-        with open(wb_html_file, "r", encoding="utf-8") as f:
-            wb_html = f.read()
-        components.html(wb_html, height=800, scrolling=True)
+    # 4. 条件渲染：仅在存在分析结果时展示大盘、画布与调换操作台 (Point 4)
+    if not has_analysis:
+        st.markdown("---")
+        st.info(t("wb_not_analyzed_hint"))
     else:
-        st.info("💡 尚未生成工作台拓扑图。请在上方选择本体预设并点击【🚀 启动/更新图谱分析工作台】。")
+        cur_ontology = wb_cached.get("ontology", selected_preset)
+        ent_cat_defs = cur_ontology.get("entity_categories", {})
+        rel_cat_defs = cur_ontology.get("relation_categories", {})
 
-    # 5. 人工专家调换工作台 (Human-in-the-Loop)
-    st.markdown("---")
-    with st.container(border=True):
-        st.markdown("### 🛠️ 专家人工分类与机制调换工作台 (Human-in-the-Loop)")
-        st.caption("支持学者对自动推理的实体分类与关系机制动词进行精细修正，修改后即时更新缓存与拓扑图。")
-        tab_ent, tab_rel = st.tabs(["🧬 实体分类手动调换 (Entity Override)", "🔗 关系机制手动调换 (Relation Override)"])
+        resolved_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "resolved")
+        uncertain_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "uncertain" or a.get("primary_type") == "Uncertain")
+        analyzed_rel_cnt = len(rel_annots)
 
-        with tab_ent:
-            degrees = Counter()
+        st.markdown(t("wb_metrics_title"))
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(t("wb_metric_total"), len(ents))
+        m2.metric(t("wb_metric_resolved"), resolved_cnt)
+        m3.metric(t("wb_metric_uncertain"), uncertain_cnt)
+        m4.metric(t("wb_metric_relations"), analyzed_rel_cnt)
+
+        col_ent_view, col_rel_view = st.columns([1, 1], gap="medium")
+
+        with col_ent_view:
+            st.markdown(t("wb_sec_ent_dist"))
+            cat_to_nodes = {}
+            for n in ents:
+                sname = n.get("standard_name")
+                cat = ent_annots.get(sname, {}).get("primary_type", "Uncertain")
+                cat_to_nodes.setdefault(cat, []).append(sname)
+
+            sorted_cats = sorted(cat_to_nodes.items(), key=lambda x: len(x[1]), reverse=True)
+            for cat_id, nodes in sorted_cats:
+                c_def = ent_cat_defs.get(cat_id, {})
+                c_lbl = (c_def.get("en_label", cat_id) if is_en else c_def.get("label", cat_id)) or cat_id
+                c_icon = c_def.get("icon", "•")
+                pct = (len(nodes) / max(1, len(ents))) * 100
+                unit_txt = "entities" if is_en else "个实体"
+                with st.expander(f"{c_icon} {c_lbl} — {len(nodes)} {unit_txt} ({pct:.1f}%)", expanded=False):
+                    for nodename in nodes:
+                        a = ent_annots.get(nodename, {})
+                        sub = a.get("sub_type", "")
+                        rnd = a.get("round", "")
+                        conf = a.get("confidence", 0.0)
+                        rsn = a.get("reasoning", "")
+                        st.markdown(f"**{nodename}**" + (f" `[{sub}]`" if sub else "") + f" *(Round {rnd}, {int(conf*100)}%)*")
+                        if rsn:
+                            st.caption(f"💡 {rsn}")
+
+        with col_rel_view:
+            st.markdown(t("wb_sec_rel_dist"))
+            mech_to_edges = {}
             for r in rels:
-                degrees[r.get("source")] += r.get("weight", 1)
-                degrees[r.get("target")] += r.get("weight", 1)
-            all_node_names = sorted([e.get("standard_name") for e in ents if e.get("standard_name")],
-                                    key=lambda n: degrees.get(n, 0), reverse=True)
-
-            col_e1, col_e2 = st.columns([1, 1])
-            with col_e1:
-                sel_node = st.selectbox("选择待调整的实体", all_node_names, key="wb_select_override_node")
-                cur_a = ent_annots.get(sel_node, {})
-                cur_type = cur_a.get("primary_type", "Uncertain")
-                st.caption(f"当前分类: **{cur_type}** | 轮次: `{cur_a.get('round', '未分析')}` | 置信度: `{int(cur_a.get('confidence', 0)*100)}%`")
-                if cur_a.get("reasoning"):
-                    st.caption(f"现有理由: {cur_a.get('reasoning')}")
-
-            with col_e2:
-                cat_keys = list(ent_cat_defs.keys())
-                def_cat_idx = cat_keys.index(cur_type) if cur_type in cat_keys else 0
-                target_cat = st.selectbox("调换目标类别", cat_keys, index=def_cat_idx,
-                                          format_func=lambda k: f"{ent_cat_defs[k].get('icon','')} {ent_cat_defs[k].get('label', k)}",
-                                          key="wb_select_target_cat")
-                target_sub = st.text_input("细分子类 / 具体功能 (可选)", value=cur_a.get("sub_type", ""), key="wb_input_target_sub")
-                target_reason = st.text_input("学者调换备注", value="领域专家手动订正", key="wb_input_target_reason")
-
-            if st.button("💾 确认调换实体分类并即时更新", key="wb_btn_save_ent_override", width="stretch"):
-                cur_state = st.session_state.get("workbench_state", {})
-                if "entity_annotations" not in cur_state:
-                    cur_state["entity_annotations"] = {}
-                cur_state["entity_annotations"][sel_node] = {
-                    "primary_type": target_cat,
-                    "sub_type": target_sub,
-                    "tags": cur_a.get("tags", []),
-                    "confidence": 1.0,
-                    "reasoning": target_reason,
-                    "round": "manual",
-                    "status": "resolved"
-                }
-                st.session_state.workbench_state = cur_state
-                vis = GraphVisualizer()
-                wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
-                vis.generate_workbench_html(
-                    global_entities=ents,
-                    global_relations=rels,
-                    entity_annotations=cur_state.get("entity_annotations", {}),
-                    relation_annotations=cur_state.get("relation_annotations", {}),
-                    ontology=cur_ontology,
-                    output_file=wb_html_path,
-                    output_lang=st.session_state.get("ui_language", "zh")
-                )
-                save_local_vault()
-                st.toast(f"已成功将实体 [{sel_node}] 调换为 [{target_cat}]！", icon="✅")
-                st.rerun()
-
-        with tab_rel:
-            edge_display_list = []
-            edge_key_map = {}
-            for r in rels:
-                s = r.get("source")
-                t = r.get("target")
+                src = r.get("source")
+                tgt = r.get("target")
                 rel = r.get("relation", "相关")
-                k = f"{s}|{t}|{rel}"
-                label = f"{s} ➔ {t} ({rel})"
-                edge_display_list.append(label)
-                edge_key_map[label] = (s, t, rel, k)
+                k = f"{src}|{tgt}|{rel}"
+                mech_cat = rel_annots.get(k, {}).get("mechanism_category", "未分析" if not is_en else "Unanalyzed")
+                mech_to_edges.setdefault(mech_cat, []).append((src, tgt, rel, k))
 
-            if not edge_display_list:
-                st.info("当前图谱尚无关系连线。")
-            else:
-                col_r1, col_r2 = st.columns([1, 1])
-                with col_r1:
-                    sel_edge_lbl = st.selectbox("选择待调整的关系连线", edge_display_list, key="wb_select_override_edge")
-                    s, t, orig_rel, k = edge_key_map[sel_edge_lbl]
-                    cur_ra = rel_annots.get(k, {})
-                    cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
-                    st.caption(f"当前机制类别: **{cur_mech_cat}** | 当前谓词: `{cur_ra.get('mechanism_verb', orig_rel)}`")
-                    if cur_ra.get("reasoning"):
-                        st.caption(f"现有理由: {cur_ra.get('reasoning')}")
+            sorted_mechs = sorted(mech_to_edges.items(), key=lambda x: len(x[1]), reverse=True)
+            for mech_id, edge_tuples in sorted_mechs:
+                r_def = rel_cat_defs.get(mech_id, {})
+                r_lbl = (r_def.get("en_label", mech_id) if is_en else r_def.get("label", mech_id)) or mech_id
+                r_icon = r_def.get("icon", "•")
+                unit_rel = "relations" if is_en else "条关系"
+                with st.expander(f"{r_icon} {r_lbl} — {len(edge_tuples)} {unit_rel}", expanded=False):
+                    for src, tgt, rel, k in edge_tuples:
+                        a = rel_annots.get(k, {})
+                        verb = a.get("mechanism_verb", rel)
+                        conf = a.get("confidence", 0.0)
+                        rsn = a.get("reasoning", "")
+                        orig_prefix = "orig" if is_en else "原"
+                        st.markdown(f"**{src}** ➔ **{tgt}** : `{verb}` *({orig_prefix}: {rel})*")
+                        if rsn:
+                            st.caption(f"💡 {rsn}")
 
-                with col_r2:
-                    rel_keys = list(rel_cat_defs.keys())
-                    def_rel_idx = rel_keys.index(cur_mech_cat) if cur_mech_cat in rel_keys else 0
-                    target_rel_cat = st.selectbox("调换目标机制类别", rel_keys, index=def_rel_idx,
-                                                  format_func=lambda k: f"{rel_cat_defs[k].get('icon','')} {rel_cat_defs[k].get('label', k)}",
-                                                  key="wb_select_target_relcat")
-                    target_verb = st.text_input("提炼机制谓词动词 (如: 催化磷酸化, 竞争性抑制)", value=cur_ra.get("mechanism_verb", orig_rel), key="wb_input_target_verb")
-                    target_rel_reason = st.text_input("学者调换备注", value="领域专家手动订正机制", key="wb_input_target_relreason")
+        # 5. 拓扑画布展示
+        st.markdown("---")
+        st.markdown(t("wb_canvas_title"))
+        if os.path.exists(wb_html_file):
+            try:
+                with open(wb_html_file, "r", encoding="utf-8") as f:
+                    wb_html = f.read()
+                components.html(wb_html, height=800, scrolling=True)
+            except Exception as e:
+                st.error(f"Error loading workbench html: {e}")
 
-                if st.button("💾 确认调换关系机制并即时更新", key="wb_btn_save_rel_override", width="stretch"):
+        # 6. 人工专家调换工作台 (Human-in-the-Loop)
+        st.markdown("---")
+        with st.container(border=True):
+            st.markdown(t("wb_override_title"))
+            st.caption(t("wb_override_caption"))
+            tab_ent, tab_rel = st.tabs([t("wb_tab_ent_override"), t("wb_tab_rel_override")])
+
+            with tab_ent:
+                degrees = Counter()
+                for r in rels:
+                    degrees[r.get("source")] += r.get("weight", 1)
+                    degrees[r.get("target")] += r.get("weight", 1)
+                all_node_names = sorted([e.get("standard_name") for e in ents if e.get("standard_name")],
+                                        key=lambda n: degrees.get(n, 0), reverse=True)
+
+                col_e1, col_e2 = st.columns([1, 1])
+                with col_e1:
+                    sel_node = st.selectbox(t("wb_sel_ent_lbl"), all_node_names, key="wb_select_override_node")
+                    cur_a = ent_annots.get(sel_node, {})
+                    cur_type = cur_a.get("primary_type", "Uncertain")
+                    cur_cat_lbl = (ent_cat_defs.get(cur_type, {}).get("en_label", cur_type) if is_en else ent_cat_defs.get(cur_type, {}).get("label", cur_type)) or cur_type
+                    st.caption(f"Category: **{cur_cat_lbl}** | Round: `{cur_a.get('round', 'N/A')}` | Conf: `{int(cur_a.get('confidence', 0)*100)}%`")
+                    if cur_a.get("reasoning"):
+                        st.caption(f"Reason: {cur_a.get('reasoning')}")
+
+                with col_e2:
+                    cat_keys = list(ent_cat_defs.keys())
+                    def_cat_idx = cat_keys.index(cur_type) if cur_type in cat_keys else 0
+                    def get_cat_fmt(k):
+                        cd = ent_cat_defs.get(k, {})
+                        lbl = (cd.get("en_label", k) if is_en else cd.get("label", k)) or k
+                        return f"{cd.get('icon','')} {lbl}"
+                    target_cat = st.selectbox(t("wb_target_cat_lbl"), cat_keys, index=def_cat_idx,
+                                              format_func=get_cat_fmt,
+                                              key="wb_select_target_cat")
+                    target_sub = st.text_input(t("wb_sub_type_lbl"), value=cur_a.get("sub_type", ""), key="wb_input_target_sub")
+                    target_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正", key="wb_input_target_reason")
+
+                if st.button(t("wb_btn_save_ent"), key="wb_btn_save_ent_override", width="stretch"):
                     cur_state = st.session_state.get("workbench_state", {})
-                    if "relation_annotations" not in cur_state:
-                        cur_state["relation_annotations"] = {}
-                    cur_state["relation_annotations"][k] = {
-                        "mechanism_category": target_rel_cat,
-                        "mechanism_verb": target_verb,
+                    if "entity_annotations" not in cur_state:
+                        cur_state["entity_annotations"] = {}
+                    cur_state["entity_annotations"][sel_node] = {
+                        "primary_type": target_cat,
+                        "sub_type": target_sub,
+                        "tags": cur_a.get("tags", []),
                         "confidence": 1.0,
-                        "reasoning": target_rel_reason,
+                        "reasoning": target_reason,
                         "round": "manual",
                         "status": "resolved"
                     }
@@ -2226,14 +2277,81 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         output_lang=st.session_state.get("ui_language", "zh")
                     )
                     save_local_vault()
-                    st.toast(f"已成功将关系 [{s} ➔ {t}] 调换为 [{target_rel_cat}: {target_verb}]！", icon="✅")
+                    st.toast(f"✅ {sel_node} ➔ {target_cat}", icon="✅")
                     st.rerun()
 
-    # 6. 底部返回按钮
+            with tab_rel:
+                edge_display_list = []
+                edge_key_map = {}
+                for r in rels:
+                    s = r.get("source")
+                    t_node = r.get("target")
+                    rel = r.get("relation", "相关")
+                    k = f"{s}|{t_node}|{rel}"
+                    label = f"{s} ➔ {t_node} ({rel})"
+                    edge_display_list.append(label)
+                    edge_key_map[label] = (s, t_node, rel, k)
+
+                if not edge_display_list:
+                    st.info("No relation edges in current graph." if is_en else "当前图谱尚无关系连线。")
+                else:
+                    col_r1, col_r2 = st.columns([1, 1])
+                    with col_r1:
+                        sel_edge_lbl = st.selectbox(t("wb_sel_rel_lbl"), edge_display_list, key="wb_select_override_edge")
+                        s, t_node, orig_rel, k = edge_key_map[sel_edge_lbl]
+                        cur_ra = rel_annots.get(k, {})
+                        cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
+                        cur_mech_lbl = (rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat) if is_en else rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat)) or cur_mech_cat
+                        st.caption(f"Mechanism: **{cur_mech_lbl}** | Verb: `{cur_ra.get('mechanism_verb', orig_rel)}`")
+                        if cur_ra.get("reasoning"):
+                            st.caption(f"Reason: {cur_ra.get('reasoning')}")
+
+                    with col_r2:
+                        rel_keys = list(rel_cat_defs.keys())
+                        def_rel_idx = rel_keys.index(cur_mech_cat) if cur_mech_cat in rel_keys else 0
+                        def get_rel_fmt(k):
+                            rd = rel_cat_defs.get(k, {})
+                            lbl = (rd.get("en_label", k) if is_en else rd.get("label", k)) or k
+                            return f"{rd.get('icon','')} {lbl}"
+                        target_rel_cat = st.selectbox(t("wb_target_relcat_lbl"), rel_keys, index=def_rel_idx,
+                                                      format_func=get_rel_fmt,
+                                                      key="wb_select_target_relcat")
+                        target_verb = st.text_input(t("wb_verb_lbl"), value=cur_ra.get("mechanism_verb", orig_rel), key="wb_input_target_verb")
+                        target_rel_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正机制", key="wb_input_target_relreason")
+
+                    if st.button(t("wb_btn_save_rel"), key="wb_btn_save_rel_override", width="stretch"):
+                        cur_state = st.session_state.get("workbench_state", {})
+                        if "relation_annotations" not in cur_state:
+                            cur_state["relation_annotations"] = {}
+                        cur_state["relation_annotations"][k] = {
+                            "mechanism_category": target_rel_cat,
+                            "mechanism_verb": target_verb,
+                            "confidence": 1.0,
+                            "reasoning": target_rel_reason,
+                            "round": "manual",
+                            "status": "resolved"
+                        }
+                        st.session_state.workbench_state = cur_state
+                        vis = GraphVisualizer()
+                        wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
+                        vis.generate_workbench_html(
+                            global_entities=ents,
+                            global_relations=rels,
+                            entity_annotations=cur_state.get("entity_annotations", {}),
+                            relation_annotations=cur_state.get("relation_annotations", {}),
+                            ontology=cur_ontology,
+                            output_file=wb_html_path,
+                            output_lang=st.session_state.get("ui_language", "zh")
+                        )
+                        save_local_vault()
+                        st.toast(f"✅ {s} ➔ {t_node} : {target_verb}", icon="✅")
+                        st.rerun()
+
+    # 7. 底部返回按钮
     st.markdown("---")
     cb_1, cb_2, cb_3 = st.columns([1, 2, 1])
     with cb_2:
-        if st.button("⬅️ 返回主图谱构建工作区", key="btn_wb_bottom_return", width="stretch"):
+        if st.button(t("wb_btn_bottom_return"), key="btn_wb_bottom_return", width="stretch"):
             st.session_state.current_view = "main"
             st.rerun()
 # ==========================================
@@ -2532,32 +2650,7 @@ if uploaded_file and start_button:
         # 非追加模式：仅将当前会话分析列表重置为该文件，不删除磁盘上的历史物理文件
         st.session_state.analyzed_files = [effective_disp]
 
-with st.sidebar:
-    if append_mode:
-        st.markdown("---")
-        st.header(t("history_sidebar_title"))
-
-        if not st.session_state.analyzed_files:
-            st.info(t("history_no_docs"))
-        else:
-            for fname in st.session_state.analyzed_files:
-                fpath = find_project_paper(fname)
-                if fpath and os.path.exists(fpath):
-                    with open(fpath, "rb") as f:
-                        f_bytes = f.read()
-                    st.download_button(
-                        label=f"📄 {fname}",
-                        data=f_bytes,
-                        file_name=os.path.basename(fpath),
-                        mime="application/pdf",
-                        key=f"history_{fname}",
-                        use_container_width=True
-                    )
-                else:
-                    if is_pmid_or_virtual_source(fname):
-                        st.caption(f"🌐 {fname}")
-                    else:
-                        st.caption(f"📄 {fname} ({t('doc_file_missing')})")
+# (已由 render_sidebar_history_docs 统一前置持久渲染)
 
 # --- 右侧高清预览栏 ---
 with right_col:
@@ -3165,13 +3258,6 @@ if st.session_state.show_results and st.session_state.html_data:
 
     # 🛡️ 渲染图谱 (原有代码，作为定位点)
     components.html(st.session_state.html_data, height=800, scrolling=True)
-
-    # 📊 图谱下方醒目跳转至分析工作台按钮
-    c_nav1, c_nav2, c_nav3 = st.columns([1, 3, 1])
-    with c_nav2:
-        if st.button("📊 前往图谱分析工作台 (实体与关系机制深度解析) ➔", type="primary", key="btn_canvas_to_wb", width="stretch"):
-            st.session_state.current_view = "workbench"
-            st.rerun()
 
     st.markdown("---")
 
@@ -4854,7 +4940,7 @@ if len(st.session_state.get("master_entities", [])) > 0:
     st.markdown("---")
     cb_nav1, cb_nav2, cb_nav3 = st.columns([1, 3, 1])
     with cb_nav2:
-        if st.button("📊 前往图谱分析工作台 (实体与关系机制深度解析) ➔", type="primary", key="btn_bottom_to_wb", width="stretch"):
+        if st.button(t("wb_nav_bottom_btn"), type="primary", key="btn_bottom_to_wb", width="stretch"):
             st.session_state.current_view = "workbench"
             st.rerun()
 

@@ -727,7 +727,12 @@ class GraphVisualizer:
                     color = cat_info.get("color", "#9ca3af")
                     shape = cat_info.get("shape", "dot")
                     icon = cat_info.get("icon", "•")
-                    shape_symbol = "●" if shape == "dot" else ("◆" if shape == "diamond" else ("▲" if shape == "triangle" else ("■" if shape == "square" else ("⬡" if shape == "hexagon" else ("★" if shape == "star" else "⬭")))))
+                    shape_map = {
+                        "dot": "●", "diamond": "◆", "triangle": "▲", "triangleDown": "▼",
+                        "square": "■", "box": "▣", "hexagon": "⬡", "star": "★",
+                        "circle": "○", "ellipse": "⬭"
+                    }
+                    shape_symbol = shape_map.get(shape, "●")
                     ent_legend_items.append(f"""
                     <div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
                         <span style="color:{color};font-size:14px;width:16px;text-align:center;">{shape_symbol}</span>

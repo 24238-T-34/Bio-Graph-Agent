@@ -102,15 +102,17 @@ In high-impact journals (Nature, Science, Cell), the densest regulatory conclusi
 
 ### 📊 IX. Graph Analysis Workbench & 4-Tier Escalation State Machine
 * **Dedicated Second-Stage Scientific Workbench**: Decoupled from the primary builder canvas with smooth bidirectional navigation, dedicated to granular entity taxonomy classification and deep mechanism verb distillation (e.g. catalytic phosphorylation, competitive binding, transcriptional activation).
-* **4-Tier Escalation State Machine**:
+* **4-Tier Escalation State Machine & High-Concurrency Scheduling**:
+  - **Multi-threaded Acceleration (ThreadPoolExecutor)**: High-concurrency worker scheduling across all analysis stages, completing full-graph taxonomy and mechanism distillation within seconds.
   - **Round 0 (0-Token Rule Pre-Filter)**: Leverages INN pharmaceutical suffixes, kinase/enzyme patterns, non-coding RNA naming conventions, and canonical gene databases for sub-millisecond classification without spending any LLM tokens.
   - **Round 1 (Topological Micro-Context Reasoning)**: Gathers node aliases, connected triples, and local edge evidence for compact, high-precision prompting. Ambiguous cases output `Uncertain`.
   - **Round 2 (Targeted In-Paper Regex Re-fetch)**: Only unresolved candidates trigger fast regex scanning over full PDF texts to retrieve focused sentences, bypassing expensive whole-paper reads.
   - **Round 3 (Biomedical World Knowledge Fallback)**: Engages global domain knowledge for final adjudication of stubborn concepts.
-* **Authoritative Ontology Presets & Custom Schemas**: Pre-packaged with NIH BioRED universal standard (6+1 entity categories, 6 relation mechanisms), molecular signaling cascades, pharmacology & drug targets, and tumor microenvironment (TME) immunology, plus one-click custom JSON schema imports.
-* **Sparse Dynamic Metrics Dashboard**: Exclusively renders categories with `count > 0` and provides expandable accordion drill-downs listing all member nodes, sub-types, round tags, and reasoning traces.
+* **9+1 Multi-Scale Biomedical Taxonomy & Custom Schemas**: Pre-packaged with the upgraded NIH BioRED standard spanning Gene/Protein, Chemical/Drug, Disease/Phenotype, Biological Process, Cell/CellLine, Organ/Tissue, Species/Organism, Microbe/Pathogen, Sequence Variant, and Uncertain (9+1 categories; 8 core mechanisms), plus molecular signaling, pharmacology targets, and tumor microenvironment schemas, with custom JSON import support.
+* **Top Base Graph Topology Preview**: Embeds a collapsible preview panel of the primary graph topology at the top of the workbench for structural reference.
+* **Sparse Dynamic Metrics Dashboard & Conditional Rendering**: Renders metrics, canvas, and override consoles only when graph analysis results exist, showing exclusively categories with `count > 0` and interactive accordions.
 * **Scholar Manual Override Console (Human-in-the-Loop)**: Allows researchers to interactively reclassify entities or modify mechanism verbs with instant cache update and visual re-rendering.
-* **Scientific Multi-Shape Categorical Topology & Collapsible Legend**: Maps entity types to distinctive geometric shapes (dot, diamond, triangle, square, hexagon, star, ellipse) and colors, featuring an embedded, semi-transparent, collapsible legend overlay.
+* **Scientific Multi-Shape Categorical Topology & Bilingual Legend**: Maps entity types to 10 distinctive geometric shapes (dot, circle, diamond, triangle, triangleDown, square, hexagon, star, box, ellipse) and colors, featuring an embedded, semi-transparent, collapsible bilingual legend overlay.
 
 ---
 

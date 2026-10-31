@@ -1,15 +1,17 @@
 """
 workbench_engine.py - 图谱分析工作台核心引擎
 包含：
-1. RulePreFilter: 基于生物医学命名法与权威词缀的高速 0-Token 正则预过滤分流器
+1. RulePreFilter: 基于生物医学命名法与权威词缀的高速 0-Token 正则预过滤分流器（涵盖分子、细胞、微生物、器官、物种多尺度）
 2. OntologyManager: 本体分类预设配置加载、管理与保存系统
-3. WorkbenchAnalysisEngine: 分级升级状态机（Round 0-3）、热度优先级调度、微上下文组装、精准文献回溯、通用生物知识兜底及人工专家覆写
+3. WorkbenchAnalysisEngine: 分级升级状态机（Round 0-3）、多线程并发推理、热度优先级调度、微上下文组装、精准文献回溯、通用生物知识兜底及人工专家覆写
 """
 
 import json
 import os
 import re
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import Counter
 from typing import Dict, List, Any, Optional, Tuple, Callable
 
@@ -17,7 +19,73 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 class RulePreFilter:
     """基于生物医学命名规则与权威词缀的高速 0-Token 正则预分类器"""
 
-    # 1. 药物与化学分子词缀 (INN 权威国际非专利药品名称规范)
+    # 1. 物种、宿主与模式生物 (Species / Organism)
+    SPECIES_PATTERNS = [
+        r'^(?:human|humans|patient|patients|host|hosts|homo sapiens)$',
+        r'^(?:mouse|mice|mus musculus|murine)$',
+        r'^(?:rat|rats|rattus|rattus norvegicus)$',
+        r'^(?:zebrafish|danio rerio)$',
+        r'^(?:drosophila|drosophila melanogaster|fruit fly|fruit flies)$',
+        r'^(?:c\. ?elegans|caenorhabditis elegans|nematode|nematodes)$',
+        r'^(?:yeast|saccharomyces|saccharomyces cerevisiae|s\. ?cerevisiae)$',
+        r'^(?:primate|primates|non-human primate|nhp|macaque|rhesus|chimpanzee)$',
+        r'^(?:pig|pigs|swine|porcine|rabbit|rabbits|canine|dog|dogs|bovine|cow|cows)$',
+        r'^(?:人类|患者|宿主|小鼠|大鼠|斑马鱼|果蝇|线虫|酵母|灵长类|恒河猴|猕猴|黑猩猩|猪|兔|犬|牛)$'
+    ]
+
+    KNOWN_SPECIES = {
+        'human', 'homo sapiens', 'mouse', 'mus musculus', 'rat', 'rattus',
+        'zebrafish', 'danio rerio', 'drosophila', 'c. elegans', 'yeast',
+        's. cerevisiae', 'macaque', 'rhesus', 'pig', 'rabbit', 'dog',
+        '人类', '小鼠', '大鼠', '斑马鱼', '果蝇', '线虫', '酵母', '灵长类'
+    }
+
+    # 2. 微生物、病原体、细菌与病毒 (Microbe / Pathogen)
+    MICROBE_PATTERNS = [
+        r'.*(?:virus|viral|viridae)$',
+        r'.*病毒$',
+        r'.*(?:bacteria|bacterium|bacillus|coccus|spirillum|mycoplasma|chlamydia)$',
+        r'.*(?:microbiome|microbiota|gut flora|pathogen|pathogens)$',
+        r'.*(?:细菌|杆菌|球菌|真菌|支原体|衣原体|菌群|病原体|寄生虫)$',
+        r'^[a-z]\. ?(?:coli|aureus|pylori|pneumoniae|tuberculosis)$'
+    ]
+
+    KNOWN_PATHOGENS = {
+        'sars-cov-2', 'covid-19', 'coronavirus', 'hiv', 'hbv', 'hcv', 'hpv', 'ebv', 'cmv',
+        'influenza', 'influenza virus', 'zika', 'dengue', 'hsv', 'vzv', 'rsv',
+        'e. coli', 'escherichia coli', 's. aureus', 'staphylococcus', 'staphylococcus aureus',
+        'h. pylori', 'helicobacter pylori', 'm. tuberculosis', 'mycobacterium tuberculosis',
+        'candida albicans', 'c. albicans', 'aspergillus', 'salmonella', 'pseudomonas',
+        'pseudomonas aeruginosa', 'streptococcus', 'streptococcus pneumoniae',
+        'plasmodium', 'plasmodium falciparum', 'gut microbiota', 'microbiome'
+    }
+
+    # 3. 组织器官、解剖结构与宏观生理系统 (Organ / Tissue / Anatomy)
+    ORGAN_PATTERNS = [
+        r'.*(?:tissue|organ|liver|lung|lungs|kidney|kidneys|heart|brain|spleen|pancreas|colon|stomach|bone marrow|blood|serum|plasma|cortex|stroma|endothelium|epithelium|system|tract|barrier|vessel|artery|vein|lymph node|gut|intestine|skin|retina)$',
+        r'.*(?:组织|器官|肝脏|肺|肾脏|心脏|脑|大脑|小脑|脾脏|胰腺|结肠|胃|骨髓|血液|血清|血浆|皮质|基质|系统|管腔|通路|屏障|血管|动脉|静脉|淋巴结|肠道|肠|皮肤|视网膜)$',
+        r'.*(?:blood-brain barrier|bbb|central nervous system|cns|cardiovascular system|immune system|circulatory system|digestive system)$',
+        r'.*(?:血脑屏障|中枢神经系统|心血管系统|免疫系统|循环系统|消化系统)$'
+    ]
+
+    # 4. 细胞亚群与模式细胞系 (Cell / Cell Line)
+    CELL_PATTERNS = [
+        r'.*(?:cell|cells)$', r'.*细胞$',
+        r'.*(?:lymphocyte|monocyte|macrophage|neutrophil|fibroblast|platelet|splenocyte)$',
+        r'.*(?:淋巴细胞|单核细胞|巨噬细胞|中性粒细胞|成纤维细胞|血小板)$',
+        r'.*(?:t[- ]?cell|b[- ]?cell|nk[- ]?cell|dendritic cell|treg|th1|th2|th17)$',
+        r'.*(?:t细胞|b细胞|nk细胞|树突状细胞|调节性t细胞)$',
+        r'.*(?:neuron|astrocyte|microglia|myocyte|adipocyte|hepatocyte|podocyte)$',
+        r'.*(?:神经元|星形胶质细胞|小胶质细胞|肌细胞|脂肪细胞|肝实质细胞|足细胞)$'
+    ]
+
+    CELL_LINES = {
+        'hela', 'hek293', 'hek293t', 'mcf-7', 'mcf7', 'a549', 'jurkat', 'pc3', 'u2os',
+        'k562', 'thp-1', 'thp1', 'raw264.7', 'cos-7', 'cho', 'nih3t3', 'hl-60', 'sk-br-3',
+        'hct116', 'sw480', 'mdamb231', 'mda-mb-231', 'b16f10', '4t1', 'panc-1', 'hep-g2', 'hepg2'
+    }
+
+    # 5. 药物与化学小分子 (INN 权威国际非专利药品规范)
     INN_DRUG_PATTERNS = [
         r'.*tinib$',     # 酪氨酸激酶抑制剂 (Imatinib, Gefitinib, Erlotinib)
         r'.*rafenib$',   # RAF激酶抑制剂 (Sorafenib, Vemurafenib)
@@ -63,7 +131,7 @@ class RulePreFilter:
         'lipid', 'fatty acid', 'glutathione', 'gsh', 'gssg', 'acetyl-coa'
     }
 
-    # 2. 酶与蛋白质词缀
+    # 6. 酶、蛋白质与受体
     ENZYME_PATTERNS = [
         r'.*kinase$', r'.*激酶$',
         r'.*phosphatase$', r'.*磷酸酶$',
@@ -91,7 +159,7 @@ class RulePreFilter:
     RECEPTOR_PATTERNS = [
         r'.*receptor$', r'.*受体$',
         r'.*gpcr$',
-        r'^[a-z0-9]+r[0-9]*$',   # e.g., egfr, tgfbr1, ifngr1
+        r'^[a-z0-9]{2,6}r[0-9]+$',   # e.g., tgfbr1, ifngr1, il6r2
         r'^[a-z0-9]+rec$',
     ]
 
@@ -100,7 +168,6 @@ class RulePreFilter:
         r'.*[\-_](?:mir|mirna|microrna|lncrna|circrna|sirna)$'
     ]
 
-    # 经典人类高频基因/蛋白模式 (3-7个大写字母+可选数字组合)
     GENE_SYMBOL_REGEX = re.compile(r'^[A-Z][A-Z0-9]{1,8}(?:-[A-Z0-9]+)?$')
     KNOWN_MAJOR_GENES = {
         'TP53', 'EGFR', 'KRAS', 'NRAS', 'HRAS', 'MYC', 'STAT3', 'STAT1', 'CDK4', 'CDK6',
@@ -111,29 +178,7 @@ class RulePreFilter:
         'MAPK', 'ERK', 'JNK', 'P38', 'WNT', 'TGFB', 'IFNG', 'PDCD1', 'CD274', 'CTLA4'
     }
 
-    # 3. 细胞与组织模式
-    CELL_PATTERNS = [
-        r'.*(?:cell|cells)$', r'.*细胞$',
-        r'.*(?:lymphocyte|monocyte|macrophage|neutrophil|fibroblast|platelet)$',
-        r'.*(?:淋巴细胞|单核细胞|巨噬细胞|中性粒细胞|成纤维细胞|血小板)$',
-        r'.*(?:t[- ]?cell|b[- ]?cell|nk[- ]?cell|dendritic cell)$',
-        r'.*(?:t细胞|b细胞|nk细胞|树突状细胞)$',
-        r'.*(?:endothelial|epithelial|neuron|astrocyte|microglia)$',
-        r'.*(?:内皮细胞|上皮细胞|神经元|星形胶质细胞|小胶质细胞)$'
-    ]
-
-    CELL_LINES = {
-        'hela', 'hek293', 'hek293t', 'mcf-7', 'mcf7', 'a549', 'jurkat', 'pc3', 'u2os',
-        'k562', 'thp-1', 'thp1', 'raw264.7', 'cos-7', 'cho', 'nih3t3', 'hl-60', 'sk-br-3',
-        'hct116', 'sw480', 'mdamb231', 'mda-mb-231', 'b16f10', '4t1', 'panc-1', 'hep-g2', 'hepg2'
-    }
-
-    TISSUE_PATTERNS = [
-        r'.*(?:tissue|organ|liver|lung|kidney|heart|brain|spleen|pancreas|colon|stomach|bone marrow|blood|serum|plasma|cortex|stroma)$',
-        r'.*(?:组织|器官|肝脏|肺|肾脏|心脏|脑|脾脏|胰腺|结肠|胃|骨髓|血液|血清|血浆|皮质|基质)$'
-    ]
-
-    # 4. 疾病与表型模式
+    # 7. 疾病与病理表型模式
     DISEASE_PATTERNS = [
         r'.*(?:oma|itis|pathy|osis|emia|syndrome|carcinoma|sarcoma|melanoma|leukemia|lymphoma|failure|disorder|infection)$',
         r'.*(?:瘤|炎|病|综合征|癌|肉瘤|白血病|淋巴瘤|衰竭|障碍|感染)$',
@@ -141,14 +186,14 @@ class RulePreFilter:
         r'.*(?:癌症|肿瘤|高血压|糖尿病|哮喘|中风|心肌梗死|阿尔茨海默病|帕金森病|纤维化|肝硬化|脓毒症|转移)$'
     ]
 
-    # 5. 生物学过程与通路模式 (包含 -ptosis 等程序性死亡模式)
+    # 8. 生物学过程与通路模式 (包含 -ptosis 等程序性死亡模式)
     PROCESS_PATTERNS = [
         r'.*ptosis$',   # apoptosis, ferroptosis, pyroptosis, necroptosis
         r'.*(?:pathway|signaling|cascade|apoptosis|autophagy|proliferation|differentiation|migration|invasion|angiogenesis|metastasis|glycolysis|metabolism|transcription|translation|ferroptosis|pyroptosis|cell cycle|immune response)$',
         r'.*(?:通路|信号转导|级联反应|凋亡|自噬|增殖|分化|迁移|侵袭|血管生成|糖酵解|代谢|转录|翻译|铁死亡|焦亡|细胞周期|免疫反应)$'
     ]
 
-    # 6. 突变位点与序列变异模式
+    # 9. 突变位点与序列变异模式
     VARIANT_PATTERNS = [
         r'^rs\d+$',
         r'^[a-z]\d+[a-z]$',          # e.g., v600e, t790m, g12d
@@ -161,11 +206,7 @@ class RulePreFilter:
     @classmethod
     def classify(cls, node_name: str, aliases: Optional[List[str]] = None, ontology: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
-        尝试使用基于医学规则的快速分类
-        :param node_name: 实体主名称
-        :param aliases: 实体已知别名列表
-        :param ontology: 当前选定的本体预设字典
-        :return: 匹配成功返回标注字典，若规则无法确定返回 None
+        尝试使用基于医学规则的快速分类 (覆盖宏观物种、微生物、器官、细胞至分子突变)
         """
         raw_name = node_name.strip()
         lower_name = raw_name.lower()
@@ -175,26 +216,30 @@ class RulePreFilter:
 
         target_categories = set(ontology.get("entity_categories", {}).keys()) if ontology else set()
 
-        def make_res(cat_id: str, sub_type: str, tag: str, conf: float, reason: str) -> Dict[str, Any]:
-            # 兼容特定预设的映射转换
+        def make_res(cat_id: str, sub_type: str, tag: str, conf: float, reason: str) -> Optional[Dict[str, Any]]:
             final_cat = cat_id
             if target_categories:
                 if final_cat not in target_categories:
-                    # 尝试转换到子预设类别
-                    if "Kinase_Phosphatase" in target_categories and "kinase" in sub_type.lower():
+                    # 兼容性映射
+                    if cat_id in ["Cell_CellLine", "Organ_Tissue"] and "Cell_Tissue" in target_categories:
+                        final_cat = "Cell_Tissue"
+                    elif "Species_Organism" in target_categories and cat_id == "Species_Organism":
+                        final_cat = "Species_Organism"
+                    elif "Microbe_Pathogen" in target_categories and cat_id == "Microbe_Pathogen":
+                        final_cat = "Microbe_Pathogen"
+                    elif "Kinase_Phosphatase" in target_categories and "kinase" in sub_type.lower():
                         final_cat = "Kinase_Phosphatase"
                     elif "Small_Molecule_Drug" in target_categories and cat_id == "Chemical_Drug":
                         final_cat = "Small_Molecule_Drug"
                     elif "Druggable_Target" in target_categories and ("receptor" in sub_type.lower() or "kinase" in sub_type.lower()):
                         final_cat = "Druggable_Target"
-                    elif "Immune_Cell_Subset" in target_categories and cat_id == "Cell_Tissue":
+                    elif "Immune_Cell_Subset" in target_categories and cat_id == "Cell_CellLine":
                         final_cat = "Immune_Cell_Subset"
                     elif "Disease_Indication" in target_categories and cat_id == "Disease_Phenotype":
                         final_cat = "Disease_Indication"
                     elif "Pathway_Module" in target_categories and cat_id == "Biological_Process":
                         final_cat = "Pathway_Module"
                     elif cat_id not in target_categories:
-                        # 找不到对应类别，交由大模型分级决策
                         return None
 
             return {
@@ -207,69 +252,88 @@ class RulePreFilter:
                 "status": "resolved"
             }
 
-        # 检查是否为变异位点
+        # 1. 检查是否为物种/宿主/模式生物 (Species / Organism)
+        for cand in all_candidates:
+            if cand in cls.KNOWN_SPECIES:
+                return make_res("Species_Organism", "Model Organism / Species", "Species", 0.98, "匹配权威生物物种与模式生物词库")
+            for pat in cls.SPECIES_PATTERNS:
+                if re.match(pat, cand, re.IGNORECASE):
+                    return make_res("Species_Organism", "Host / Organism", "Species", 0.95, f"匹配生物学物种命名规则: {pat}")
+
+        # 2. 检查是否为微生物/病原体/细菌/病毒 (Microbe / Pathogen)
+        for cand in all_candidates:
+            if cand in cls.KNOWN_PATHOGENS:
+                return make_res("Microbe_Pathogen", "Microorganism / Pathogen", "Pathogen", 0.98, "匹配权威病原微生物/细菌/病毒词库")
+            for pat in cls.MICROBE_PATTERNS:
+                if re.match(pat, cand, re.IGNORECASE):
+                    return make_res("Microbe_Pathogen", "Microbe / Pathogen", "Microbiology", 0.92, f"匹配微生物/病毒命名规则: {pat}")
+
+        # 3. 检查是否为变异位点
         for cand in all_candidates:
             for pat in cls.VARIANT_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Sequence_Variant", "Sequence Mutation", "Gene Variant", 0.95, f"匹配权威基因变异/突变命名规则: {pat}")
 
-        # 检查是否为代谢物或无机离子
+        # 4. 检查是否为代谢物或无机离子
         for cand in all_candidates:
             if cand in cls.METABOLITES_AND_IONS:
                 return make_res("Chemical_Drug", "Metabolite / Ion", "Biochemical Molecule", 0.96, "匹配权威内源性代谢小分子/离子词库")
 
-        # 检查 INN 药物词缀
+        # 5. 检查 INN 药物词缀
         for cand in all_candidates:
             for pat in cls.INN_DRUG_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Chemical_Drug", "Targeted / Synthetic Drug", "INN Pharmaceutical", 0.96, f"匹配 INN 国际权威药名词缀规则: {pat}")
 
-        # 检查通用化合物词缀
+        # 6. 检查通用化合物词缀
         for cand in all_candidates:
             for pat in cls.CHEM_COMPOUND_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Chemical_Drug", "Chemical Compound", "Compound", 0.88, f"匹配化学分子词缀: {pat}")
 
-        # 检查非编码 RNA
+        # 7. 检查非编码 RNA
         for cand in all_candidates:
             for pat in cls.RNA_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Gene_Protein", "Non-coding RNA", "RNA", 0.95, f"匹配非编码 RNA 命名规则: {pat}")
 
-        # 检查酶/激酶
+        # 8. 检查酶/激酶
         for cand in all_candidates:
             for pat in cls.ENZYME_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Gene_Protein", "Enzyme / Kinase", "Catalytic Protein", 0.92, f"匹配酶学催化蛋白质命名词缀: {pat}")
 
-        # 检查受体
+        # 9. 检查受体
         for cand in all_candidates:
             for pat in cls.RECEPTOR_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Gene_Protein", "Receptor Protein", "Receptor", 0.90, f"匹配生物膜/细胞受体命名规则: {pat}")
 
-        # 检查标准知名基因符号 (TP53, EGFR 等)
+        # 10. 检查标准知名基因符号 (TP53, EGFR 等)
         if raw_name in cls.KNOWN_MAJOR_GENES:
             return make_res("Gene_Protein", "Protein / Gene", "Canonical Gene", 0.98, "匹配权威人类核心基因/蛋白数据库列表")
 
-        # 检查细胞系与细胞类型
+        # 11. 检查细胞系与细胞类型 (Cell / CellLine)
         for cand in all_candidates:
             if cand in cls.CELL_LINES:
-                return make_res("Cell_Tissue", "Cell Line", "Model Cell Line", 0.96, "匹配国际标准细胞系名称列表")
+                return make_res("Cell_CellLine", "Cell Line", "Model Cell Line", 0.96, "匹配国际标准细胞系名称列表")
             for pat in cls.CELL_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Cell_Tissue", "Cell Subpopulation", "Cell Type", 0.92, f"匹配细胞类型规则: {pat}")
-            for pat in cls.TISSUE_PATTERNS:
-                if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Cell_Tissue", "Tissue / Organ", "Anatomy", 0.90, f"匹配组织解剖学器官词缀: {pat}")
+                    return make_res("Cell_CellLine", "Cell Subpopulation", "Cell Type", 0.92, f"匹配细胞类型规则: {pat}")
 
-        # 检查生物学过程与通路 (优先于疾病词缀以防 -ptosis/-osis 混淆)
+        # 12. 检查宏观组织器官与解剖结构 (Organ / Tissue)
+        for cand in all_candidates:
+            for pat in cls.ORGAN_PATTERNS:
+                if re.match(pat, cand, re.IGNORECASE):
+                    return make_res("Organ_Tissue", "Organ / Tissue / Anatomy", "Anatomy", 0.92, f"匹配组织器官解剖系统规则: {pat}")
+
+        # 13. 检查生物学过程与通路 (优先于疾病词缀以防 -ptosis/-osis 混淆)
         for cand in all_candidates:
             for pat in cls.PROCESS_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
                     return make_res("Biological_Process", "Biological Pathway / Process", "Process", 0.90, f"匹配生物信号传导/生理通路词缀: {pat}")
 
-        # 检查疾病与病理表型
+        # 14. 检查疾病与病理表型
         for cand in all_candidates:
             for pat in cls.DISEASE_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
@@ -316,7 +380,6 @@ class OntologyManager:
         for p in self.list_presets():
             if p.get("id") == preset_id:
                 return p
-        # 尝试按文件名匹配
         fpath = os.path.join(self.presets_dir, f"{preset_id}.json")
         if os.path.exists(fpath):
             try:
@@ -336,7 +399,7 @@ class OntologyManager:
 
 
 class WorkbenchAnalysisEngine:
-    """图谱分析工作台全流程分析与执行引擎"""
+    """图谱分析工作台全流程分析与并发执行引擎"""
 
     def __init__(self,
                  llm_agent=None,
@@ -377,7 +440,6 @@ class WorkbenchAnalysisEngine:
 
     def _extract_micro_context(self, node_name: str, entities: List[Dict[str, Any]], relations: List[Dict[str, Any]]) -> Dict[str, Any]:
         """为单节点提取紧凑局部的拓扑微上下文与文献证据"""
-        # 1. 查找已知别名与来源
         aliases = []
         doc_source = "未知"
         for ent in entities:
@@ -386,7 +448,6 @@ class WorkbenchAnalysisEngine:
                 doc_source = ent.get("doc_source", "未知")
                 break
 
-        # 2. 收集相邻关系谓词与关联实体
         connected_triplets = []
         evidence_snippets = []
         for r in relations:
@@ -407,8 +468,8 @@ class WorkbenchAnalysisEngine:
             "node_name": node_name,
             "aliases": aliases,
             "doc_source": doc_source,
-            "neighbors": connected_triplets[:8],  # 最多取前8个代表性拓扑连接
-            "evidence": evidence_snippets[:3]     # 最多取前3段高代表性微证据
+            "neighbors": connected_triplets[:8],
+            "evidence": evidence_snippets[:3]
         }
 
     def _fetch_paper_sentences(self, node_name: str, entities: List[Dict[str, Any]]) -> List[str]:
@@ -417,7 +478,6 @@ class WorkbenchAnalysisEngine:
         if not self.paper_full_texts:
             return matched_sentences
 
-        # 查找该实体关联的原文献名称
         target_doc = None
         aliases = []
         for ent in entities:
@@ -428,13 +488,11 @@ class WorkbenchAnalysisEngine:
 
         search_texts = []
         if target_doc:
-            # 清理类似 [Figure: ...] 标记
             clean_doc = re.sub(r'\[.*?\]', '', target_doc).strip()
             for k, text in self.paper_full_texts.items():
                 if clean_doc and (clean_doc in k or k in clean_doc):
                     search_texts.append(text)
         if not search_texts:
-            # 若无法精确命中文件名，搜索所有可用文献全文
             search_texts = list(self.paper_full_texts.values())
 
         search_terms = [node_name] + [a for a in aliases if len(a) >= 3][:3]
@@ -478,7 +536,6 @@ class WorkbenchAnalysisEngine:
         try:
             return json.loads(cleaned)
         except Exception:
-            # 尝试正则截取首个大括号块
             match = re.search(r'(\{.*\})', cleaned, re.DOTALL)
             if match:
                 try:
@@ -612,7 +669,7 @@ class WorkbenchAnalysisEngine:
         """对单条关系进行深层机制分类与机制动词归纳"""
         system_prompt = (
             "你是一位分子机制生物学家。你的任务是对生物知识图谱中的关系进行深层机制分类，"
-            "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解等）。"
+            "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解、受体识别、感染宿主等）。"
         )
         rel_cat_str = self._format_relation_categories()
         src_type = self.entity_annotations.get(source, {}).get("primary_type", "未知")
@@ -659,33 +716,23 @@ class WorkbenchAnalysisEngine:
                      enable_round2_regex: bool = True,
                      enable_round3_world: bool = True,
                      force_reanalyze: bool = False,
+                     max_workers: int = 4,
                      progress_callback: Optional[Callable[[float, str], None]] = None,
                      log_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
         """
-        执行完整的工作台分级分析工作流
-        :param entities: 实体列表
-        :param relations: 关系三元组列表
-        :param enable_entities: 是否开启实体分析
-        :param enable_relations: 是否开启关系分析
-        :param enable_round0_rules: 是否开启 Round 0 快速规则预过滤 (0 Token)
-        :param enable_round1_context: 是否开启 Round 1 微上下文分析
-        :param enable_round2_regex: 是否开启 Round 2 原文正则回溯
-        :param enable_round3_world: 是否开启 Round 3 通用生物常识兜底
-        :param force_reanalyze: 是否忽略已有缓存强制重新分析
-        :param progress_callback: 进度回调 (0.0 ~ 1.0, 状态文字)
-        :param log_callback: 日志输出回调
+        执行完整的工作台分级分析工作流（支持 ThreadPoolExecutor 多线程高并发加速）
         """
         def log(msg: str):
             if log_callback:
                 log_callback(msg)
             print(f"[WorkbenchEngine] {msg}")
 
-        log("🚀 开始启动图谱分析工作台处理流水线...")
+        workers_cnt = max(1, min(max_workers, 16))
+        log(f"🚀 启动图谱分析工作台流水线 (并发线程数: {workers_cnt})...")
 
         # 1. 计算热度与优先级
         degrees = self.compute_node_degrees(relations)
         all_node_names = [e.get("standard_name") for e in entities if e.get("standard_name")]
-        # 按热度降序排序
         sorted_nodes = sorted(all_node_names, key=lambda n: degrees.get(n, 0), reverse=True)
 
         total_nodes = len(sorted_nodes)
@@ -709,7 +756,6 @@ class WorkbenchAnalysisEngine:
                         if cur.get("status") == "resolved":
                             continue
 
-                    # 查找别名
                     aliases = []
                     for ent in entities:
                         if ent.get("standard_name") == node:
@@ -734,118 +780,188 @@ class WorkbenchAnalysisEngine:
                 self.stats["round0_hits"] = r0_hits
                 log(f"✅ [Round 0 完成] 极速命中 {r0_hits} 个实体，节省大量 LLM Token！")
 
-            # === Round 1: 微上下文分析 ===
+            # === Round 1: 微上下文分析 (ThreadPoolExecutor 并发) ===
             if enable_round1_context and self.llm_agent:
                 r1_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
-                log(f"🧠 [Round 1: 局部微上下文分析] 共有 {len(r1_candidates)} 个待决实体进入大模型分析...")
-                for idx, node in enumerate(r1_candidates):
-                    if progress_callback:
-                        progress_callback(0.1 + 0.3 * (idx / max(1, len(r1_candidates))), f"Round 1: 正在分析实体 ({idx+1}/{len(r1_candidates)}): {node}")
+                total_r1 = len(r1_candidates)
+                log(f"🧠 [Round 1: 局部微上下文分析] 共有 {total_r1} 个待决实体进入大模型并发分析 (Workers: {workers_cnt})...")
 
-                    micro_ctx = self._extract_micro_context(node, entities, relations)
-                    res = self._llm_classify_entity_round1(node, micro_ctx)
-                    cat = res.get("primary_type")
-                    valid_cats = self.ontology.get("entity_categories", {})
+                r1_lock = threading.Lock()
+                r1_done = 0
 
-                    if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
-                        self.entity_annotations[node] = {
-                            **res,
-                            "round": 1,
-                            "status": "resolved"
-                        }
-                        self.stats["round1_hits"] += 1
-                    else:
-                        self.entity_annotations[node] = {
-                            **res,
-                            "primary_type": "Uncertain",
-                            "round": 1,
-                            "status": "uncertain"
-                        }
+                def task_r1(n_name: str):
+                    ctx = self._extract_micro_context(n_name, entities, relations)
+                    res = self._llm_classify_entity_round1(n_name, ctx)
+                    return n_name, res
+
+                with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
+                    futures = {executor.submit(task_r1, n): n for n in r1_candidates}
+                    for fut in as_completed(futures):
+                        node, res = fut.result()
+                        with r1_lock:
+                            r1_done += 1
+                            if progress_callback:
+                                progress_callback(
+                                    0.1 + 0.3 * (r1_done / max(1, total_r1)),
+                                    f"Round 1 并发分析 ({r1_done}/{total_r1}): {node}"
+                                )
+                            cat = res.get("primary_type")
+                            valid_cats = self.ontology.get("entity_categories", {})
+                            if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
+                                self.entity_annotations[node] = {
+                                    **res,
+                                    "round": 1,
+                                    "status": "resolved"
+                                }
+                                self.stats["round1_hits"] += 1
+                            else:
+                                self.entity_annotations[node] = {
+                                    **res,
+                                    "primary_type": "Uncertain",
+                                    "round": 1,
+                                    "status": "uncertain"
+                                }
+
                 log(f"✅ [Round 1 完成] 成功解析 {self.stats['round1_hits']} 个实体。")
 
-            # === Round 2: 文献正则精准回溯 ===
+            # === Round 2: 文献正则精准回溯 (ThreadPoolExecutor 并发) ===
             if enable_round2_regex and self.llm_agent and self.paper_full_texts:
                 r2_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
-                log(f"📖 [Round 2: 文献精准原文回溯] 共有 {len(r2_candidates)} 个顽固未决实体进入文献检索...")
-                for idx, node in enumerate(r2_candidates):
-                    if progress_callback:
-                        progress_callback(0.4 + 0.2 * (idx / max(1, len(r2_candidates))), f"Round 2: 正在回溯原文 ({idx+1}/{len(r2_candidates)}): {node}")
+                total_r2 = len(r2_candidates)
+                log(f"📖 [Round 2: 文献精准原文回溯] 共有 {total_r2} 个顽固未决实体进入文献并发检索...")
 
-                    matched_sents = self._fetch_paper_sentences(node, entities)
-                    if matched_sents:
-                        res = self._llm_classify_entity_round2(node, matched_sents)
-                        cat = res.get("primary_type")
-                        valid_cats = self.ontology.get("entity_categories", {})
-                        if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
-                            self.entity_annotations[node] = {
-                                **res,
-                                "round": 2,
-                                "status": "resolved"
-                            }
-                            self.stats["round2_hits"] += 1
-                        else:
-                            self.entity_annotations[node] = {
-                                **res,
-                                "primary_type": "Uncertain",
-                                "round": 2,
-                                "status": "uncertain"
-                            }
+                r2_lock = threading.Lock()
+                r2_done = 0
+
+                def task_r2(n_name: str):
+                    matched = self._fetch_paper_sentences(n_name, entities)
+                    if matched:
+                        res = self._llm_classify_entity_round2(n_name, matched)
+                        return n_name, res, True
+                    return n_name, None, False
+
+                with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
+                    futures = {executor.submit(task_r2, n): n for n in r2_candidates}
+                    for fut in as_completed(futures):
+                        node, res, had_sents = fut.result()
+                        with r2_lock:
+                            r2_done += 1
+                            if progress_callback:
+                                progress_callback(
+                                    0.4 + 0.2 * (r2_done / max(1, total_r2)),
+                                    f"Round 2 原文回溯 ({r2_done}/{total_r2}): {node}"
+                                )
+                            if had_sents and res:
+                                cat = res.get("primary_type")
+                                valid_cats = self.ontology.get("entity_categories", {})
+                                if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
+                                    self.entity_annotations[node] = {
+                                        **res,
+                                        "round": 2,
+                                        "status": "resolved"
+                                    }
+                                    self.stats["round2_hits"] += 1
+                                else:
+                                    self.entity_annotations[node] = {
+                                        **res,
+                                        "primary_type": "Uncertain",
+                                        "round": 2,
+                                        "status": "uncertain"
+                                    }
+
                 log(f"✅ [Round 2 完成] 文献回溯成功破解 {self.stats['round2_hits']} 个实体。")
 
-            # === Round 3: 通用常识兜底 ===
+            # === Round 3: 通用常识兜底 (ThreadPoolExecutor 并发) ===
             if enable_round3_world and self.llm_agent:
                 r3_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
-                log(f"🌐 [Round 3: 通用生物医学常识兜底] 共有 {len(r3_candidates)} 个未决实体尝试领域常识研判...")
-                for idx, node in enumerate(r3_candidates):
-                    if progress_callback:
-                        progress_callback(0.6 + 0.15 * (idx / max(1, len(r3_candidates))), f"Round 3: 常识兜底研判 ({idx+1}/{len(r3_candidates)}): {node}")
+                total_r3 = len(r3_candidates)
+                log(f"🌐 [Round 3: 通用生物医学常识兜底] 共有 {total_r3} 个未决实体尝试领域常识研判...")
 
-                    res = self._llm_classify_entity_round3(node)
-                    cat = res.get("primary_type")
-                    valid_cats = self.ontology.get("entity_categories", {})
-                    if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
-                        self.entity_annotations[node] = {
-                            **res,
-                            "round": 3,
-                            "status": "resolved"
-                        }
-                        self.stats["round3_hits"] += 1
-                    else:
-                        self.entity_annotations[node] = {
-                            **res,
-                            "primary_type": "Uncertain",
-                            "round": 3,
-                            "status": "uncertain"
-                        }
+                r3_lock = threading.Lock()
+                r3_done = 0
+
+                def task_r3(n_name: str):
+                    res = self._llm_classify_entity_round3(n_name)
+                    return n_name, res
+
+                with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
+                    futures = {executor.submit(task_r3, n): n for n in r3_candidates}
+                    for fut in as_completed(futures):
+                        node, res = fut.result()
+                        with r3_lock:
+                            r3_done += 1
+                            if progress_callback:
+                                progress_callback(
+                                    0.6 + 0.15 * (r3_done / max(1, total_r3)),
+                                    f"Round 3 常识研判 ({r3_done}/{total_r3}): {node}"
+                                )
+                            cat = res.get("primary_type")
+                            valid_cats = self.ontology.get("entity_categories", {})
+                            if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
+                                self.entity_annotations[node] = {
+                                    **res,
+                                    "round": 3,
+                                    "status": "resolved"
+                                }
+                                self.stats["round3_hits"] += 1
+                            else:
+                                self.entity_annotations[node] = {
+                                    **res,
+                                    "primary_type": "Uncertain",
+                                    "round": 3,
+                                    "status": "uncertain"
+                                }
+
                 log(f"✅ [Round 3 完成] 领域常识兜底解析出 {self.stats['round3_hits']} 个实体。")
 
         # ----------------------------------------------------
-        # 阶段 B: 关系机制深层分析与机制动词归纳
+        # 阶段 B: 关系机制深层分析与机制动词归纳 (ThreadPoolExecutor 并发)
         # ----------------------------------------------------
         if enable_relations and total_rels > 0 and self.llm_agent:
-            log(f"🔗 关系分析队列已就绪，共计 {total_rels} 条关系...")
-            for idx, rel in enumerate(relations):
+            target_relations = []
+            for rel in relations:
                 src = rel.get("source")
                 tgt = rel.get("target")
                 orig_rel = rel.get("relation", "相关")
-                evidence = rel.get("evidence", "")
                 edge_key = f"{src}|{tgt}|{orig_rel}"
-
                 if not force_reanalyze and edge_key in self.relation_annotations:
                     cur = self.relation_annotations[edge_key]
                     if cur.get("status") == "resolved":
                         continue
+                target_relations.append(rel)
 
-                if progress_callback:
-                    progress_callback(0.75 + 0.25 * (idx / max(1, total_rels)), f"正在分析关系机制 ({idx+1}/{total_rels}): {src} -> {tgt}")
+            total_rc = len(target_relations)
+            log(f"🔗 关系分析队列已就绪，共计 {total_rc} 条待分析关系 (并发线程数: {workers_cnt})...")
 
+            rel_lock = threading.Lock()
+            rel_done = 0
+
+            def task_rel(r_item: Dict[str, Any]):
+                src = r_item.get("source")
+                tgt = r_item.get("target")
+                orig_rel = r_item.get("relation", "相关")
+                evidence = r_item.get("evidence", "")
+                edge_key = f"{src}|{tgt}|{orig_rel}"
                 res = self._llm_classify_relation(src, tgt, orig_rel, evidence)
-                self.relation_annotations[edge_key] = {
-                    **res,
-                    "round": 1,
-                    "status": "resolved"
-                }
-                self.stats["analyzed_relations"] += 1
+                return edge_key, res
+
+            with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
+                futures = {executor.submit(task_rel, r): r for r in target_relations}
+                for fut in as_completed(futures):
+                    edge_key, res = fut.result()
+                    with rel_lock:
+                        rel_done += 1
+                        if progress_callback:
+                            progress_callback(
+                                0.75 + 0.25 * (rel_done / max(1, total_rc)),
+                                f"关系机制分析 ({rel_done}/{total_rc})"
+                            )
+                        self.relation_annotations[edge_key] = {
+                            **res,
+                            "round": 1,
+                            "status": "resolved"
+                        }
+                        self.stats["analyzed_relations"] += 1
 
             log(f"✅ [关系机制分析完成] 成功提炼 {self.stats['analyzed_relations']} 条深层机制动词与类别。")
 
