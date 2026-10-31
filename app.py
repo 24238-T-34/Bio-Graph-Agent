@@ -2816,31 +2816,34 @@ with left_col:
 
     st.markdown(t("entity_lang_title"))
 
-    # 💡 静态双语选项（永不随语言切换而重置或改变，彻底杜绝 KeyError 和缓存越界）
-    entity_lang_choices = [
-        "关闭 (保持原文 / Original)",
-        "中文 (Chinese)",
-        "英文 (English)"
-    ]
-    cur_choice = st.session_state.get("entity_lang_radio")
-    if cur_choice not in entity_lang_choices:
-        cur_choice = entity_lang_choices[0]
-        st.session_state["entity_lang_radio"] = cur_choice
+    # 💡 内部固定的只读 Key（永不随语言切换而改变，彻底杜绝 KeyError 和缓存越界）
+    lang_internal_keys = ["opt_original", "opt_zh", "opt_en"]
 
-    sel_lang = st.radio(
+    # 💡 显示映射函数：只有在渲染到屏幕的那一瞬间，才把 Key 变成中/英文
+    def get_lang_display(key):
+        if key == "opt_original": return t("entity_lang_opt_original")
+        if key == "opt_zh": return t("entity_lang_opt_zh")
+        if key == "opt_en": return t("entity_lang_opt_en")
+        return key
+
+    if st.session_state.get("entity_language_ui") not in lang_internal_keys:
+        st.session_state["entity_language_ui"] = "opt_original"
+
+    selected_lang_key = st.radio(
         t("entity_lang_label"),
-        options=entity_lang_choices,
-        key="entity_lang_radio",
+        options=lang_internal_keys,  # 缓存里存的永远是 "opt_xxx"
+        format_func=get_lang_display,  # 界面上显示的是翻译后的文字
+        key="entity_language_ui",  # 彻底安全了！
         horizontal=True
     )
 
-    if "中文" in sel_lang:
-        entity_language = "中文 (强制翻译为中文)"
-    elif "English" in sel_lang or "英文" in sel_lang:
-        entity_language = "English (强制翻译为英文)"
-    else:
-        entity_language = "关闭 (保持原文语言)"
-
+    # 将内部 Key 映射回系统最初需要的硬编码指令（确保大模型行为不突变）
+    backend_lang_map = {
+        "opt_original": "关闭 (保持原文语言)",
+        "opt_zh": "中文 (强制翻译为中文)",
+        "opt_en": "English (强制翻译为英文)"
+    }
+    entity_language = backend_lang_map.get(selected_lang_key, "关闭 (保持原文语言)")
     st.session_state["entity_language"] = entity_language
 
     # 📷 机制图/通路图解析策略 (深度融合，置于提取模式设置下，保证未上传文件时也能渲染和配置)
