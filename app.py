@@ -2294,16 +2294,16 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
         wb_exp_col1, wb_exp_col2, wb_exp_col3, wb_exp_col4 = st.columns(4)
         with wb_exp_col1:
-            st.download_button(t("btn_export_ent_json"), wb_entities_json, "bio_entities.json", "application/json",
+            st.download_button(t("btn_export_ent_json"), wb_entities_json, "Bio_Analysis_entities.json", "application/json",
                                width="stretch", key="wb_dl_ent_json")
         with wb_exp_col2:
-            st.download_button(t("btn_export_ent_csv"), csv_wb_entities, "bio_entities.csv", "text/csv",
+            st.download_button(t("btn_export_ent_csv"), csv_wb_entities, "Bio_Analysis_entities.csv", "text/csv",
                                width="stretch", key="wb_dl_ent_csv")
         with wb_exp_col3:
-            st.download_button(t("btn_export_rel_csv"), csv_wb_relations, "bio_relations.csv", "text/csv",
+            st.download_button(t("btn_export_rel_csv"), csv_wb_relations, "Bio_Analysis_relations.csv", "text/csv",
                                width="stretch", key="wb_dl_rel_csv")
         with wb_exp_col4:
-            st.download_button(t("btn_export_graph_html"), wb_html_data, "bio_graph.html", "text/html",
+            st.download_button(t("btn_export_graph_html"), wb_html_data, "Bio_Analysis_graph.html", "text/html",
                                width="stretch", key="wb_dl_graph_html")
 
         if wb_html_data:
