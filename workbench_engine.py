@@ -567,7 +567,8 @@ class WorkbenchAnalysisEngine:
                      max_workers: int = 4,
                      language: str = "zh",
                      progress_callback: Optional[Callable[[float, str], None]] = None,
-                     log_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
+                     log_callback: Optional[Callable[[str], None]] = None,
+                     **kwargs) -> Dict[str, Any]:
         """
         执行完整的工作台分级分析工作流（支持 ThreadPoolExecutor 多线程高并发加速与中英双语运行回显）
         """

@@ -1960,6 +1960,11 @@ def get_project_paper_full_texts(project_id: str) -> dict:
 
 def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: str):
     """图谱分析工作台独立视图渲染 (Graph Analysis Workbench) - 完整双语国际化与条件渲染"""
+    import importlib
+    import workbench_engine
+    import IO_SYS
+    importlib.reload(workbench_engine)
+    importlib.reload(IO_SYS)
     from workbench_engine import OntologyManager, WorkbenchAnalysisEngine
     from IO_SYS import GraphVisualizer
     from collections import Counter
@@ -2111,21 +2116,28 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 captured_logs.append(msg)
                 log_placeholder.code("\n".join(captured_logs[-15:]), language="text")
 
-            new_state = engine.run_analysis(
-                entities=ents,
-                relations=rels,
-                enable_entities=enable_entities,
-                enable_relations=enable_relations,
-                enable_round0_rules=enable_r0,
-                enable_round1_context=enable_r1,
-                enable_round2_regex=enable_r2,
-                enable_round3_world=enable_r3,
-                force_reanalyze=force_reanalyze,
-                max_workers=concurrency_val,
-                language=st.session_state.get("ui_language", "zh"),
-                progress_callback=on_prog,
-                log_callback=on_log
-            )
+            analysis_kwargs = {
+                "entities": ents,
+                "relations": rels,
+                "enable_entities": enable_entities,
+                "enable_relations": enable_relations,
+                "enable_round0_rules": enable_r0,
+                "enable_round1_context": enable_r1,
+                "enable_round2_regex": enable_r2,
+                "enable_round3_world": enable_r3,
+                "force_reanalyze": force_reanalyze,
+                "max_workers": concurrency_val,
+                "language": st.session_state.get("ui_language", "zh"),
+                "progress_callback": on_prog,
+                "log_callback": on_log
+            }
+            # 兼容性防御：如果极端情况下引擎为早期缓存模块且无 max_workers 参数，安全自适应
+            import inspect
+            sig = inspect.signature(engine.run_analysis)
+            if "max_workers" not in sig.parameters and not any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                analysis_kwargs.pop("max_workers", None)
+
+            new_state = engine.run_analysis(**analysis_kwargs)
 
             st.session_state.workbench_state = new_state
 
