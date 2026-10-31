@@ -297,7 +297,6 @@ def load_config():
             "use_reflection": True,
             "append_mode": True,
             "enable_relation_grounding": True,
-            "entity_language": "关闭 (保持原文语言)",
             "concurrency_workers": 4,
             "ENABLE_EDITOR": True,  # ✨ 恢复的开关 1
             "ENABLE_AI_CLEANER": True,  # ✨ 恢复的开关 2
@@ -314,6 +313,7 @@ def load_config():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     local_config = json.load(f)
+                    local_config.pop("entity_language", None)
                     if "selected_model_id" not in local_config and "selected_model_name" in local_config:
                         local_config["selected_model_id"] = normalize_model_id(local_config["selected_model_name"])
                     if "api_provider" in local_config:
@@ -321,6 +321,17 @@ def load_config():
                     if "search_database" in local_config:
                         cur_db = local_config["search_database"]
                         local_config["search_database"] = "PubMed" if "PubMed" in str(cur_db) else "Semantic Scholar"
+                    if "vision_strategy" in local_config:
+                        vs = str(local_config["vision_strategy"])
+                        if vs not in ["opt_off", "opt_match", "opt_all"]:
+                            if "关" in vs or "Off" in vs:
+                                local_config["vision_strategy"] = "opt_off"
+                            elif "匹配" in vs or "Match" in vs:
+                                local_config["vision_strategy"] = "opt_match"
+                            elif "全" in vs or "All" in vs:
+                                local_config["vision_strategy"] = "opt_all"
+                            else:
+                                local_config["vision_strategy"] = "opt_off"
                     default_config.update(local_config)
             except Exception as e:
                 print(f"读取本地配置失败: {e}")
@@ -340,7 +351,7 @@ def save_config():
     config_keys = [
         "api_provider", "custom_base_url", "selected_model_id", "selected_model_name", "custom_model_id", "model_suffix",
         "search_database", "is_summary_only", "use_reflection", "append_mode", "enable_relation_grounding",
-        "entity_language", "concurrency_workers", "ENABLE_EDITOR", "ENABLE_AI_CLEANER", "ui_language",
+        "concurrency_workers", "ENABLE_EDITOR", "ENABLE_AI_CLEANER", "ui_language",
         "vision_strategy", "vision_match_keyword", "vision_model_choice", "vision_model_suffix", "custom_vision_model_id",
         "active_project_id"
     ]
@@ -351,6 +362,8 @@ def save_config():
                 disk_config = json.load(f)
         except Exception:
             disk_config = {}
+
+    disk_config.pop("entity_language", None)
 
     for k in config_keys:
         if k in st.session_state:
@@ -1766,12 +1779,13 @@ UI_TEXT = {
 }
 
 
-def t(key, default=""):
+def t(key, default="", lang=None):
     """
     智能翻译函数：根据当前 session_state 中的 ui_language 选项返回对应文本。
     如果没找到 key，则返回 default，若无 default 则直接返回 key 本身。
     """
-    lang = st.session_state.get("ui_language", "zh")  # 默认中文
+    if lang is None:
+        lang = st.session_state.get("ui_language", "zh")  # 默认中文
     if key in UI_TEXT:
         return UI_TEXT[key].get(lang, default if default else key)
     return default if default else key
@@ -2802,43 +2816,31 @@ with left_col:
 
     st.markdown(t("entity_lang_title"))
 
-    # 💡 内部固定的只读 Key（永不随语言切换而改变，彻底杜绝 KeyError 和缓存越界）
-    lang_internal_keys = ["opt_original", "opt_zh", "opt_en"]
+    # 💡 静态双语选项（永不随语言切换而重置或改变，彻底杜绝 KeyError 和缓存越界）
+    entity_lang_choices = [
+        "关闭 (保持原文 / Original)",
+        "中文 (Chinese)",
+        "英文 (English)"
+    ]
+    cur_choice = st.session_state.get("entity_lang_radio")
+    if cur_choice not in entity_lang_choices:
+        cur_choice = entity_lang_choices[0]
+        st.session_state["entity_lang_radio"] = cur_choice
 
-    # 💡 显示映射函数：只有在渲染到屏幕的那一瞬间，才把 Key 变成中/英文
-    def get_lang_display(key):
-        if key == "opt_original": return t("entity_lang_opt_original")
-        if key == "opt_zh": return t("entity_lang_opt_zh")
-        if key == "opt_en": return t("entity_lang_opt_en")
-        return key
-
-    backend_lang_map = {
-        "opt_original": "关闭 (保持原文语言)",
-        "opt_zh": "中文 (强制翻译为中文)",
-        "opt_en": "English (强制翻译为英文)"
-    }
-    backend_lang_rev_map = {v: k for k, v in backend_lang_map.items()}
-
-    cur_entity_lang = st.session_state.get("entity_language", "关闭 (保持原文语言)")
-    cur_lang_key = backend_lang_rev_map.get(cur_entity_lang, "opt_original")
-    cur_lang_idx = lang_internal_keys.index(cur_lang_key) if cur_lang_key in lang_internal_keys else 0
-
-    def on_entity_lang_change():
-        chosen_k = st.session_state.get("entity_language_ui", "opt_original")
-        st.session_state["entity_language"] = backend_lang_map.get(chosen_k, "关闭 (保持原文语言)")
-        save_config()
-
-    selected_lang_key = st.radio(
+    sel_lang = st.radio(
         t("entity_lang_label"),
-        options=lang_internal_keys,  # 缓存里存的永远是 "opt_xxx"
-        format_func=get_lang_display,  # 界面上显示的是翻译后的文字
-        index=cur_lang_idx,
-        key="entity_language_ui",  # 彻底安全了！
-        horizontal=True,
-        on_change=on_entity_lang_change
+        options=entity_lang_choices,
+        key="entity_lang_radio",
+        horizontal=True
     )
 
-    entity_language = backend_lang_map[selected_lang_key]
+    if "中文" in sel_lang:
+        entity_language = "中文 (强制翻译为中文)"
+    elif "English" in sel_lang or "英文" in sel_lang:
+        entity_language = "English (强制翻译为英文)"
+    else:
+        entity_language = "关闭 (保持原文语言)"
+
     st.session_state["entity_language"] = entity_language
 
     # 📷 机制图/通路图解析策略 (深度融合，置于提取模式设置下，保证未上传文件时也能渲染和配置)
@@ -2850,6 +2852,16 @@ with left_col:
         "opt_all": t("vision_strategy_opt_all")
     }
     cur_v_strat = st.session_state.get("vision_strategy", "opt_off")
+    if cur_v_strat not in v_strategy_keys:
+        if "关" in str(cur_v_strat) or "Off" in str(cur_v_strat):
+            cur_v_strat = "opt_off"
+        elif "匹配" in str(cur_v_strat) or "Match" in str(cur_v_strat):
+            cur_v_strat = "opt_match"
+        elif "全" in str(cur_v_strat) or "All" in str(cur_v_strat):
+            cur_v_strat = "opt_all"
+        else:
+            cur_v_strat = "opt_off"
+        st.session_state["vision_strategy"] = cur_v_strat
     cur_v_idx = v_strategy_keys.index(cur_v_strat) if cur_v_strat in v_strategy_keys else 0
 
     col_v1, col_v2 = st.columns([3, 2])
@@ -2857,8 +2869,7 @@ with left_col:
         selected_v_strat = st.radio(
             t("vision_strategy_title"),
             options=v_strategy_keys,
-            format_func=lambda k: v_strategy_labels.get(k, k),
-            index=cur_v_idx,
+            format_func=lambda k, m=v_strategy_labels: m.get(k, k),
             key="vision_strategy",
             horizontal=True,
             label_visibility="collapsed",
@@ -3562,11 +3573,12 @@ if st.session_state.show_results and st.session_state.html_data:
         st.subheader(t("editor_title"))
 
         # 🚀 终极架构修复：解耦 Navigation 渲染
+        cur_tab_lang = st.session_state.get("ui_language", "zh")
         nav_keys = ["nav_quick", "nav_node", "nav_rel"]
         main_tab_key = st.radio(
             t("nav_select_module"),
             options=nav_keys,
-            format_func=lambda k: t(k),
+            format_func=lambda k, l=cur_tab_lang: t(k, lang=l),
             horizontal=True,
             label_visibility="collapsed",
             key="main_nav_radio"
@@ -4071,11 +4083,12 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
     st.subheader(t("ai_tools_title"))
 
     # 🚀 优化 1：使用带记忆锁的 Radio 导航替代失忆的 st.tabs
+    cur_ai_tab_lang = st.session_state.get("ui_language", "zh")
     ai_nav_keys = ["ai_nav_pruning", "ai_nav_expansion", "ai_nav_bridging", "ai_nav_ask"]
     ai_nav = st.radio(
         t("ai_nav_select"),
         options=ai_nav_keys,
-        format_func=lambda k: t(k),
+        format_func=lambda k, l=cur_ai_tab_lang: t(k, lang=l),
         horizontal=True,
         label_visibility="collapsed",
         key="ai_nav_radio"
@@ -4450,19 +4463,23 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     del st.session_state["rename_history_report"]
                     st.rerun()
 
-            def format_source_label(item_str: str) -> str:
-                if item_str == t("rename_opt_all"):
-                    return f"🌟 {t('rename_opt_all')} ({len(all_target_sources)}项)"
+            cur_rn_lang = st.session_state.get("ui_language", "zh")
+            def format_source_label(item_str: str, l=cur_rn_lang) -> str:
+                if item_str == "__ALL_SOURCES__":
+                    return f"🌟 {t('rename_opt_all', lang=l)} ({len(all_target_sources)}项)"
                 fpath = find_project_paper(item_str)
                 if (fpath and os.path.exists(fpath)) or item_str.lower().endswith(".pdf"):
-                    return f"📄 [本地文件] {item_str}"
+                    return f"📄 [本地文件] {item_str}" if l == "zh" else f"📄 [Local] {item_str}"
                 elif is_pmid_or_virtual_source(item_str):
-                    return f"🌐 [线上PMID] {item_str}"
+                    return f"🌐 [线上PMID] {item_str}" if l == "zh" else f"🌐 [Online PMID] {item_str}"
                 return f"🏷️ {item_str}"
 
             col_rn_opt, col_rn_btn = st.columns([3, 2])
             with col_rn_opt:
-                rn_choices = [t("rename_opt_all")] + all_target_sources
+                rn_choices = ["__ALL_SOURCES__"] + all_target_sources
+                cur_rn = st.session_state.get("sel_rename_target")
+                if cur_rn not in rn_choices:
+                    st.session_state["sel_rename_target"] = "__ALL_SOURCES__"
                 selected_rn_target = st.selectbox(
                     t("lbl_select_rename_target"),
                     rn_choices,
@@ -4479,7 +4496,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                 if not is_local and not current_api_key:
                     st.error(t("err_missing_api_key"))
                 else:
-                    targets = all_target_sources if selected_rn_target == t("rename_opt_all") else [selected_rn_target]
+                    targets = all_target_sources if selected_rn_target == "__ALL_SOURCES__" else [selected_rn_target]
                     success_list = []
                     skipped_list = []
                     failed_list = []
