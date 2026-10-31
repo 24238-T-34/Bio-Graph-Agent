@@ -1776,6 +1776,36 @@ UI_TEXT = {
     "wb_orig_rel_prefix": {"zh": "原", "en": "orig"},
     "wb_unit_entities": {"zh": "个实体", "en": "entities"},
     "wb_unit_relations": {"zh": "条关系", "en": "relations"},
+
+    # 🧬 工作台第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition)
+    "wb_sec2_title": {"zh": "### 🧬 第二阶段：核心信号通路拆解与自调节回路建模", "en": "### 🧬 Stage 2: Signaling Pathway Decomposition & Autoregulation Modeling"},
+    "wb_sec2_caption": {"zh": "融合本体分类、拓扑特征与文献溯源，自由组合挖掘核心因果传导轴、自促进/自抑制闭环反馈回路及跨文献全新假说。", "en": "Mine core causal axes, self-promotion/inhibition feedback loops, and cross-literature hypotheses leveraging ontology, topology, and citations."},
+    "wb_pw_input_label": {"zh": "🎯 通路探索焦点（输入关键科学问题/疾病/表型/药物；留空则触发全局自主发掘）：", "en": "🎯 Pathway Exploration Focus (Enter biological question/disease/phenotype/drug; leave blank for autonomous discovery):"},
+    "wb_pw_input_placeholder": {"zh": "例如：探讨索拉非尼耐药机制与铁死亡调控轴；或留空", "en": "e.g. Explore sorafenib resistance mechanism and ferroptosis regulatory axis; or leave blank"},
+    "wb_pw_chk_loops": {"zh": "🔄 闭环与自反馈调节挖掘 (检测自抑制/自促进)", "en": "🔄 Feedback Loop Mining (Detect self-inhibition / self-promotion)"},
+    "wb_pw_chk_bridges": {"zh": "🌟 跨文献合成通路识别 (发现新假说)", "en": "🌟 Cross-Paper Bridge Detection (Discover novel hypotheses)"},
+    "wb_pw_chk_subgraphs": {"zh": "🎨 精简独立子图渲染 (生成轻量交互画布)", "en": "🎨 Mini-Subgraph Rendering (Generate lightweight interactive canvas)"},
+    "wb_pw_slider_count": {"zh": "🔢 输出通路数量上限", "en": "🔢 Max Pathway Count"},
+    "wb_pw_btn_start": {"zh": "🚀 开始信号通路拆解与建模", "en": "🚀 Run Pathway Decomposition & Modeling"},
+    "wb_pw_status_start": {"zh": "正在启动信号通路拆解与因果建模流水线...", "en": "Starting pathway decomposition and causal modeling pipeline..."},
+    "wb_pw_toast_done": {"zh": "🎉 信号通路拆解与建模完成！", "en": "🎉 Pathway decomposition and modeling completed!"},
+    "wb_pw_no_pathways": {"zh": "未能在当前图谱中检测到有效通路，请先完善文献关系抽取。", "en": "No valid pathway subgraphs detected. Please upload papers or extract relations first."},
+    "wb_pw_card_title": {"zh": "通路 {idx}：{title}", "en": "Pathway {idx}: {title}"},
+    "wb_pw_lbl_axis": {"zh": "🚩 核心因果传导主轴", "en": "🚩 Core Causal Axis"},
+    "wb_pw_lbl_summary": {"zh": "📝 机制精炼阐述", "en": "📝 Mechanistic Summary"},
+    "wb_pw_lbl_loops": {"zh": "🔄 自调节反馈回路分析", "en": "🔄 Autoregulatory Feedback Loop Analysis"},
+    "wb_pw_lbl_bridges": {"zh": "🌟 跨文献融合与创新假说", "en": "🌟 Cross-Paper Synthesis & Novel Insights"},
+    "wb_pw_lbl_canvas": {"zh": "🎨 独立精简拓扑画布", "en": "🎨 Dedicated Mini-Topology Canvas"},
+    "wb_pw_lbl_evidence": {"zh": "📚 步骤文献证据溯源 (展开查看各步原文依据)", "en": "📚 Step-by-Step Evidence Traceability"},
+    "wb_pw_btn_dl_html": {"zh": "📥 导出本通路交互子图 (HTML)", "en": "📥 Export Pathway Canvas (HTML)"},
+    "wb_pw_btn_dl_json": {"zh": "📥 导出本通路报告 (JSON)", "en": "📥 Export Pathway Report (JSON)"},
+    "wb_pw_btn_dl_all_json": {"zh": "📦 导出全量通路数据包 (JSON)", "en": "📦 Export All Pathways Package (JSON)"},
+    "wb_pw_badge_pos_loop": {"zh": "🟢 自促进闭环", "en": "🟢 Self-Promotion Loop"},
+    "wb_pw_badge_neg_loop": {"zh": "🔴 自抑制闭环", "en": "🔴 Self-Inhibition Loop"},
+    "wb_pw_badge_cross_paper": {"zh": "🌟 跨文献融合", "en": "🌟 Cross-Literature"},
+    "wb_pw_no_loops": {"zh": "本通路呈单向线性级联传导，未检测到闭合反馈回路。", "en": "Linear cascade; no closed feedback loop detected."},
+    "wb_pw_single_source": {"zh": "本通路所有机制证据均源自单篇文献内部。", "en": "All mechanism evidence in this pathway originates within a single literature source."},
+    "wb_pw_history_title": {"zh": "📂 已保存的历史通路拆解记录 (自动从工程目录加载)", "en": "📂 Saved Pathway Decomposition Records (Auto-loaded from project directory)"},
 }
 
 
@@ -2126,7 +2156,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     import IO_SYS
     importlib.reload(workbench_engine)
     importlib.reload(IO_SYS)
-    from workbench_engine import OntologyManager, WorkbenchAnalysisEngine
+    from workbench_engine import OntologyManager, WorkbenchAnalysisEngine, PathwayDecompositionEngine
     from IO_SYS import GraphVisualizer
     from collections import Counter
 
@@ -2615,7 +2645,202 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.toast(f"✅ {s} ➔ {t_node} : {target_verb} ({t('wb_toast_rel_override_done')})", icon="✅")
                         st.rerun()
 
-    # 7. 底部返回按钮
+    # ==========================================
+    # 7. 第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition & Modeling)
+    # ==========================================
+    st.markdown("---")
+    st.markdown(t("wb_sec2_title"))
+    st.caption(t("wb_sec2_caption"))
+
+    pathways_dir = os.path.join(proj_dir, "pathways")
+    manifest_path = os.path.join(pathways_dir, "pathways_manifest.json")
+
+    # 自动从项目专属目录载入已有通路记录
+    saved_pathways_data = None
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                saved_pathways_data = json.load(f)
+        except Exception as e:
+            print(f"⚠️ [Workbench] 载入已有通路快照失败: {e}")
+
+    # 1. 引导输入与操作面板
+    with st.container(border=True):
+        st.markdown(f"**{t('wb_pw_input_label')}**")
+        default_query = saved_pathways_data.get("user_query", "") if saved_pathways_data else ""
+        pw_user_query = st.text_input(
+            t("wb_pw_input_label"),
+            value=st.session_state.get("pw_user_query_input", default_query),
+            placeholder=t("wb_pw_input_placeholder"),
+            key="pw_user_query_input",
+            label_visibility="collapsed"
+        )
+
+        st.caption("⚙️ " + ("子功能独立控制与配置" if not is_en else "Sub-feature Configuration"))
+        c_sw1, c_sw2, c_sw3, c_sw4 = st.columns([3, 3, 3, 2])
+        with c_sw1:
+            pw_chk_loops = st.checkbox(t("wb_pw_chk_loops"), value=True, key="wb_pw_chk_loops")
+        with c_sw2:
+            pw_chk_bridges = st.checkbox(t("wb_pw_chk_bridges"), value=True, key="wb_pw_chk_bridges")
+        with c_sw3:
+            pw_chk_subgraphs = st.checkbox(t("wb_pw_chk_subgraphs"), value=True, key="wb_pw_chk_subgraphs")
+        with c_sw4:
+            pw_max_count = st.slider(t("wb_pw_slider_count"), min_value=1, max_value=5, value=3, key="wb_pw_slider_count")
+
+        btn_run_pathway = st.button(t("wb_pw_btn_start"), type="primary", key="wb_pw_btn_start", width="stretch")
+
+    if btn_run_pathway:
+        current_key = api_key.strip() if api_key else ""
+        from LLM_SYS import BioBrainAgent
+        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url) if current_key else None
+
+        pw_engine = PathwayDecompositionEngine(
+            llm_agent=llm_agent,
+            ontology=selected_preset,
+            entity_annotations=ent_annots,
+            relation_annotations=rel_annots,
+            project_dir=proj_dir
+        )
+
+        pw_p_bar = st.progress(0.0)
+        pw_status = st.empty()
+
+        def on_pw_prog(frac, msg):
+            pw_p_bar.progress(frac)
+            pw_status.info(f"⏳ {msg}")
+
+        decomposed_pathways = pw_engine.run_decomposition(
+            entities=ents,
+            relations=rels,
+            user_query=pw_user_query.strip(),
+            enable_loops=pw_chk_loops,
+            enable_bridges=pw_chk_bridges,
+            enable_subgraphs=pw_chk_subgraphs,
+            max_pathways=pw_max_count,
+            language=st.session_state.get("ui_language", "zh"),
+            progress_callback=on_pw_prog
+        )
+        st.session_state.decomposed_pathways = decomposed_pathways
+        st.toast(t("wb_pw_toast_done"), icon="🎉")
+        st.rerun()
+
+    # 2. 通路结果展示 (全宽可收纳折叠卡片)
+    display_pathways = st.session_state.get("decomposed_pathways")
+    if display_pathways is None and saved_pathways_data:
+        display_pathways = saved_pathways_data.get("pathways", [])
+
+    if display_pathways:
+        sec_header = f"已解构的核心信号通路清单 ({len(display_pathways)} 条)" if not is_en else f"Decomposed Signaling Pathways ({len(display_pathways)})"
+        col_hdr1, col_hdr2 = st.columns([3, 1])
+        with col_hdr1:
+            st.markdown(f"#### 📜 {sec_header}")
+        with col_hdr2:
+            all_pw_json = json.dumps(display_pathways, ensure_ascii=False, indent=2)
+            st.download_button(
+                t("wb_pw_btn_dl_all_json"),
+                data=all_pw_json,
+                file_name=f"Bio_Pathways_{proj_id}.json",
+                mime="application/json",
+                key="dl_all_pathways_json",
+                width="stretch"
+            )
+
+        for idx, pw in enumerate(display_pathways):
+            cid = pw.get("cluster_id", idx + 1)
+            title = pw.get("title", f"通路 {cid}")
+
+            badges = []
+            if pw.get("has_negative_loop"):
+                badges.append(t("wb_pw_badge_neg_loop"))
+            elif pw.get("has_positive_loop"):
+                badges.append(t("wb_pw_badge_pos_loop"))
+            if pw.get("is_cross_paper"):
+                badges.append(t("wb_pw_badge_cross_paper"))
+
+            badge_str = (" " + " ".join([f"`{b}`" for b in badges])) if badges else ""
+            expander_title = f"🧬 {t('wb_pw_card_title').format(idx=cid, title=title)}{badge_str}"
+
+            with st.expander(expander_title, expanded=(idx == 0)):
+                axis_txt = pw.get("main_causal_axis", "")
+                if axis_txt:
+                    st.markdown(f"**{t('wb_pw_lbl_axis')}**")
+                    st.info(f"👉 `{axis_txt}`")
+
+                summary_txt = pw.get("executive_summary", "")
+                if summary_txt:
+                    st.markdown(f"**{t('wb_pw_lbl_summary')}**")
+                    st.write(summary_txt)
+
+                st.markdown(f"**{t('wb_pw_lbl_loops')}**")
+                loops = pw.get("feedback_loops", [])
+                loop_exp = pw.get("feedback_loop_explanation", "")
+                if loops:
+                    for lp in loops:
+                        l_type_badge = t("wb_pw_badge_neg_loop") if lp.get("is_self_inhibition") else t("wb_pw_badge_pos_loop")
+                        st.markdown(f"- {l_type_badge} `{lp.get('cycle_str')}` *(负调控边数: {lp.get('neg_count')})*")
+                    if loop_exp:
+                        st.caption(f"💡 {loop_exp}")
+                else:
+                    st.caption(t("wb_pw_no_loops"))
+
+                st.markdown(f"**{t('wb_pw_lbl_bridges')}**")
+                bridges = pw.get("cross_paper_bridges", {})
+                bridge_exp = pw.get("cross_paper_insight", "")
+                if bridges.get("is_cross_paper"):
+                    papers = bridges.get("paper_sources", [])
+                    pivots = [p["node"] if isinstance(p, dict) else str(p) for p in bridges.get("pivot_nodes", [])]
+                    st.markdown(f"- 📄 " + (f"跨越文献 ({len(papers)}篇): " if not is_en else f"Crossed Literature ({len(papers)}): ") + ", ".join([f"`{p}`" for p in papers]))
+                    if pivots:
+                        st.markdown(f"- 🌟 " + ("桥接中枢分子: " if not is_en else "Bridge Pivot Entities: ") + ", ".join([f"`{p}`" for p in pivots]))
+                    if bridge_exp:
+                        st.caption(f"💡 {bridge_exp}")
+                else:
+                    st.caption(t("wb_pw_single_source"))
+
+                html_rel = pw.get("html_file", "")
+                html_abs = os.path.join(proj_dir, html_rel) if html_rel else ""
+                pw_html_data = ""
+                if html_abs and os.path.exists(html_abs):
+                    try:
+                        with open(html_abs, "r", encoding="utf-8") as hf:
+                            pw_html_data = hf.read()
+                    except Exception as e:
+                        st.caption(f"⚠️ 读取子图 HTML 遇到异常: {e}")
+
+                if pw_html_data:
+                    st.markdown(f"**{t('wb_pw_lbl_canvas')}**")
+                    components.html(pw_html_data, height=480, scrolling=True)
+
+                col_dl1, col_dl2 = st.columns([1, 1])
+                with col_dl1:
+                    if pw_html_data:
+                        st.download_button(
+                            t("wb_pw_btn_dl_html"),
+                            data=pw_html_data,
+                            file_name=f"Pathway_{cid}_{proj_id}.html",
+                            mime="text/html",
+                            key=f"dl_pw_html_{cid}",
+                            width="stretch"
+                        )
+                with col_dl2:
+                    pw_single_json = json.dumps(pw, ensure_ascii=False, indent=2)
+                    st.download_button(
+                        t("wb_pw_btn_dl_json"),
+                        data=pw_single_json,
+                        file_name=f"Pathway_{cid}_{proj_id}.json",
+                        mime="application/json",
+                        key=f"dl_pw_json_{cid}",
+                        width="stretch"
+                    )
+
+                evis = pw.get("evidence_list", [])
+                if evis:
+                    with st.expander(t("wb_pw_lbl_evidence"), expanded=False):
+                        for ev in evis:
+                            st.markdown(f"- **{ev.get('source')}** ➔ **{ev.get('target')}** (`{ev.get('verb')}`): {ev.get('evidence')}")
+                            st.caption(f"  📄 源自: {ev.get('doc_source')}")
+
+    # 8. 底部返回按钮
     st.markdown("---")
     cb_1, cb_2, cb_3 = st.columns([1, 2, 1])
     with cb_2:

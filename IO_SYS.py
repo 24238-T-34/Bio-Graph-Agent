@@ -872,6 +872,237 @@ class GraphVisualizer:
 
         print(f"✨ [GraphVisualizer] 工作台科学拓扑图已成功保存至: {output_file}")
 
+    def generate_pathway_html(self, pathway_entities, pathway_relations,
+                              feedback_loops=None, cross_paper_bridges=None,
+                              entity_annotations=None, relation_annotations=None,
+                              ontology=None, output_file="pathway_subgraph.html",
+                              output_lang="zh", height="480px"):
+        """
+        绘制信号/因果通路拆解与建模的精简独立交互子图 (Mini-Subgraph)：
+        - 聚焦呈现该通路 5~10 个关键种子节点与直接中继边
+        - 突出标注自调节闭环连线 (Feedback Loop) 与跨文献中枢节点 (Cross-Paper Pivot)
+        - 保持与主工作台一致的高对比学术中立色彩与生物极性箭头规范
+        - 生成响应式、独立可脱离系统全屏打开的 PyVis HTML
+        """
+        from pyvis.network import Network
+        from collections import Counter
+        import os
+
+        is_en = "en" in str(output_lang).lower()
+        entity_annotations = entity_annotations or {}
+        relation_annotations = relation_annotations or {}
+        feedback_loops = feedback_loops or []
+        cross_paper_bridges = cross_paper_bridges or {}
+
+        # 默认本体兜底
+        if not ontology:
+            try:
+                from workbench_engine import OntologyManager
+                ontology = OntologyManager().get_preset("universal_biored") or {}
+            except Exception:
+                ontology = {}
+
+        ent_cat_defs = ontology.get("entity_categories", {})
+        rel_cat_defs = ontology.get("relation_categories", {})
+
+        # 学术科研实体调色板 (高对比中立色彩)
+        SCIENTIFIC_PALETTE = [
+            "#2563eb",  # 皇家深蓝
+            "#d97706",  # 暖金琥珀
+            "#7c3aed",  # 稳重紫罗兰
+            "#0891b2",  # 清爽青蓝
+            "#ea580c",  # 活力珊瑚橙
+            "#db2777",  # 优雅洋红粉
+            "#4f46e5",  # 经典深靛蓝
+            "#0284c7",  # 晴空蔚蓝
+            "#9333ea",  # 兰花深紫
+            "#b45309",  # 赭石棕黄
+            "#0e7490",  # 深松青
+            "#c026d3",  # 亮紫红
+        ]
+        SCIENTIFIC_SHAPES = ["dot", "diamond", "square", "triangle", "hexagon", "star", "box", "triangleDown"]
+
+        entity_style_map = {}
+        ent_idx = 0
+        for cat_id, cat_def in ent_cat_defs.items():
+            if cat_id == "Uncertain":
+                entity_style_map[cat_id] = {
+                    "color": cat_def.get("color", "#9ca3af"),
+                    "shape": cat_def.get("shape", "ellipse")
+                }
+            else:
+                c = cat_def.get("color") or SCIENTIFIC_PALETTE[ent_idx % len(SCIENTIFIC_PALETTE)]
+                s = cat_def.get("shape") or SCIENTIFIC_SHAPES[ent_idx % len(SCIENTIFIC_SHAPES)]
+                entity_style_map[cat_id] = {"color": c, "shape": s}
+                ent_idx += 1
+
+        # 提取跨文献桥接中枢节点集合
+        pivot_nodes_raw = cross_paper_bridges.get("pivot_nodes", [])
+        pivot_node_names = set()
+        for p in pivot_nodes_raw:
+            if isinstance(p, dict):
+                pivot_node_names.add(p.get("node", ""))
+            elif isinstance(p, str):
+                pivot_node_names.add(p)
+
+        # 提取闭环连线集合 (u, v)
+        cycle_edge_set = set()
+        for loop in feedback_loops:
+            c_nodes = loop.get("nodes", [])
+            for i in range(len(c_nodes)):
+                u = c_nodes[i]
+                v = c_nodes[(i + 1) % len(c_nodes)]
+                cycle_edge_set.add((u, v))
+
+        net = Network(
+            height=height,
+            width="100%",
+            bgcolor=self.bgcolor,
+            font_color=self.font_color,
+            directed=True,
+            cdn_resources="remote"
+        )
+        net.force_atlas_2based(gravity=-60, central_gravity=0.015, spring_length=120, spring_strength=0.08, damping=0.9)
+
+        # 1. 实体节点添加
+        entity_info_map = {}
+        for ent in pathway_entities:
+            std_name = ent.get("standard_name", "")
+            if not std_name and isinstance(ent, str):
+                std_name = ent
+            if std_name:
+                entity_info_map[std_name] = {
+                    "aliases": ent.get("aliases", []) if isinstance(ent, dict) else [],
+                    "doc_source": ent.get("doc_source", "未知文献") if isinstance(ent, dict) else "未知文献"
+                }
+
+        # 统计节点在当前子图内的连接度
+        sub_heat = Counter()
+        for r in pathway_relations:
+            sub_heat[r.get("source")] += 1
+            sub_heat[r.get("target")] += 1
+
+        # 渲染节点
+        for std_name in list(entity_info_map.keys()):
+            annot = entity_annotations.get(std_name, {})
+            primary_type = annot.get("primary_type", "Uncertain")
+            sub_type = annot.get("sub_type", "")
+            aliases = entity_info_map[std_name]["aliases"]
+            doc_src = entity_info_map[std_name]["doc_source"]
+
+            style = entity_style_map.get(primary_type, {"color": "#0284c7", "shape": "dot"})
+            node_color = style["color"]
+            node_shape = style["shape"]
+            node_size = 22 + min(12, sub_heat[std_name] * 3)
+
+            is_pivot = std_name in pivot_node_names
+            border_width = 3 if is_pivot else 1.5
+            border_color = "#f59e0b" if is_pivot else "#ffffff"
+
+            # 悬停说明卡片
+            lbl_type = "Category" if is_en else "实体分类"
+            lbl_pivot = "🌟 [Cross-Literature Pivot]" if is_en else "🌟 [跨文献桥接中枢]"
+            lbl_src = "Source" if is_en else "来源文献"
+
+            title_lines = [f"{std_name}"]
+            if is_pivot:
+                title_lines.append(lbl_pivot)
+            title_lines.append(f"{lbl_type}: {primary_type}" + (f" ({sub_type})" if sub_type else ""))
+            if aliases:
+                title_lines.append(f"Aliases: {', '.join(aliases[:4])}")
+            title_lines.append(f"{lbl_src}: {doc_src}")
+            node_title = "\n".join(title_lines)
+
+            net.add_node(
+                std_name,
+                label=std_name,
+                color=node_color,
+                shape=node_shape,
+                size=node_size,
+                borderWidth=border_width,
+                borderColor=border_color,
+                title=node_title
+            )
+
+        # 2. 关系连线添加
+        for r in pathway_relations:
+            src = r.get("source", "").strip()
+            tgt = r.get("target", "").strip()
+            if not src or not tgt or src == tgt:
+                continue
+
+            # 保底补充缺失节点
+            for nd in [src, tgt]:
+                if nd not in entity_info_map:
+                    net.add_node(nd, label=nd, color="#9ca3af", shape="ellipse", size=20, title=nd)
+                    entity_info_map[nd] = {"aliases": [], "doc_source": "未知文献"}
+
+            rel_type = r.get("relation", r.get("relation_type", "相关"))
+            edge_key = f"{src}|{tgt}|{rel_type}"
+            annot = relation_annotations.get(edge_key, {})
+            mech_cat = annot.get("mechanism_category", "")
+            mech_verb = annot.get("mechanism_verb", rel_type)
+            evidence = r.get("evidence", r.get("reason", "无"))
+            doc_source = r.get("doc_source", "未知文献")
+
+            edge_label = mech_verb if mech_verb else rel_type
+            is_in_loop = (src, tgt) in cycle_edge_set
+
+            # 极性色彩判断
+            is_positive = (rel_type == "正作用") or any(k in str(mech_cat).lower() or k in str(mech_verb).lower() for k in ["positive", "activation", "induction", "agonism", "stimulat", "促进", "激活", "上调"])
+            is_negative = (rel_type == "负作用") or any(k in str(mech_cat).lower() or k in str(mech_verb).lower() for k in ["negative", "inhibition", "degradation", "lysis", "suppress", "block", "repress", "抑制", "降解", "阻断", "下调"])
+            is_component = (rel_type == "包含") or any(k in str(mech_cat).lower() for k in ["hierarchy", "component", "complex", "包含", "复合体"])
+
+            if is_in_loop:
+                # 闭环连线醒目高亮
+                edge_color = "#ef4444" if is_negative else "#f59e0b"
+                edge_width = 3.5
+                is_dashed = False
+            elif is_negative:
+                edge_color = "#ef4444"  # 红色
+                edge_width = 2.5
+                is_dashed = False
+            elif is_positive:
+                edge_color = "#10b981"  # 绿色
+                edge_width = 2.0
+                is_dashed = False
+            elif is_component:
+                edge_color = "#8b5cf6"  # 紫色
+                edge_width = 1.8
+                is_dashed = False
+            else:
+                edge_color = "#9ca3af"  # 灰色虚线
+                edge_width = 1.5
+                is_dashed = True
+
+            edge_title_lines = [
+                f"{src} ➔ {tgt} : {edge_label}"
+            ]
+            if is_in_loop:
+                edge_title_lines.append("🔄 [Feedback Loop Edge / 自调节闭环连线]" if not is_en else "🔄 [Feedback Loop Edge]")
+            if mech_cat:
+                edge_title_lines.append(f"Category: {mech_cat}")
+            if evidence and evidence != "无":
+                edge_title_lines.append(f"Evidence: {evidence}")
+            edge_title_lines.append(f"Source: {doc_source}")
+
+            net.add_edge(
+                src,
+                tgt,
+                label=edge_label,
+                title="\n".join(edge_title_lines),
+                color=edge_color,
+                width=edge_width,
+                dashes=is_dashed,
+                arrows="to",
+                font={"color": "#e5e7eb", "size": 11, "align": "middle", "strokeWidth": 2, "strokeColor": "#111827"}
+            )
+
+        os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+        net.save_graph(output_file)
+        print(f"✨ [GraphVisualizer] 信号通路精简子图已成功生成至: {output_file}")
+        return output_file
+
 
 
 # =====================================================================

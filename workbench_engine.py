@@ -14,6 +14,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import Counter
 from typing import Dict, List, Any, Optional, Tuple, Callable
+import networkx as nx
 
 
 class RulePreFilter:
@@ -881,3 +882,681 @@ class WorkbenchAnalysisEngine:
             self.ontology = state_dict.get("ontology", {})
         if "stats" in state_dict:
             self.stats = state_dict.get("stats", self.stats)
+
+
+# =====================================================================
+# 4. PathwayDecompositionEngine: 信号/关系通路拆解与建模核心引擎
+# =====================================================================
+class PathwayDecompositionEngine:
+    """
+    工作台第二阶段：信号/关系通路拆解与建模引擎 (Pathway Decomposition Engine)
+    功能：
+    1. 候选节点的多维综合评分（拓扑中心度 + 类别柔性加权 + 意图语义相关度）
+    2. 自由组合与最小连通骨干子网络诱导（Backbone Subgraphs）
+    3. 有向闭环（Directed Simple Cycles）与自调节反馈极性代数判定（自促进/正反馈 vs 自抑制/负反馈）
+    4. 跨文献跳跃桥接检测与新假说发现（Cross-Paper Pivot & Synthetic Bridges）
+    5. 大模型驱动的生物学因果建模与结构化机制叙事
+    6. 专属工程子目录 (projects/<pid>/pathways/) 落盘与一键独立导出
+    """
+
+    def __init__(self,
+                 llm_agent=None,
+                 ontology: Optional[Dict[str, Any]] = None,
+                 entity_annotations: Optional[Dict[str, Any]] = None,
+                 relation_annotations: Optional[Dict[str, Any]] = None,
+                 project_dir: Optional[str] = None):
+        self.llm_agent = llm_agent
+        self.ontology = ontology or {}
+        self.entity_annotations = entity_annotations or {}
+        self.relation_annotations = relation_annotations or {}
+        self.project_dir = project_dir
+        self.pathways_dir = os.path.join(project_dir, "pathways") if project_dir else None
+
+    def score_candidate_seeds(self,
+                              entities: List[Dict[str, Any]],
+                              relations: List[Dict[str, Any]],
+                              user_query: str = "",
+                              max_seeds: int = 15) -> List[Tuple[str, float, Dict[str, Any]]]:
+        """
+        多维综合评分候选节点发现 (Multi-Criteria Node Scoring)
+        得分 = 拓扑度数中心度 + 拓扑介数中心度 + 生物学类别先验倾向 + 用户输入语义相关度
+        """
+        if not relations:
+            return []
+
+        G = nx.DiGraph()
+        for r in relations:
+            s = str(r.get("source", "")).strip()
+            t = str(r.get("target", "").strip())
+            if s and t and s != t:
+                w = float(r.get("weight", 1))
+                G.add_edge(s, t, weight=w)
+
+        if len(G) == 0:
+            return []
+
+        deg_dict = dict(G.degree())
+        max_deg = max(deg_dict.values()) if deg_dict else 1
+
+        try:
+            betweenness_dict = nx.betweenness_centrality(G) if len(G) > 2 else {}
+        except Exception:
+            betweenness_dict = {}
+
+        q_terms = [w.lower() for w in re.split(r'[\s,，、;；。.!！?？]+', user_query) if len(w) >= 2]
+        query_lower = user_query.strip().lower()
+
+        scores = []
+        for n in G.nodes():
+            # 1. 拓扑得分 (归一化到 0~3)
+            deg_val = deg_dict.get(n, 0)
+            deg_norm = (deg_val / max_deg) * 2.5
+            bet_norm = betweenness_dict.get(n, 0.0) * 2.5
+
+            # 2. 类别柔性加权 (Soft Prior)
+            cat_annot = self.entity_annotations.get(n, {})
+            primary_type = str(cat_annot.get("primary_type", "")).lower()
+            sub_type = str(cat_annot.get("sub_type", "")).lower()
+            combined_type = f"{primary_type} {sub_type}"
+
+            cat_weight = 0.0
+            if any(k in combined_type for k in ["疾病", "disease", "表型", "phenotype", "pathology", "cancer", "tumor", "syndrome", "死", "凋亡", "自噬"]):
+                cat_weight += 2.0  # 天然终点/效应
+            elif any(k in combined_type for k in ["药物", "drug", "化学", "chemical", "small molecule", "compound", "inhibitor", "agonist"]):
+                cat_weight += 1.8  # 天然起点/刺激
+            elif any(k in combined_type for k in ["激酶", "kinase", "受体", "receptor", "转录因子", "transcription factor"]):
+                cat_weight += 1.6  # 核心中继
+            elif any(k in combined_type for k in ["基因", "gene", "蛋白", "protein"]):
+                cat_weight += 1.2
+            elif any(k in combined_type for k in ["过程", "process", "通路", "pathway"]):
+                cat_weight += 1.4
+
+            # 3. 语义意图匹配提权
+            query_boost = 0.0
+            if query_lower:
+                n_lower = n.lower()
+                if n_lower in query_lower or query_lower in n_lower:
+                    query_boost += 3.5
+                elif any(term in n_lower for term in q_terms):
+                    query_boost += 2.0
+
+            total_score = deg_norm + bet_norm + cat_weight + query_boost
+            meta = {
+                "degree": deg_val,
+                "betweenness": betweenness_dict.get(n, 0.0),
+                "primary_type": cat_annot.get("primary_type", "Uncertain"),
+                "cat_weight": cat_weight,
+                "query_boost": query_boost
+            }
+            scores.append((n, total_score, meta))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:max_seeds]
+
+    def cluster_and_induce_subgraphs(self,
+                                      relations: List[Dict[str, Any]],
+                                      seeds: List[str],
+                                      max_pathways: int = 3) -> List[Dict[str, Any]]:
+        """
+        自由组合与骨干子网诱导 (Backbone Subgraph Induction)
+        提取各核心种子组合之间的最小连通骨干网
+        """
+        if not relations or not seeds:
+            return []
+
+        G = nx.DiGraph()
+        for r in relations:
+            s = str(r.get("source", "")).strip()
+            t = str(r.get("target", "")).strip()
+            if s and t and s != t:
+                G.add_edge(s, t, rel_data=r)
+
+        G_undir = G.to_undirected()
+
+        # 若种子数量较少，直接构建单一整体通路
+        if len(seeds) <= 6:
+            seed_clusters = [seeds]
+        else:
+            seed_clusters = []
+            remaining_seeds = list(seeds)
+            target_num_clusters = min(max_pathways, max(1, len(seeds) // 4))
+
+            while remaining_seeds and len(seed_clusters) < target_num_clusters:
+                center = remaining_seeds.pop(0)
+                cluster = [center]
+                to_remove = []
+                for s in remaining_seeds:
+                    try:
+                        if nx.has_path(G_undir, center, s):
+                            dist = nx.shortest_path_length(G_undir, center, s)
+                            if dist <= 2 and len(cluster) < 5:
+                                cluster.append(s)
+                                to_remove.append(s)
+                    except Exception:
+                        pass
+                for s in to_remove:
+                    remaining_seeds.remove(s)
+                seed_clusters.append(cluster)
+
+            for s in remaining_seeds:
+                best_c = None
+                best_d = 999
+                for c in seed_clusters:
+                    for c_node in c:
+                        try:
+                            if nx.has_path(G_undir, c_node, s):
+                                d = nx.shortest_path_length(G_undir, c_node, s)
+                                if d < best_d:
+                                    best_d = d
+                                    best_c = c
+                        except Exception:
+                            pass
+                if best_c is not None and len(best_c) < 7:
+                    best_c.append(s)
+
+        subgraphs = []
+        for cluster_idx, cluster in enumerate(seed_clusters):
+            sub_nodes = set(cluster)
+            for i in range(len(cluster)):
+                for j in range(i + 1, len(cluster)):
+                    u = cluster[i]
+                    v = cluster[j]
+                    try:
+                        if nx.has_path(G_undir, u, v):
+                            p = nx.shortest_path(G_undir, u, v)
+                            if len(p) <= 4:
+                                sub_nodes.update(p)
+                    except Exception:
+                        pass
+
+            if len(sub_nodes) > 10:
+                deg_in_g = dict(G.degree())
+                sorted_nodes = sorted(list(sub_nodes), key=lambda x: (x in cluster, deg_in_g.get(x, 0)), reverse=True)
+                sub_nodes = set(sorted_nodes[:10])
+
+            sub_relations = []
+            for r in relations:
+                src = str(r.get("source", "")).strip()
+                tgt = str(r.get("target", "")).strip()
+                if src in sub_nodes and tgt in sub_nodes and src != tgt:
+                    sub_relations.append(r)
+
+            if len(sub_nodes) >= 2 and len(sub_relations) >= 1:
+                subgraphs.append({
+                    "cluster_id": cluster_idx + 1,
+                    "seed_nodes": cluster,
+                    "nodes": sorted(list(sub_nodes)),
+                    "relations": sub_relations
+                })
+
+        return subgraphs[:max_pathways]
+
+    def detect_feedback_loops(self,
+                              subgraph_nodes: List[str],
+                              subgraph_relations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        有向闭环与自调节反馈极性代数判定 (Feedback Polarity Algebra)
+        - 查找有向简单环路 (Cycle Length 2~5)
+        - 统计抑制/负调控边数量，偶数条 -> 自促进/正反馈；奇数条 -> 自抑制/负反馈
+        """
+        sub_G = nx.DiGraph()
+        rel_lookup = {}
+        for r in subgraph_relations:
+            s = str(r.get("source", "")).strip()
+            t = str(r.get("target", "")).strip()
+            if s and t and s != t:
+                sub_G.add_edge(s, t)
+                rel_lookup[(s, t)] = r
+
+        try:
+            raw_cycles = list(nx.simple_cycles(sub_G))
+        except Exception:
+            raw_cycles = []
+
+        valid_cycles = [c for c in raw_cycles if 2 <= len(c) <= 5]
+
+        unique_cycles = []
+        seen_cycle_sets = set()
+        for c in valid_cycles:
+            frozen = frozenset(c)
+            if frozen not in seen_cycle_sets:
+                seen_cycle_sets.add(frozen)
+                unique_cycles.append(c)
+
+        detected_loops = []
+        for cycle in unique_cycles:
+            neg_count = 0
+            cycle_steps = []
+            for i in range(len(cycle)):
+                u = cycle[i]
+                v = cycle[(i + 1) % len(cycle)]
+                edge_rel = rel_lookup.get((u, v), {})
+                orig_rel = str(edge_rel.get("relation", edge_rel.get("relation_type", "")))
+
+                edge_k = f"{u}|{v}|{orig_rel}"
+                annot = self.relation_annotations.get(edge_k, {})
+                mech_cat = str(annot.get("mechanism_category", "")).lower()
+                mech_verb = str(annot.get("mechanism_verb", orig_rel)).lower()
+
+                is_neg = (orig_rel == "负作用") or any(kw in (mech_cat + " " + mech_verb) for kw in [
+                    "negative", "inhibit", "degrad", "suppress", "block", "repress",
+                    "downregulat", "负", "抑制", "降解", "阻断", "下调", "去磷酸化", "衰减"
+                ])
+                if is_neg:
+                    neg_count += 1
+                cycle_steps.append((u, v, annot.get("mechanism_verb", orig_rel), is_neg))
+
+            is_negative_loop = (neg_count % 2 == 1)
+            loop_type = "negative" if is_negative_loop else "positive"
+            cycle_str = " ➔ ".join(cycle) + " ➔ " + cycle[0]
+
+            detected_loops.append({
+                "loop_type": loop_type,
+                "nodes": cycle,
+                "cycle_str": cycle_str,
+                "neg_count": neg_count,
+                "is_self_inhibition": is_negative_loop,
+                "is_self_promotion": not is_negative_loop,
+                "steps": cycle_steps
+            })
+
+        return detected_loops
+
+    def detect_cross_paper_bridges(self,
+                                   subgraph_nodes: List[str],
+                                   subgraph_relations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        跨文献跳跃桥接检测 (Cross-Paper Bridge Tagging)
+        识别连接不同文献来源的桥接中枢节点与跨文献假说
+        """
+        paper_sources = set()
+        node_in_sources = {n: set() for n in subgraph_nodes}
+        node_out_sources = {n: set() for n in subgraph_nodes}
+
+        for r in subgraph_relations:
+            src = str(r.get("source", "")).strip()
+            tgt = str(r.get("target", "")).strip()
+            raw_doc = str(r.get("doc_source", "")).strip()
+            if raw_doc and raw_doc not in ["未知文献", "未知", "Unknown", "unknown", "None"]:
+                clean_doc = os.path.basename(raw_doc)
+                paper_sources.add(clean_doc)
+                if src in node_out_sources:
+                    node_out_sources[src].add(clean_doc)
+                if tgt in node_in_sources:
+                    node_in_sources[tgt].add(clean_doc)
+
+        pivot_nodes = []
+        for n in subgraph_nodes:
+            in_s = node_in_sources.get(n, set())
+            out_s = node_out_sources.get(n, set())
+            if in_s and out_s and (in_s != out_s or len(in_s.union(out_s)) >= 2):
+                pivot_nodes.append({
+                    "node": n,
+                    "in_papers": sorted(list(in_s)),
+                    "out_papers": sorted(list(out_s))
+                })
+
+        return {
+            "is_cross_paper": len(paper_sources) >= 2,
+            "paper_sources": sorted(list(paper_sources)),
+            "pivot_nodes": pivot_nodes,
+            "paper_count": len(paper_sources)
+        }
+
+    def _parse_llm_json(self, raw_str: str) -> Optional[Dict[str, Any]]:
+        """清洗并严格反序列化大模型返回的 JSON"""
+        if not raw_str:
+            return None
+        cleaned = raw_str.replace("```json", "").replace("```", "").strip()
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            match = re.search(r'(\{.*\})', cleaned, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(1))
+                except Exception:
+                    pass
+        return None
+
+    def synthesize_pathway_narrative(self,
+                                     pathway_idx: int,
+                                     subgraph_nodes: List[str],
+                                     subgraph_relations: List[Dict[str, Any]],
+                                     feedback_loops: List[Dict[str, Any]],
+                                     cross_paper_info: Dict[str, Any],
+                                     user_query: str = "",
+                                     language: str = "zh") -> Dict[str, Any]:
+        """
+        大模型驱动的生物学因果建模与结构化机制叙事
+        生成包含主轴流动、自调节闭环效应与跨文献假说的标准报告
+        """
+        is_en = "en" in str(language).lower()
+
+        # 整理输入上下文
+        nodes_desc = []
+        for n in subgraph_nodes:
+            ann = self.entity_annotations.get(n, {})
+            ptype = ann.get("primary_type", "Uncertain")
+            stype = ann.get("sub_type", "")
+            type_str = f"[{ptype}]" if ptype != "Uncertain" else ""
+            if stype:
+                type_str += f" ({stype})"
+            nodes_desc.append(f"- {n} {type_str}")
+
+        edges_desc = []
+        for r in subgraph_relations:
+            s = r.get("source")
+            t = r.get("target")
+            rel = r.get("relation", r.get("relation_type", "相关"))
+            edge_k = f"{s}|{t}|{rel}"
+            ann = self.relation_annotations.get(edge_k, {})
+            verb = ann.get("mechanism_verb", rel)
+            evi = r.get("evidence", r.get("reason", "无"))
+            doc = os.path.basename(str(r.get("doc_source", "未知文献")))
+            edges_desc.append(f"- {s} ➔ {t} : `{verb}` (原文依据: {evi[:80]}; 来源: {doc})")
+
+        loops_desc = []
+        for lp in feedback_loops:
+            ltype = "🔴 自抑制负反馈回路 (Negative Feedback Loop)" if lp.get("is_self_inhibition") else "🟢 自促进正反馈回路 (Positive Feedback Loop)"
+            loops_desc.append(f"- 闭环: {lp.get('cycle_str')} [{ltype}]")
+
+        bridges_desc = []
+        if cross_paper_info.get("is_cross_paper"):
+            pivots = [p["node"] for p in cross_paper_info.get("pivot_nodes", [])]
+            papers = cross_paper_info.get("paper_sources", [])
+            bridges_desc.append(f"- 跨越文献: {', '.join(papers)}")
+            bridges_desc.append(f"- 桥接中枢: {', '.join(pivots) if pivots else '局部连线拼接'}")
+
+        # 组装 Prompt
+        if is_en:
+            sys_prompt = (
+                "You are an expert in systems biology, signal transduction networks, and molecular medicine. "
+                "Your task is to analyze a biological subnetwork module and synthesize a rigorous causal signaling pathway model. "
+                "Highlight the core causal flow, feedback loops (self-inhibition for homeostasis, self-promotion for amplification), "
+                "and cross-literature synthesis insights."
+            )
+            user_prompt = (
+                f"【Pathway Module #{pathway_idx} Context】\n"
+                f"【User Exploration Intent】: {user_query if user_query else 'Global autonomous discovery'}\n"
+                f"【Key Entities in Subnetwork】:\n" + "\n".join(nodes_desc) + "\n\n"
+                f"【Direct Mechanism Interactions】:\n" + "\n".join(edges_desc) + "\n\n"
+                f"【Detected Feedback Loops】:\n" + ("\n".join(loops_desc) if loops_desc else "None (Linear cascade)") + "\n\n"
+                f"【Cross-Literature Evidence】:\n" + ("\n".join(bridges_desc) if bridges_desc else "Intra-paper pathway") + "\n\n"
+                "【Output Requirement】:\n"
+                "Strictly return a single valid JSON object. All field values MUST be in English. No markdown outside the JSON:\n"
+                "{\n"
+                "  \"title\": \"<Concise scientific pathway title under 20 words>\",\n"
+                "  \"main_causal_axis\": \"<Linear arrow flow, e.g. Trigger ➔ Mediator ➔ (Inhibit) Target ➔ Phenotype>\",\n"
+                "  \"executive_summary\": \"<3-5 concise sentences explaining the molecular cascade and biological significance>\",\n"
+                "  \"feedback_loop_explanation\": \"<Detailed analysis of self-regulation loops, or state linear cascade if none>\",\n"
+                "  \"cross_paper_insight\": \"<Analysis of how combined papers reveal novel insights, or state single-source consistency>\"\n"
+                "}"
+            )
+        else:
+            sys_prompt = (
+                "你是一位资深的系统生物学、信号传导网络与分子医学专家。你的任务是基于给定的局部知识子图，"
+                "对其进行深度因果建模，提炼出严谨的信号通路机制报告。特别注意阐明核心因果主轴、"
+                "自调节闭环（自抑制稳态机制 vs 自促进放大开关）以及跨文献综合提出的全新科学假说。"
+            )
+            user_prompt = (
+                f"【第 {pathway_idx} 条通路子网络数据】\n"
+                f"【学者探索意图/焦点】: {user_query if user_query else '全局自主发掘'}\n"
+                f"【子网络关键实体】:\n" + "\n".join(nodes_desc) + "\n\n"
+                f"【分子机制交互关系】:\n" + "\n".join(edges_desc) + "\n\n"
+                f"【算法捕获的自调节闭环回路】:\n" + ("\n".join(loops_desc) if loops_desc else "无闭环 (呈单向线性级联)") + "\n\n"
+                f"【跨文献证据分布】:\n" + ("\n".join(bridges_desc) if bridges_desc else "单篇文献内部通路") + "\n\n"
+                "【输出要求】:\n"
+                "请严格输出唯一的合法 JSON 对象，字段内容全部使用中文，严禁在 JSON 外输出额外 Markdown：\n"
+                "{\n"
+                "  \"title\": \"<精炼的学术通路标题，20字以内，如：AMPK-mTOR-ULK1 自噬调控轴与自抑回路>\",\n"
+                "  \"main_causal_axis\": \"<清晰的箭头流向主轴，如：二甲双胍 ➔ AMPK ➔ (抑制) mTOR ➔ ULK1 ➔ 细胞自噬>\",\n"
+                "  \"executive_summary\": \"<3~5句话精炼阐释该通路的分子传导逻辑与生理/病理效应>\",\n"
+                "  \"feedback_loop_explanation\": \"<详细剖析自抑制或自促进回路的调控生物学意义；若无回路则说明其单向传导特征>\",\n"
+                "  \"cross_paper_insight\": \"<深入阐述多篇文献拼接揭示的新机制或协同新假说；若单篇则说明证据一致性>\"\n"
+                "}"
+            )
+
+        # 调用大模型
+        if self.llm_agent:
+            try:
+                raw_resp = self.llm_agent._ask_llm(sys_prompt, user_prompt)
+                parsed = self._parse_llm_json(raw_resp)
+                if parsed and isinstance(parsed, dict) and "title" in parsed:
+                    return parsed
+            except Exception as e:
+                print(f"⚠️ [PathwayDecompositionEngine] LLM 机制叙事调用异常: {e}")
+
+        # 兜底生成逻辑 (无 LLM 或 LLM 失败时的纯拓扑保底)
+        first_node = subgraph_nodes[0] if subgraph_nodes else "NodeA"
+        last_node = subgraph_nodes[-1] if len(subgraph_nodes) > 1 else first_node
+        default_title = f"{first_node} ➔ {last_node} 信号调控轴" if not is_en else f"{first_node} to {last_node} Signaling Axis"
+        default_axis = " ➔ ".join(subgraph_nodes[:6])
+        default_summary = (
+            f"本通路整合了 {len(subgraph_nodes)} 个关键节点与 {len(subgraph_relations)} 条机制连线，展现了以 {first_node} 为核心向 {last_node} 的信号级联流动。"
+            if not is_en else
+            f"This pathway integrates {len(subgraph_nodes)} key nodes and {len(subgraph_relations)} interactions, delineating a cascade from {first_node} to {last_node}."
+        )
+        default_loops_exp = (
+            f"检测到 {len(feedback_loops)} 个自反馈调节闭环回路。" if feedback_loops else "本通路呈单向线性级联传导，未检测到闭合反馈回路。"
+            if not is_en else
+            f"Detected {len(feedback_loops)} feedback loops." if feedback_loops else "Unidirectional cascade without closed feedback loop."
+        )
+        default_cross_exp = (
+            f"跨越了 {cross_paper_info.get('paper_count', 1)} 篇文献进行机制综合。"
+            if not is_en else
+            f"Synthesizes evidence across {cross_paper_info.get('paper_count', 1)} literature sources."
+        )
+
+        return {
+            "title": default_title,
+            "main_causal_axis": default_axis,
+            "executive_summary": default_summary,
+            "feedback_loop_explanation": default_loops_exp,
+            "cross_paper_insight": default_cross_exp
+        }
+
+    def run_decomposition(self,
+                          entities: List[Dict[str, Any]],
+                          relations: List[Dict[str, Any]],
+                          user_query: str = "",
+                          enable_loops: bool = True,
+                          enable_bridges: bool = True,
+                          enable_subgraphs: bool = True,
+                          max_pathways: int = 3,
+                          language: str = "zh",
+                          progress_callback: Optional[Callable] = None,
+                          log_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:
+        """
+        全流程一键执行信号/关系通路拆解与建模
+        """
+        def log(msg: str):
+            if log_callback:
+                log_callback(msg)
+            print(f"[PathwayDecomposition] {msg}")
+
+        def prog(frac: float, msg: str):
+            if progress_callback:
+                progress_callback(frac, msg)
+
+        is_en = "en" in str(language).lower()
+
+        log("🚀 开始执行第二阶段：信号/关系通路拆解与建模流水线..." if not is_en else "🚀 Starting Stage 2: Pathway Decomposition & Modeling Pipeline...")
+        prog(0.05, "正在初始化图拓扑与多维评分引擎..." if not is_en else "Initializing graph topology and multi-criteria scoring engine...")
+
+        if not relations or len(relations) == 0:
+            log("⚠️ 当前工程缺乏关系连线数据，无法拆解通路。" if not is_en else "⚠️ Insufficient relations to decompose pathways.")
+            prog(1.0, "分析完成 (无有效通路)" if not is_en else "Completed (No relations)")
+            return []
+
+        # 1. 种子节点打分与挑选
+        prog(0.15, "正在计算多维节点重要性得分..." if not is_en else "Computing multi-criteria node importance scores...")
+        seed_scores = self.score_candidate_seeds(entities, relations, user_query=user_query, max_seeds=18)
+        seed_names = [s[0] for s in seed_scores]
+        log(f"🎯 成功挑选出 {len(seed_names)} 个核心候选种子实体: {', '.join(seed_names[:8])}..." if not is_en else f"🎯 Identified {len(seed_names)} candidate seed entities: {', '.join(seed_names[:8])}...")
+
+        # 2. 自由组合与骨干子网诱导
+        prog(0.30, "正在自由组合聚类与提取骨干子网络..." if not is_en else "Clustering seeds and inducing backbone subgraphs...")
+        subgraphs = self.cluster_and_induce_subgraphs(relations, seed_names, max_pathways=max_pathways)
+        log(f"📦 成功聚类诱导出 {len(subgraphs)} 个高密度通路子网络模块" if not is_en else f"📦 Successfully induced {len(subgraphs)} dense pathway subnetwork modules")
+
+        if not subgraphs:
+            log("⚠️ 未能提取出足够规模的连通子网络。" if not is_en else "⚠️ Unable to induce connected subgraphs.")
+            prog(1.0, "分析完成" if not is_en else "Completed")
+            return []
+
+        # 3. 逐一深入拆解各通路
+        results = []
+        total_sub = len(subgraphs)
+
+        for idx, sub in enumerate(subgraphs):
+            cid = sub["cluster_id"]
+            nodes = sub["nodes"]
+            rels = sub["relations"]
+
+            step_base = 0.35 + (0.55 * (idx / total_sub))
+            prog(step_base, f"正在深度建模第 {idx+1}/{total_sub} 条通路: 包含 {len(nodes)} 节点, {len(rels)} 连线..." if not is_en else f"Modeling pathway {idx+1}/{total_sub} ({len(nodes)} nodes, {len(rels)} edges)...")
+
+            # A. 闭环与反馈检测
+            loops = []
+            if enable_loops:
+                loops = self.detect_feedback_loops(nodes, rels)
+                if loops:
+                    neg_l = [l for l in loops if l["is_self_inhibition"]]
+                    pos_l = [l for l in loops if l["is_self_promotion"]]
+                    log(f"  通路 {cid}: 捕获 {len(loops)} 个反馈闭环 (自抑制: {len(neg_l)}, 自促进: {len(pos_l)})" if not is_en else f"  Pathway {cid}: Captured {len(loops)} loops (Inhibition: {len(neg_l)}, Promotion: {len(pos_l)})")
+
+            # B. 跨文献跳跃桥接检测
+            bridges = {"is_cross_paper": False, "paper_sources": [], "pivot_nodes": [], "paper_count": 1}
+            if enable_bridges:
+                bridges = self.detect_cross_paper_bridges(nodes, rels)
+                if bridges.get("is_cross_paper"):
+                    log(f"  通路 {cid}: 识别为跨文献融合通路 (跨越 {bridges.get('paper_count')} 篇文献, 桥接点: {len(bridges.get('pivot_nodes', []))} 个)" if not is_en else f"  Pathway {cid}: Identified cross-paper synthesis ({bridges.get('paper_count')} papers)")
+
+            # C. 大模型机制叙事
+            prog(step_base + 0.1, f"正在调用大模型生成第 {idx+1} 条通路的因果机制报告..." if not is_en else f"Invoking LLM narrative for pathway {idx+1}...")
+            narrative = self.synthesize_pathway_narrative(
+                pathway_idx=cid,
+                subgraph_nodes=nodes,
+                subgraph_relations=rels,
+                feedback_loops=loops,
+                cross_paper_info=bridges,
+                user_query=user_query,
+                language=language
+            )
+
+            # D. 生成独立 PyVis 精简交互子图
+            html_rel_path = ""
+            html_abs_path = ""
+            if enable_subgraphs and self.pathways_dir:
+                try:
+                    from IO_SYS import GraphVisualizer
+                    os.makedirs(self.pathways_dir, exist_ok=True)
+                    fname = f"pathway_{cid}_subgraph.html"
+                    html_abs_path = os.path.join(self.pathways_dir, fname)
+                    html_rel_path = os.path.join("pathways", fname)
+
+                    # 提取子图涉及的完整实体字典信息
+                    sub_ents = [e for e in entities if e.get("standard_name") in nodes]
+                    vis = GraphVisualizer()
+                    vis.generate_pathway_html(
+                        pathway_entities=sub_ents if sub_ents else nodes,
+                        pathway_relations=rels,
+                        feedback_loops=loops,
+                        cross_paper_bridges=bridges,
+                        entity_annotations=self.entity_annotations,
+                        relation_annotations=self.relation_annotations,
+                        ontology=self.ontology,
+                        output_file=html_abs_path,
+                        output_lang=language,
+                        height="480px"
+                    )
+                except Exception as e:
+                    log(f"⚠️ 生成子图 HTML 遇到小异常: {e}")
+
+            # E. 组装证据溯源列表
+            evidence_list = []
+            for r in rels:
+                src = r.get("source")
+                tgt = r.get("target")
+                rel = r.get("relation", r.get("relation_type", "相关"))
+                edge_k = f"{src}|{tgt}|{rel}"
+                ann = self.relation_annotations.get(edge_k, {})
+                verb = ann.get("mechanism_verb", rel)
+                evidence_list.append({
+                    "source": src,
+                    "target": tgt,
+                    "verb": verb,
+                    "original_relation": rel,
+                    "evidence": r.get("evidence", r.get("reason", "无")),
+                    "doc_source": os.path.basename(str(r.get("doc_source", "未知文献")))
+                })
+
+            pathway_obj = {
+                "id": f"pw_{cid}",
+                "cluster_id": cid,
+                "title": narrative.get("title", f"通路 {cid}" if not is_en else f"Pathway {cid}"),
+                "main_causal_axis": narrative.get("main_causal_axis", " ➔ ".join(nodes[:5])),
+                "executive_summary": narrative.get("executive_summary", ""),
+                "feedback_loop_explanation": narrative.get("feedback_loop_explanation", ""),
+                "cross_paper_insight": narrative.get("cross_paper_insight", ""),
+                "nodes": nodes,
+                "relations": rels,
+                "feedback_loops": loops,
+                "cross_paper_bridges": bridges,
+                "evidence_list": evidence_list,
+                "html_file": html_rel_path,
+                "has_negative_loop": any(l.get("is_self_inhibition") for l in loops),
+                "has_positive_loop": any(l.get("is_self_promotion") for l in loops),
+                "is_cross_paper": bridges.get("is_cross_paper", False)
+            }
+            results.append(pathway_obj)
+
+        # 4. 全量落盘持久化
+        prog(0.96, "正在持久化通路数据至项目专属目录..." if not is_en else "Persisting pathway data to project directory...")
+        options = {
+            "enable_loops": enable_loops,
+            "enable_bridges": enable_bridges,
+            "enable_subgraphs": enable_subgraphs,
+            "max_pathways": max_pathways
+        }
+        self.save_manifest(results, user_query=user_query, options=options)
+
+        prog(1.0, f"🎉 成功解构出 {len(results)} 条核心信号通路！" if not is_en else f"🎉 Successfully modeled {len(results)} pathways!")
+        log(f"🎉 信号通路拆解与建模流水线全部执行完毕，共生成 {len(results)} 条通路！" if not is_en else f"🎉 Pathway pipeline finished. Generated {len(results)} pathways.")
+        return results
+
+    def save_manifest(self, pathways: List[Dict[str, Any]], user_query: str = "", options: Optional[Dict[str, Any]] = None) -> str:
+        """持久化保存分析结果到 projects/<active_pid>/pathways/pathways_manifest.json"""
+        if not self.pathways_dir:
+            return ""
+        try:
+            os.makedirs(self.pathways_dir, exist_ok=True)
+            manifest_path = os.path.join(self.pathways_dir, "pathways_manifest.json")
+            manifest_data = {
+                "updated_at": int(time.time()),
+                "user_query": user_query,
+                "options": options or {},
+                "pathway_count": len(pathways),
+                "pathways": pathways
+            }
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(manifest_data, f, ensure_ascii=False, indent=2)
+            return manifest_path
+        except Exception as e:
+            print(f"⚠️ [save_manifest] 持久化通路数据失败: {e}")
+            return ""
+
+    def load_manifest(self) -> Optional[Dict[str, Any]]:
+        """从 projects/<active_pid>/pathways/pathways_manifest.json 加载已有分析结果"""
+        if not self.pathways_dir:
+            return None
+        manifest_path = os.path.join(self.pathways_dir, "pathways_manifest.json")
+        if not os.path.exists(manifest_path):
+            return None
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"⚠️ [load_manifest] 读取通路快照失败: {e}")
+            return None
