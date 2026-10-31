@@ -185,17 +185,114 @@ def show_help_dialog():
     """)
 
 
+API_PROVIDERS_CONF = {
+    "openrouter": {
+        "url": "https://openrouter.ai/api/v1",
+        "tkey": "api_openrouter"
+    },
+    "tencent": {
+        "url": "https://api.hunyuan.cloud.tencent.com/v1",
+        "tkey": "api_tencent"
+    },
+    "siliconflow": {
+        "url": "https://api.siliconflow.cn/v1",
+        "tkey": "api_siliconflow"
+    },
+    "ollama": {
+        "url": "http://localhost:11434/v1",
+        "tkey": "api_ollama"
+    },
+    "custom": {
+        "url": "custom",
+        "tkey": "api_custom"
+    }
+}
+
+CLOUD_MODEL_OPTIONS = [
+    ("qwen/qwen-2.5-72b-instruct", "model_qwen_2_5_72b"),
+    ("qwen/qwen-3.8-27b", "model_qwen_3_8_27b"),
+    ("deepseek/deepseek-v4.1-flash", "model_deepseek_4_1_flash"),
+    ("google/gemini-3.8-flash", "model_gemini_3_8_flash"),
+    ("google/gemini-3.5-flash-lite", "model_gemini_3_5_flash_lite"),
+    ("google/gemini-2.5-flash-lite", "model_gemini_2_5_flash_lite"),
+    ("z-ai/glm-5.3-flash", "model_glm_5_3_f"),
+    ("tencent/hy4-preview", "model_hy4_preview"),
+    ("tencent/hy3-preview", "model_hy3_preview"),
+    ("tencent/hy3", "model_hy3"),
+]
+MODEL_ID_TO_TRANSLATION_KEY = dict(CLOUD_MODEL_OPTIONS)
+
+
+def normalize_api_provider(prov: str) -> str:
+    """将历史或本地化 provider 转换为语言中立 key"""
+    if not prov:
+        return "openrouter"
+    if prov in API_PROVIDERS_CONF:
+        return prov
+    prov_str = str(prov).lower()
+    if "openrouter" in prov_str:
+        return "openrouter"
+    if "tencent" in prov_str or "混元" in prov_str:
+        return "tencent"
+    if "siliconflow" in prov_str or "硅基流动" in prov_str:
+        return "siliconflow"
+    if "ollama" in prov_str:
+        return "ollama"
+    if "custom" in prov_str or "自定义" in prov_str:
+        return "custom"
+    return "openrouter"
+
+
+def normalize_model_id(val: str) -> str:
+    """将历史或本地化模型展示名转换为语言中立 model ID"""
+    if not val:
+        return "qwen/qwen-2.5-72b-instruct"
+    if val in MODEL_ID_TO_TRANSLATION_KEY:
+        return val
+    # 动态匹配 UI_TEXT 中存在的翻译（若 UI_TEXT 已加载）
+    ui_dict = globals().get("UI_TEXT", {})
+    for mid, tkey in CLOUD_MODEL_OPTIONS:
+        if tkey in ui_dict:
+            zh_val = ui_dict[tkey].get("zh")
+            en_val = ui_dict[tkey].get("en")
+            if val == zh_val or val == en_val:
+                return mid
+    val_l = str(val).lower()
+    if "gemini-3.5" in val_l or "gemini 3.5" in val_l:
+        return "google/gemini-3.5-flash-lite"
+    if "gemini-2.5" in val_l or "gemini 2.5" in val_l:
+        return "google/gemini-2.5-flash-lite"
+    if "gemini-3.8" in val_l or "gemini 3.8" in val_l:
+        return "google/gemini-3.8-flash"
+    if "deepseek" in val_l:
+        return "deepseek/deepseek-v4.1-flash"
+    if "glm" in val_l:
+        return "z-ai/glm-5.3-flash"
+    if "hy4" in val_l or "hunyuan 4" in val_l:
+        return "tencent/hy4-preview"
+    if "hy3-preview" in val_l or "hunyuan 3 preview" in val_l:
+        return "tencent/hy3-preview"
+    if "hy3" in val_l or "hunyuan 3" in val_l:
+        return "tencent/hy3"
+    if "3.8" in val_l and "qwen" in val_l:
+        return "qwen/qwen-3.8-27b"
+    if "qwen" in val_l:
+        return "qwen/qwen-2.5-72b-instruct"
+    return "qwen/qwen-2.5-72b-instruct"
+
+
 def load_config():
     """在应用初次加载时，读取本地配置并注入到 session_state 中"""
     if "config_loaded" not in st.session_state:
         # 1. 设定需要持久化的默认值（去掉了所有绘图相关的选项）
         default_config = {
-            "api_provider": "OpenRouter (国际节点)",
+            "api_provider": "openrouter",
             "custom_base_url": "https://api.openai.com/v1",
-            "selected_model_name": "Hunyuan 3 Preview (预览版 - 高性价比)",  # 记录下拉框的选择名称
+            "selected_model_id": "google/gemini-3.5-flash-lite",
+            "selected_model_name": "Gemini 3.5 Flash-Lite (谷歌性价比)",  # 保持兼容
             "custom_model_id": "",  # 用于 Ollama 等自定义手填的模型
             "model_suffix": "",  # 记录云端模型的后缀或保底覆盖
-            "search_database": "PubMed (生物医学权威)",
+            "search_database": "PubMed",
             "is_summary_only": False,
             "use_reflection": True,
             "append_mode": True,
@@ -217,6 +314,13 @@ def load_config():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     local_config = json.load(f)
+                    if "selected_model_id" not in local_config and "selected_model_name" in local_config:
+                        local_config["selected_model_id"] = normalize_model_id(local_config["selected_model_name"])
+                    if "api_provider" in local_config:
+                        local_config["api_provider"] = normalize_api_provider(local_config["api_provider"])
+                    if "search_database" in local_config:
+                        cur_db = local_config["search_database"]
+                        local_config["search_database"] = "PubMed" if "PubMed" in str(cur_db) else "Semantic Scholar"
                     default_config.update(local_config)
             except Exception as e:
                 print(f"读取本地配置失败: {e}")
@@ -232,18 +336,31 @@ def load_config():
 
 
 def save_config():
-    """仅保存核心业务设置，忽略绘图参数"""
+    """仅保存核心业务设置，合并现有磁盘配置以防非活动视图擦除其他视图的配置"""
     config_keys = [
-        "api_provider", "custom_base_url", "selected_model_name", "custom_model_id", "model_suffix",
+        "api_provider", "custom_base_url", "selected_model_id", "selected_model_name", "custom_model_id", "model_suffix",
         "search_database", "is_summary_only", "use_reflection", "append_mode", "enable_relation_grounding",
         "entity_language", "concurrency_workers", "ENABLE_EDITOR", "ENABLE_AI_CLEANER", "ui_language",
         "vision_strategy", "vision_match_keyword", "vision_model_choice", "vision_model_suffix", "custom_vision_model_id",
         "active_project_id"
     ]
-    # 注意：这里已经没有 empower_ontology 等绘图参数了
-    config_to_save = {k: st.session_state[k] for k in config_keys if k in st.session_state}
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config_to_save, f, indent=4)
+    disk_config = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                disk_config = json.load(f)
+        except Exception:
+            disk_config = {}
+
+    for k in config_keys:
+        if k in st.session_state:
+            disk_config[k] = st.session_state[k]
+
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(disk_config, f, indent=4)
+    except Exception as e:
+        print(f"保存本地配置失败: {e}")
 
 
 def resolve_vision_model_id(main_model_id, vision_choice, vision_suffix):
@@ -1745,7 +1862,7 @@ def render_sidebar_history_docs():
 with st.sidebar:
     st.markdown("## 🧬 Bio-Graph Agent")
     st.markdown("---")
-    is_local = "Ollama" in st.session_state.get("api_provider", "")
+    is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
     api_key_placeholder = t("sidebar_api_placeholder_local") if is_local else t("sidebar_api_placeholder_cloud")
 
     api_key = st.text_input("API Key", type="password",
@@ -1762,81 +1879,74 @@ with st.sidebar:
         # ==========================================
         # 🌍 全局语言切换开关 (无缝接入原生配置中心版)
         # ==========================================
-        # 1. 根据当前 session 的值，决定哪个按钮被高亮选中
+        def on_ui_language_change():
+            choice = st.session_state.get("lang_radio_choice", "")
+            new_l = "en" if "English" in choice else "zh"
+            st.session_state.ui_language = new_l
+            st.session_state.language = new_l
+            save_config()
+
         current_index = 0 if st.session_state.get("ui_language", "zh") == "zh" else 1
 
         lang_choice = st.radio(
             "🌐 Language / 语言",
             ["中文 (Chinese)", "英文（English）"],
             index=current_index,
-            horizontal=True
+            key="lang_radio_choice",
+            horizontal=True,
+            on_change=on_ui_language_change
         )
-
-        new_lang = "en" if "English" in lang_choice else "zh"
-
-        # 2. 如果检测到用户切换了语言
-        if st.session_state.get("ui_language") != new_lang:
-            st.session_state.ui_language = new_lang
-            st.session_state.language = new_lang  # 👈 继续喂给后端双保险
-            save_config()  # 👈 ✨ 直接呼叫你的原生保存函数！
-            st.rerun()
-        # ==========================================
 
         st.markdown("---")
 
         st.markdown(t("sidebar_engine_title"))
 
-        api_providers_map = {
-            t("api_openrouter"): "https://openrouter.ai/api/v1",
-            t("api_tencent"): "https://api.hunyuan.cloud.tencent.com/v1",
-            t("api_siliconflow"): "https://api.siliconflow.cn/v1",
-            t("api_ollama"): "http://localhost:11434/v1",
-            t("api_custom"): "custom"
-        }
+        cur_ui_lang = st.session_state.get("ui_language", "zh")
+        provider_keys = list(API_PROVIDERS_CONF.keys())
+        cur_provider = normalize_api_provider(st.session_state.get("api_provider", "openrouter"))
+        st.session_state["api_provider"] = cur_provider
 
-        st.selectbox(t("sidebar_api_provider"), list(api_providers_map.keys()), key="api_provider", on_change=save_config)
+        selected_provider = st.selectbox(
+            t("sidebar_api_provider"),
+            options=provider_keys,
+            format_func=lambda k: UI_TEXT[API_PROVIDERS_CONF[k]["tkey"]].get(cur_ui_lang, k),
+            key="api_provider",
+            on_change=save_config
+        )
 
-        # 🛡️ 安全防御 1：防止切换语言时，旧语言的选项残留在缓存中报错
-        current_provider = st.session_state.get("api_provider")
-        if current_provider not in api_providers_map:
-            current_provider = list(api_providers_map.keys())[0]
-
-        # 🚨 逻辑修复：直接用翻译后的键值去对比，保证中英文下都能正确匹配
-        if current_provider == t("api_custom"):
+        if selected_provider == "custom":
             base_url = st.text_input("🔗 Base URL", key="custom_base_url", on_change=save_config)
         else:
-            base_url = api_providers_map[current_provider]
+            base_url = API_PROVIDERS_CONF[selected_provider]["url"]
 
-        # 🚨 逻辑修复：只要包含 Ollama 或 Custom 的字眼即可，兼容中英文
-        is_local_or_custom = "Ollama" in current_provider or "Custom" in current_provider or "自定义" in current_provider
+        is_local_or_custom = selected_provider in ["ollama", "custom"]
 
         if is_local_or_custom:
             # 对于本地或自定义源，只能手填模型 ID
             selected_model_id = st.text_input(t("sidebar_model_id_custom"), key="custom_model_id", on_change=save_config)
             resolved_vision_model_id = selected_model_id
         else:
-            # 对于云端源，使用你极其优雅的字典映射
-            model_options = {
-                t("model_qwen_2_5_72b"): "qwen/qwen-2.5-72b-instruct",
-                t("model_qwen_3_8_27b"): "qwen/qwen-3.8-27b",
-                t("model_deepseek_4_1_flash"): "deepseek/deepseek-v4.1-flash",
-                t("model_gemini_3_8_flash"): "google/gemini-3.8-flash",
-                t("model_gemini_3_5_flash_lite"): "google/gemini-3.5-flash-lite",
-                t("model_gemini_2_5_flash_lite"): "google/gemini-2.5-flash-lite",
-                t("model_glm_5_3_f"): "z-ai/glm-5.3-flash",
-                t("model_hy4_preview"): "tencent/hy4-preview",
-                t("model_hy3_preview"): "tencent/hy3-preview",
-                t("model_hy3"): "tencent/hy3",
-            }
-            # UI显示的是 keys，存进 config 的是 selected_model_name
-            st.selectbox(t("sidebar_model_select"), list(model_options.keys()), key="selected_model_name", on_change=save_config)
-            # 实际传给下游 Pipeline 或 Agent 的 ID
-            # 🛡️ 安全防御 2
-            current_model = st.session_state.get("selected_model_name")
-            if current_model not in model_options:
-                current_model = list(model_options.keys())[0]
+            # 对于云端源，使用语言中立的模型 ID 列表
+            cloud_model_ids = [m[0] for m in CLOUD_MODEL_OPTIONS]
+            cur_raw_model = st.session_state.get("selected_model_id") or st.session_state.get("selected_model_name", "")
+            cur_model_id = normalize_model_id(cur_raw_model)
+            st.session_state["selected_model_id"] = cur_model_id
 
-            base_model_id = model_options[current_model]
+            def format_model_choice(mid):
+                tkey = MODEL_ID_TO_TRANSLATION_KEY.get(mid)
+                if tkey and tkey in UI_TEXT:
+                    return UI_TEXT[tkey].get(cur_ui_lang, mid)
+                return mid
+
+            base_model_id = st.selectbox(
+                t("sidebar_model_select"),
+                options=cloud_model_ids,
+                format_func=format_model_choice,
+                key="selected_model_id",
+                on_change=save_config
+            )
+            # 同步更新展示名，以便任何依赖该字段的代码保持兼容
+            st.session_state["selected_model_name"] = format_model_choice(base_model_id)
 
             # 🛠️ 二级高级设置：收纳视觉模型选择、视觉模型后缀与主模型后缀
             with st.expander(t("sidebar_expander_advanced_models"), expanded=False):
@@ -1848,15 +1958,15 @@ with st.sidebar:
                     "qwen_2_5_vl_72b": t("vision_model_qwen_2_5_vl_72b"),
                     "custom": t("vision_model_custom")
                 }
-                current_vision_choice = st.session_state.get("vision_model_choice", "auto")
                 vision_choice_keys = list(vision_model_options.keys())
-                v_idx = vision_choice_keys.index(current_vision_choice) if current_vision_choice in vision_choice_keys else 0
+                cur_v_choice = st.session_state.get("vision_model_choice", "auto")
+                if cur_v_choice not in vision_choice_keys:
+                    st.session_state["vision_model_choice"] = "auto"
 
                 selected_v_key = st.selectbox(
                     t("sidebar_vision_model_select"),
                     vision_choice_keys,
                     format_func=lambda k: vision_model_options.get(k, k),
-                    index=v_idx,
                     key="vision_model_choice",
                     on_change=save_config
                 )
@@ -1910,18 +2020,26 @@ with st.sidebar:
         st.markdown(t("sidebar_db_title"))
         db_sources = ["PubMed", "Semantic Scholar"]
         cur_db = st.session_state.get("search_database", "PubMed")
-        db_idx = 0 if "PubMed" in cur_db else 1
+        cur_db_clean = "PubMed" if "PubMed" in str(cur_db) else "Semantic Scholar"
+        st.session_state["search_database"] = cur_db_clean
+        db_idx = 0 if cur_db_clean == "PubMed" else 1
+
         is_en_ui = "en" in str(st.session_state.get("ui_language", "zh")).lower()
         def get_db_display(k):
             if k == "PubMed":
                 return "PubMed (Biomedical Authority)" if is_en_ui else "PubMed (生物医学权威)"
             return "Semantic Scholar (Multidisciplinary AI)" if is_en_ui else "Semantic Scholar (全科AI智能)"
-        st.selectbox(t("sidebar_db_select"), db_sources, index=db_idx, format_func=get_db_display, key="search_database", on_change=save_config)
+        st.selectbox(t("sidebar_db_select"), db_sources, format_func=get_db_display, key="search_database", on_change=save_config)
 
         st.markdown("---")
 
-        # ✨ 恢复：功能模块开关
+        # ✨ 恢复：功能模块开关 (防注销保底)
         st.markdown(t("sidebar_features_title"))
+        if "ENABLE_EDITOR" not in st.session_state:
+            st.session_state["ENABLE_EDITOR"] = True
+        if "ENABLE_AI_CLEANER" not in st.session_state:
+            st.session_state["ENABLE_AI_CLEANER"] = True
+
         ENABLE_EDITOR = st.toggle(t("sidebar_toggle_editor"), key="ENABLE_EDITOR", on_change=save_config)
         ENABLE_AI_CLEANER = st.toggle(t("sidebar_toggle_ai"), key="ENABLE_AI_CLEANER", on_change=save_config)
 
@@ -2117,7 +2235,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         if btn_run:
             needs_llm = (enable_r1 or enable_r2 or enable_r3 or enable_relations)
             current_key = api_key.strip() if api_key else ""
-            if needs_llm and not current_key and "Ollama" not in st.session_state.get("api_provider", ""):
+            if needs_llm and not current_key and "ollama" not in str(st.session_state.get("api_provider", "")).lower():
                 st.error(t("err_missing_api_key"))
                 st.stop()
 
@@ -2671,11 +2789,12 @@ with left_col:
         help=t("toggle_relation_grounding_help"),
         on_change=save_config
     )
+    if "concurrency_workers" not in st.session_state:
+        st.session_state["concurrency_workers"] = 4
     concurrency_workers = st.slider(
         t("slider_concurrency"),
         min_value=1,
         max_value=8,
-        value=int(st.session_state.get("concurrency_workers", 4)),
         key="concurrency_workers",
         help=t("slider_concurrency_help"),
         on_change=save_config
@@ -2686,7 +2805,6 @@ with left_col:
     # 💡 内部固定的只读 Key（永不随语言切换而改变，彻底杜绝 KeyError 和缓存越界）
     lang_internal_keys = ["opt_original", "opt_zh", "opt_en"]
 
-
     # 💡 显示映射函数：只有在渲染到屏幕的那一瞬间，才把 Key 变成中/英文
     def get_lang_display(key):
         if key == "opt_original": return t("entity_lang_opt_original")
@@ -2694,23 +2812,34 @@ with left_col:
         if key == "opt_en": return t("entity_lang_opt_en")
         return key
 
-
-    selected_lang_key = st.radio(
-        t("entity_lang_label"),
-        options=lang_internal_keys,  # 缓存里存的永远是 "opt_xxx"
-        format_func=get_lang_display,  # 界面上显示的是翻译后的文字
-        index=0,
-        key="entity_language_ui",  # 彻底安全了！
-        horizontal=True
-    )
-
-    # 将内部 Key 映射回系统最初需要的硬编码指令（确保大模型行为不突变）
     backend_lang_map = {
         "opt_original": "关闭 (保持原文语言)",
         "opt_zh": "中文 (强制翻译为中文)",
         "opt_en": "English (强制翻译为英文)"
     }
+    backend_lang_rev_map = {v: k for k, v in backend_lang_map.items()}
+
+    cur_entity_lang = st.session_state.get("entity_language", "关闭 (保持原文语言)")
+    cur_lang_key = backend_lang_rev_map.get(cur_entity_lang, "opt_original")
+    cur_lang_idx = lang_internal_keys.index(cur_lang_key) if cur_lang_key in lang_internal_keys else 0
+
+    def on_entity_lang_change():
+        chosen_k = st.session_state.get("entity_language_ui", "opt_original")
+        st.session_state["entity_language"] = backend_lang_map.get(chosen_k, "关闭 (保持原文语言)")
+        save_config()
+
+    selected_lang_key = st.radio(
+        t("entity_lang_label"),
+        options=lang_internal_keys,  # 缓存里存的永远是 "opt_xxx"
+        format_func=get_lang_display,  # 界面上显示的是翻译后的文字
+        index=cur_lang_idx,
+        key="entity_language_ui",  # 彻底安全了！
+        horizontal=True,
+        on_change=on_entity_lang_change
+    )
+
     entity_language = backend_lang_map[selected_lang_key]
+    st.session_state["entity_language"] = entity_language
 
     # 📷 机制图/通路图解析策略 (深度融合，置于提取模式设置下，保证未上传文件时也能渲染和配置)
     st.markdown(f"**{t('vision_strategy_title')}**")
