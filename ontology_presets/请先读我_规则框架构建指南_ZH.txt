@@ -1,0 +1,151 @@
+================================================================================
+                    生物医学图谱分析工作台 · 规则框架构建权威指南
+                    (Bio-RAG Knowledge Workbench · Ontology Guide)
+================================================================================
+
+【请先读我 / 快速概览】
+欢迎使用图谱分析工作台的开放式规则定义系统。
+本系统采用了高度精简、严谨规范的“极简三要素”数据驱动架构：
+- 规则配置与底层分析引擎完全解耦，系统内绝无任何写死在代码中的规则。
+- 您只需在本目录 (ontology_presets/) 下新增或编辑任意 UTF-8 编码的 .json 文件，
+  系统便会即刻自动扫描、热发现该标准，并在前端工作台的“标准分类预设”下拉菜单中实时提供选用。
+- 本文件夹下的 .txt 文档为辅助参考指南，系统会自动过滤，不会对分类标准造成任何干扰。
+
+--------------------------------------------------------------------------------
+一、 核心设计理念：极简学术三要素原则
+--------------------------------------------------------------------------------
+在传统图谱软件中，用户往往需要手动配置复杂的节点颜色、图标、几何形态以及冗长的扁平规则列表。
+在本项目中，我们全面推行“极简三要素”科研规范：
+
+1. 每一个实体分类（entity_categories）仅需且必须保留三项核心内容：
+   (1) 名称：name（中文名称）与 en_name（英文名称）
+   (2) 描述：description（中文学术定义）与 en_description（英文学术定义）
+   (3) 正则模式：patterns（精准的正则表达式字符串列表）
+
+2. 全面剔除 Emoji 与表情符号：
+   严格对齐 Cytoscape、Gephi、NCBI 等国际经典科研工具规范，不再在 JSON 中声明 "icon" 字段。
+
+3. 视觉色彩与形态由图表生成引擎自动分配：
+   无需也不要在 JSON 中声明 "color" 或 "shape" 属性！
+   图表引擎内置了经典学术期刊（Nature/Science 风格）的专业调色板与几何形态库：
+   - 实体节点颜色池：深蓝(#2563eb)、琥珀黄(#d97706)、深红(#dc2626)、墨绿(#059669)、稳重紫(#7c3aed)、蓝青(#0891b2)、珊瑚橙(#ea580c)、洋红粉(#db2777) 等
+   - 实体几何形态池：dot (实心圆), diamond (菱形), square (正方形), triangle (三角形), hexagon (六角形), star (星形), box (方块), triangleDown (倒三角)
+   - 引擎将严格按照您在 JSON 中编写各分类的先后顺序，自动循环赋予和谐且差异明显的颜色与几何形态。
+   - 特殊兜底类别 "Uncertain"（无法判断/待定）由系统锁定分配中性灰度色(#9ca3af)与椭圆(ellipse)。
+
+4. 关系机制分类（relation_categories）：
+   同样仅需包含 name/en_name 以及 description/en_description，边连线色彩由引擎机制色谱自动分配。
+
+--------------------------------------------------------------------------------
+二、 正则表达式 (patterns) 编写最佳实践与范例
+--------------------------------------------------------------------------------
+第零阶规则过滤引擎（RulePreFilter）采用高效的数据驱动模式，不消耗任何大模型 Token，
+能在毫秒内极速识别出具备标准命名法特征的生物医学实体。
+
+系统在执行正则匹配时默认开启【忽略大小写 (re.IGNORECASE)】，因此您无需重复列举大小写。
+
+【典型编写范例】：
+1. 词干/词缀结尾匹配（使用 .* 配合词尾 $）：
+   - 激酶/受体类蛋白：".*(?:kinase|receptor|synthase|polymerase)$" 或 ".*(?:激酶|受体|合成酶)$"
+   - 小分子靶向药物词缀（INN 国际非专利药品名称命名规范）：
+     ".*(?:tinib|rafenib|lisib|ciclib|parib|zomib|statin|prazole|sartan|dipine)$"
+   - 单抗与 ADC 生物制品：".*(?:mab|cept|vedotin|deruxtecan)$" 或 ".*(?:单抗|抗体)$"
+   - 疾病与病理表型后缀：".*(?:itis|oma|carcinoma|sarcoma|syndrome|disease)$" 或 ".*(?:炎|癌|瘤|综合征)$"
+
+2. 精确全称或首字母缩写集合（使用 ^ 和 $ 锚定）：
+   - 核心明星基因列表："^(?:TP53|EGFR|KRAS|MYC|STAT3|AKT1|MTOR|BRAF|PIK3CA|PTEN)$"
+   - 关键免疫检查点："^(?:PD-1|PD-L1|CTLA-4|LAG-3|TIM-3|TIGIT|4-1BB|OX40)$"
+   - 经典内源代谢物："^(?:ATP|ADP|AMP|GTP|CAMP|NADH|NADPH|ROS|NO|GLUCOSE|LACTATE)$"
+
+3. 规范化前缀匹配：
+   - 非编码 RNA 命名："^(?:mir|mirna|microrna|lncrna|circrna|sirna)[-_].*"
+
+4. 序列突变与变异位点：
+   - 蛋白质单氨基酸置换突变（如 p.T790M, L858R）："^p\\.[a-z]\\d+[a-z]$" 或 "^[a-z]\\d+[a-z]$"
+   - 基因组 SNP 编号（如 rs123456）："^rs\\d+$"
+
+【JSON 转义避坑要点】：
+- 在 JSON 字符串中，反斜杠 "\" 属于转义控制字符。因此正则表达式中的原生反斜杠（如 \\d、\\.、\\+）
+  必须写成双反斜杠 "\\\\"。
+  例如：匹配 "p.T790M" 应写为 "^p\\.[a-z]\\d+[a-z]$"；
+        匹配带正电荷离子 "Ca2+" 应写为 ".*ca2\\+.*"。
+
+--------------------------------------------------------------------------------
+三、 完整即用标准 JSON 模板 (可直接复制修改)
+--------------------------------------------------------------------------------
+您可以复制以下模板内容，另存为例如 "custom_oncology.json" 并保存在本目录下：
+
+{
+  "id": "custom_oncology",
+  "name": "自定义肿瘤精准医学分类标准",
+  "en_name": "Custom Precision Oncology Taxonomy",
+  "description": "面向肿瘤转化医学与靶向治疗的定制实体分类与机制层级体系。",
+  "en_description": "Custom ontology tailored for translational oncology and targeted therapeutics.",
+  "entity_categories": {
+    "Target_Protein": {
+      "name": "靶点蛋白 / 驱动基因",
+      "en_name": "Target Protein / Driver Gene",
+      "description": "肿瘤发生发展的驱动基因产物、激酶受体及功能性蛋白复合体",
+      "en_description": "Driver oncogene products, kinase receptors, and functional protein complexes.",
+      "patterns": [
+        ".*(?:kinase|receptor|phosphatase)$",
+        ".*(?:激酶|受体|磷酸酶)$",
+        "^(?:EGFR|KRAS|BRAF|PIK3CA|TP53|MYC|MET|ALK|RET|HER2)$"
+      ]
+    },
+    "Targeted_Therapeutic": {
+      "name": "小分子靶向药 / ADC药物",
+      "en_name": "Targeted Therapeutic / ADC",
+      "description": "合成小分子抑制剂、激酶抑制剂、单克隆抗体及抗体偶联药物(ADC)",
+      "en_description": "Small molecule inhibitors, kinase inhibitors, monoclonal antibodies, and ADCs.",
+      "patterns": [
+        ".*(?:tinib|rafenib|lisib|ciclib|parib|nib|mab|cept|vedotin|deruxtecan)$",
+        ".*(?:抑制剂|阻断剂|单抗|抗体)$"
+      ]
+    },
+    "Neoplasm_Condition": {
+      "name": "肿瘤分型 / 临床适应症",
+      "en_name": "Neoplasm Subtype / Indication",
+      "description": "实体瘤、恶性血液病、转移灶及临床病理诊断分型",
+      "en_description": "Solid tumors, hematologic malignancies, metastatic lesions, and clinical diagnoses.",
+      "patterns": [
+        ".*(?:carcinoma|sarcoma|melanoma|leukemia|lymphoma|cancer|tumor)$",
+        ".*(?:癌|肉瘤|白血病|淋巴瘤|肿瘤)$"
+      ]
+    },
+    "Uncertain": {
+      "name": "待定 / 无法判断",
+      "en_name": "Pending / Uncertain",
+      "description": "上下文证据不充分或未命中特定类别的实体，由系统统一分流管理",
+      "en_description": "Entities with insufficient context or pending escalation analysis."
+    }
+  },
+  "relation_categories": {
+    "Direct_Inhibition": {
+      "name": "直接抑制 / 靶向阻断",
+      "en_name": "Direct Inhibition / Blockade",
+      "description": "小分子结合变构阻断、抗体中和或降解诱导",
+      "en_description": "Allosteric inhibition, antibody neutralization, or degradation induction."
+    },
+    "Downstream_Activation": {
+      "name": "下游激活 / 信号级联",
+      "en_name": "Downstream Activation / Cascade",
+      "description": "信号传导增强、催化激活、转录激活或通路驱动",
+      "en_description": "Signal transduction enhancement, catalytic or transcriptional activation."
+    },
+    "Resistance_Mechanism": {
+      "name": "耐药突变 / 旁路代偿",
+      "en_name": "Resistance / Bypass Activation",
+      "description": "获得性耐药突变、旁路信号转导代偿激活",
+      "en_description": "Acquired resistance mutation or bypass signaling compensation."
+    }
+  }
+}
+
+--------------------------------------------------------------------------------
+四、 快速测试与生效指南
+--------------------------------------------------------------------------------
+1. 在本目录新建您的 `.json` 文件并保存（确保格式为合法 JSON，无多余逗号）。
+2. 返回 Web 界面图谱分析工作台，点击配置区的【🔄 刷新列表】按钮（或直接刷新浏览器）。
+3. 在“选择标准预设方案”下拉框中，您将看到您自定义的标准名称。
+4. 选中后点击【🚀 启动分级研判流水线】，系统将严格按照您配置的 patterns 与三要素规范自动展开分析！

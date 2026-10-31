@@ -1593,9 +1593,11 @@ UI_TEXT = {
     "wb_no_base_graph": {"zh": "暂无基础图谱拓扑数据", "en": "No base graph topology data available yet"},
     "wb_config_title": {"zh": "⚙️ 分析预设与流水线控制", "en": "⚙️ Ontology Presets & Pipeline Control"},
     "wb_preset_select": {"zh": "📚 选择分析本体预设体系", "en": "📚 Select Ontology Preset"},
-    "wb_custom_preset_upload": {"zh": "📥 导入自定义本体 JSON (可选)", "en": "📥 Import Custom Ontology JSON (Optional)"},
-    "wb_custom_preset_success": {"zh": "已成功加载并保存自定义预设: {name}", "en": "Successfully loaded and saved custom preset: {name}"},
-    "wb_custom_preset_invalid": {"zh": "JSON 格式不合法：缺少 entity_categories 字段", "en": "Invalid JSON format: missing entity_categories field"},
+    "wb_custom_preset_title": {"zh": "自定义规则管理", "en": "Custom Schema Management"},
+    "wb_btn_open_presets_dir": {"zh": "📁 打开规则文件夹", "en": "📁 Open Rules Folder"},
+    "wb_open_presets_dir_desc": {"zh": "将符合三要素规范的 .json 规则文件直接放入该目录即可自动加载；文件夹内附详细中英指南。", "en": "Place 3-element .json schema files directly into this folder to load them automatically. Detailed guides are included inside."},
+    "wb_btn_refresh_presets": {"zh": "🔄 刷新预设列表", "en": "🔄 Refresh Presets"},
+    "wb_toast_folder_opened": {"zh": "已尝试在文件资源管理器中打开规则目录: {path}", "en": "Attempted to open rules folder in file manager: {path}"},
     "wb_chk_entities": {"zh": "🧬 开启实体分级分类分析", "en": "🧬 Enable Entity Categorization"},
     "wb_chk_relations": {"zh": "🔗 开启关系机制动词归纳", "en": "🔗 Enable Relation Mechanism Distillation"},
     "wb_chk_force": {"zh": "🔄 忽略已有缓存强制全量重算", "en": "🔄 Force Full Re-analysis (Bypass Cache)"},
@@ -1958,6 +1960,33 @@ def get_project_paper_full_texts(project_id: str) -> dict:
     return texts
 
 
+def open_directory_in_file_manager(dir_path: str) -> bool:
+    """
+    跨平台尝试在系统文件管理器中打开指定目录：
+    - Windows: os.startfile
+    - macOS: open
+    - Linux: xdg-open
+    若运行于无图形界面的远程/Docker环境，平滑捕获异常并返回 False。
+    """
+    import sys
+    import subprocess
+    import os
+    abs_path = os.path.abspath(dir_path)
+    try:
+        if sys.platform == "win32":
+            os.startfile(abs_path)
+            return True
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", abs_path])
+            return True
+        else:
+            subprocess.Popen(["xdg-open", abs_path])
+            return True
+    except Exception as e:
+        print(f"⚠️ [open_directory_in_file_manager] 无法打开图形文件管理器: {e}")
+        return False
+
+
 def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: str):
     """图谱分析工作台独立视图渲染 (Graph Analysis Workbench) - 完整双语国际化与条件渲染"""
     import importlib
@@ -2043,18 +2072,21 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             desc = selected_preset.get('en_description', selected_preset.get('description', '')) if is_en else selected_preset.get('description', '')
             st.caption(f"ℹ️ {desc}")
         with col_p2:
-            custom_file = st.file_uploader(t("wb_custom_preset_upload"), type=["json"], key="wb_custom_preset_upload")
-            if custom_file:
-                try:
-                    custom_data = json.load(custom_file)
-                    if "entity_categories" in custom_data:
-                        mgr.save_preset(custom_data)
-                        st.success(t("wb_custom_preset_success").format(name=custom_data.get('name', 'Custom')))
-                        st.rerun()
+            st.markdown(f"**{t('wb_custom_preset_title')}**")
+            st.caption(t("wb_open_presets_dir_desc"))
+            btn_col1, btn_col2 = st.columns([3, 2])
+            with btn_col1:
+                if st.button(t("wb_btn_open_presets_dir"), key="wb_btn_open_presets_dir", width="stretch"):
+                    abs_dir = os.path.abspath(mgr.presets_dir)
+                    opened = open_directory_in_file_manager(abs_dir)
+                    if opened:
+                        st.toast(t("wb_toast_folder_opened").format(path=abs_dir), icon="📁")
                     else:
-                        st.error(t("wb_custom_preset_invalid"))
-                except Exception as err:
-                    st.error(f"Error: {err}")
+                        st.info(f"📁 `{abs_dir}`")
+            with btn_col2:
+                if st.button(t("wb_btn_refresh_presets"), key="wb_btn_refresh_presets", width="stretch"):
+                    st.rerun()
+            st.caption(f"📁 `{os.path.abspath(mgr.presets_dir)}`")
 
         c_t1, c_t2, c_t3 = st.columns(3)
         with c_t1:
