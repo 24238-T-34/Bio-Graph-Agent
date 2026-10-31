@@ -18,8 +18,8 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 
 class RulePreFilter:
     """
-    完全基于本体标准配置文件 (ontology_presets/*.json) 中 rules 定义的数据驱动规则分类器。
-    无任何写死在代码中的领域字典或硬编码规则，严格根据当前加载的标准进行确定性匹配。
+    基于本体标准配置文件 (ontology_presets/*.json) 中实体分类内定义的三要素（名称、描述、正则表达式）
+    进行数据驱动的高速确定性分类，无任何写死在代码中的规则。
     """
 
     _compiled_pattern_cache: Dict[str, Optional[re.Pattern]] = {}
@@ -35,19 +35,23 @@ class RulePreFilter:
         return cls._compiled_pattern_cache[pattern_str]
 
     @classmethod
+    def _compile_regex(cls, pattern_str: str) -> Optional[re.Pattern]:
+        return cls._get_compiled_regex(pattern_str)
+
+    @classmethod
     def classify(cls, node_name: str, aliases: Optional[List[str]] = None,
                  ontology: Optional[Dict[str, Any]] = None, language: str = "zh") -> Optional[Dict[str, Any]]:
         """
-        根据当前本体预设中显式声明的 rules 列表进行确定性匹配。
-        - 优先检查 exact_matches (哈希 O(1) 匹配)
-        - 其次检查 patterns 正则模式
-        - 若当前标准未定义 rules 或均未命中，安全返回 None，平滑交由后续大模型阶段处理，不进行任何臆测推导
+        根据当前本体预设中各实体分类显式声明的 patterns 正则表达式列表进行匹配。
+        - 仅对 entity_categories 中包含 patterns 且非 Uncertain 的类别进行匹配。
+        - 遇到命中时，统一标注理由为极简字符串（"规则正则匹配" / "Rule-based regex match"）。
+        - 若未命中，安全返回 None，平滑交由后续大模型阶段处理。
         """
         if not ontology or not isinstance(ontology, dict):
             return None
 
-        rules = ontology.get("rules", [])
-        if not rules or not isinstance(rules, list):
+        ent_cats = ontology.get("entity_categories", {})
+        if not ent_cats or not isinstance(ent_cats, dict):
             return None
 
         raw_name = node_name.strip()
@@ -57,60 +61,33 @@ class RulePreFilter:
             all_candidates.extend([a.strip().lower() for a in aliases if a.strip()])
 
         is_en = "en" in str(language).lower()
-        target_categories = set(ontology.get("entity_categories", {}).keys())
+        unified_reason = "Rule-based regex match" if is_en else "规则正则匹配"
 
-        for rule in rules:
-            if not isinstance(rule, dict):
+        for cat_id, cat_info in ent_cats.items():
+            if cat_id == "Uncertain" or not isinstance(cat_info, dict):
                 continue
 
-            cat_id = rule.get("category")
-            # 严格保障：非当前标准原本合法类别的规则一律跳过，确保 100% 对齐原本类别
-            if target_categories and cat_id not in target_categories:
+            patterns = cat_info.get("patterns", [])
+            if not patterns or not isinstance(patterns, list):
                 continue
 
-            sub_type = rule.get("sub_type", "")
-            sub_type_zh = rule.get("sub_type_zh", sub_type)
-            tag = rule.get("tag", cat_id)
-            conf = float(rule.get("confidence", 0.95))
-            reason_zh = rule.get("reason_zh", f"匹配【{cat_id}】命名规范规则")
-            reason_en = rule.get("reason_en", f"Matched [{cat_id}] nomenclature rule")
+            cat_name = (cat_info.get("en_name") or cat_info.get("en_label", cat_id)) if is_en else (cat_info.get("name") or cat_info.get("label", cat_id))
 
-            # 1. 优先极速哈希匹配 exact_matches (O(1))
-            exact_matches = rule.get("exact_matches", [])
-            if exact_matches:
-                exact_set = {str(w).strip().lower() for w in exact_matches if str(w).strip()}
+            for pat_str in patterns:
+                compiled = cls._get_compiled_regex(pat_str)
+                if not compiled:
+                    continue
                 for cand in all_candidates:
-                    if cand in exact_set or raw_name in exact_matches:
+                    if compiled.search(cand):
                         return {
                             "primary_type": cat_id,
-                            "sub_type": sub_type if is_en else sub_type_zh,
-                            "tags": [tag],
-                            "confidence": conf,
-                            "reasoning": reason_en if is_en else reason_zh,
+                            "sub_type": "",
+                            "tags": [cat_name],
+                            "confidence": 0.95,
+                            "reasoning": unified_reason,
                             "round": 0,
                             "status": "resolved"
                         }
-
-            # 2. 正则模式匹配 patterns
-            patterns = rule.get("patterns", [])
-            if patterns:
-                for pat_str in patterns:
-                    compiled = cls._get_compiled_regex(pat_str)
-                    if not compiled:
-                        continue
-                    for cand in all_candidates:
-                        if compiled.match(cand):
-                            match_reason_zh = f"{reason_zh} (模式: {pat_str})"
-                            match_reason_en = f"{reason_en} (Pattern: {pat_str})"
-                            return {
-                                "primary_type": cat_id,
-                                "sub_type": sub_type if is_en else sub_type_zh,
-                                "tags": [tag],
-                                "confidence": conf,
-                                "reasoning": match_reason_en if is_en else match_reason_zh,
-                                "round": 0,
-                                "status": "resolved"
-                            }
 
         return None
 

@@ -1,363 +1,147 @@
 {
   "id": "molecular_signaling",
   "name": "分子信号传导与级联反应预设",
+  "en_name": "Molecular Signaling & Cascade",
   "description": "专注于细胞内分子信号网络、激酶级联、翻译后修饰与转录调控的细粒度实体与机制分类体系。",
+  "en_description": "Granular ontology for intracellular signaling cascades, kinase phosphorylation, PTMs, and transcription.",
   "entity_categories": {
     "Kinase_Phosphatase": {
+      "name": "激酶 / 磷酸酶",
+      "en_name": "Kinase / Phosphatase",
       "label": "激酶 / 磷酸酶",
       "en_label": "Kinase / Phosphatase",
-      "color": "#3b82f6",
-      "shape": "dot",
-      "icon": "⚡",
-      "description": "催化磷酸化或去磷酸化级联反应的关键酶蛋白",
-      "en_description": "Key catalytic enzymes mediating phosphorylation or dephosphorylation cascades."
+      "description": "催化蛋白质磷酸化/去磷酸化的关键限速酶或级联传递激酶",
+      "en_description": "Key rate-limiting enzymes catalyzing phosphorylation or dephosphorylation.",
+      "patterns": [
+        ".*(?:kinase|phosphatase|caspase[-0-9]*|proteasome.*)$",
+        ".*(?:激酶|磷酸酶)$",
+        "^(?:MAPK1|MAPK3|AKT1|AKT2|AKT3|PIK3CA|MTOR|BRAF|ABL1|SRC|JAK1|JAK2|TYK2|CDK1|CDK2|CDK4|CDK6|ATM|ATR|CHEK1|CHEK2|PTEN|DUSP1|DUSP6|PP2A|PTPN11|SHP2)$"
+      ]
     },
     "Transcription_Factor": {
+      "name": "转录因子 / 核受体",
+      "en_name": "Transcription Factor / Nuclear Receptor",
       "label": "转录因子 / 核受体",
       "en_label": "Transcription Factor / Nuclear Receptor",
-      "color": "#8b5cf6",
-      "shape": "diamond",
-      "icon": "🧬",
-      "description": "特异性结合DNA并调控基因转录的因子或辅因子",
-      "en_description": "Sequence-specific DNA-binding factors and cofactors regulating gene transcription."
+      "description": "结合特异性启动子/增强子启动基因转录的调控分子",
+      "en_description": "Master regulatory factors binding promoters/enhancers to initiate transcription.",
+      "patterns": [
+        ".*(?:transcription factor|nuclear receptor)$",
+        ".*(?:转录因子|核受体)$",
+        "^(?:STAT1|STAT3|STAT5|NFKB1|NFKB2|RELA|RELB|MYC|JUN|FOS|HIF1A|SMAD2|SMAD3|SMAD4|TP53|P53|FOXO1|FOXO3|CREB1|IRF3|IRF7)$"
+      ]
     },
     "Receptor_Adapter": {
+      "name": "受体 / 接头蛋白",
+      "en_name": "Receptor / Adapter Protein",
       "label": "受体 / 接头蛋白",
       "en_label": "Receptor / Adapter Protein",
-      "color": "#06b6d4",
-      "shape": "square",
-      "icon": "📡",
-      "description": "膜受体、胞质受体及传递信号的支架接头蛋白",
-      "en_description": "Membrane receptors, cytosolic sensors, and scaffold/adapter signaling proteins."
+      "description": "起始信号传导的质膜/胞内受体及招募复合物的接头蛋白",
+      "en_description": "Membrane or cytosolic receptors and scaffold/adapter proteins.",
+      "patterns": [
+        ".*(?:receptor|adapter|gpcr)$",
+        ".*(?:受体|接头蛋白)$",
+        "^[a-z0-9]{2,6}r[0-9]+$",
+        "^(?:EGFR|ERBB2|VEGFR1|VEGFR2|MET|ALK|INSR|FGFR1|TGFBR1|TGFBR2|IFNGRI|IL6R|TNFRSF1A|GRB2|SOS1|MYD88|TRIF|TRAF6|TAB1)$"
+      ]
     },
     "Second_Messenger_Ion": {
+      "name": "第二信使 / 离子 / 代谢分子",
+      "en_name": "Second Messenger / Ion / Metabolite",
       "label": "第二信使 / 离子 / 代谢分子",
       "en_label": "Second Messenger / Ion / Metabolite",
-      "color": "#f59e0b",
-      "shape": "triangle",
-      "icon": "🧪",
-      "description": "cAMP, IP3, DAG, Ca2+及信号级联中的小分子信使",
-      "en_description": "Small molecules and ions (cAMP, IP3, DAG, Ca2+) propagating intracellular signals."
+      "description": "放大并快速传递胞内刺激的低分子量小分子、离子或活性氧",
+      "en_description": "Small signaling messengers, secondary ions, or energetic metabolites.",
+      "patterns": [
+        ".*(?:second messenger|ion)$",
+        ".*(?:第二信使|离子)$",
+        "^(?:camp|cgmp|ip3|dag|pip2|pip3|ca2\\+|mg2\\+|k\\+|na\\+|ros|no|atp|adp|gtp|gdp|nadh|nad\\+)$"
+      ]
     },
     "Effector_Target_Gene": {
+      "name": "下游效应蛋白 / 靶基因",
+      "en_name": "Downstream Effector / Target Gene",
       "label": "下游效应蛋白 / 靶基因",
       "en_label": "Downstream Effector / Target Gene",
-      "color": "#10b981",
-      "shape": "hexagon",
-      "icon": "🎯",
-      "description": "通路末端效应蛋白、细胞骨架组件或激活转录的靶基因",
-      "en_description": "Downstream effector proteins, cytoskeletal components, or transcribed target genes."
+      "description": "受信号通路终末调控的靶基因mRNA转录产物或表型执行蛋白",
+      "en_description": "Phenotypic executors or targeted genes downstream of signaling cascades.",
+      "patterns": [
+        ".*(?:effector|target gene)$",
+        ".*(?:靶基因|效应蛋白)$",
+        "^(?:BCL2|BAX|BIRC5|CCND1|MYC|VEGFA|CDKN1A|P21|CDKN1B|P27|MMP2|MMP9|IL6|TNF|IFNG)$"
+      ]
     },
     "Pathway_Module": {
+      "name": "通路模块 / 生理过程",
+      "en_name": "Pathway Module / Process",
       "label": "通路模块 / 生理过程",
       "en_label": "Pathway Module / Process",
-      "color": "#ec4899",
-      "shape": "star",
-      "icon": "🔄",
-      "description": "如MAPK通路、PI3K/AKT级联、凋亡进程或自噬流",
-      "en_description": "Canonical signaling pathways (MAPK, PI3K/AKT), apoptosis cascades, or autophagy flux."
+      "description": "功能性信号级联网络或细胞生物学表型反应模块",
+      "en_description": "Signaling pathway circuits, cascade loops, or cellular biological processes.",
+      "patterns": [
+        ".*(?:pathway|signaling|cascade|ptosis)$",
+        ".*(?:通路|信号转导|级联反应)$",
+        "^(?:mapk signaling|pi3k/akt pathway|wnt/beta-catenin|nf-kb pathway|jak/stat pathway|tgf-beta signaling|cell cycle|apoptosis|autophagy|ferroptosis)$"
+      ]
     },
     "Uncertain": {
+      "name": "无法判断 / 未定",
+      "en_name": "Uncertain / Unclassified",
       "label": "无法判断 / 未定",
       "en_label": "Uncertain / Unclassified",
-      "color": "#9ca3af",
-      "shape": "ellipse",
-      "icon": "❓",
-      "description": "文献证据不足或上下文含糊、无法明确归类的分子实体",
-      "en_description": "Molecular entities with ambiguous context or insufficient evidence in literature."
+      "description": "无法归类或证据不足的信号实体概念",
+      "en_description": "Ambiguous or unidentifiable signaling component.",
+      "patterns": []
     }
   },
   "relation_categories": {
-    "Phosphorylation": {
-      "label": "磷酸化 / 激活修饰",
-      "en_label": "Phosphorylation / Modification",
-      "color": "#22c55e",
-      "icon": "🟢",
-      "en_description": "Enzymatic addition of a phosphate group leading to functional activation or conformational change."
+    "Phosphorylation_Activation": {
+      "name": "磷酸化 / 级联激活",
+      "en_name": "Phosphorylation / Activation",
+      "label": "磷酸化 / 级联激活",
+      "en_label": "Phosphorylation / Activation",
+      "description": "激酶催化底物氨基酸残基磷酸化并激活其构象/活性",
+      "en_description": "Kinase-mediated substrate phosphorylation resulting in activation."
     },
-    "Dephosphorylation": {
-      "label": "去磷酸化 / 失活",
+    "Dephosphorylation_Inactivation": {
+      "name": "去磷酸化 / 信号淬灭",
+      "en_name": "Dephosphorylation / Inactivation",
+      "label": "去磷酸化 / 信号淬灭",
       "en_label": "Dephosphorylation / Inactivation",
-      "color": "#ef4444",
-      "icon": "🔴",
-      "en_description": "Enzymatic removal of a phosphate group, typically causing inactivation."
+      "description": "磷酸酶移除磷酸基团导致构象关闭或信号终止",
+      "en_description": "Phosphatase-mediated removal of phosphate groups leading to signal termination."
     },
-    "Ubiquitination_Degradation": {
-      "label": "泛素化 / 靶向降解",
-      "en_label": "Ubiquitination / Degradation",
-      "color": "#ea580c",
-      "icon": "🗑️",
-      "en_description": "Ubiquitin conjugation targeting substrates for proteasomal or lysosomal degradation."
+    "Transcriptional_Induction": {
+      "name": "转录激活 / 表达诱导",
+      "en_name": "Transcriptional Induction",
+      "label": "转录激活 / 表达诱导",
+      "en_label": "Transcriptional Induction",
+      "description": "转录因子入核结合启动子并驱动靶基因mRNA表达",
+      "en_description": "Transcription factor binds promoter and induces target gene expression."
     },
-    "Transcriptional_Activation": {
-      "label": "转录激活 / 诱导表达",
-      "en_label": "Transcriptional Activation / Induction",
-      "color": "#3b82f6",
-      "icon": "📈",
-      "en_description": "Binding to promoter/enhancer elements to upregulate target gene expression."
+    "Scaffold_Assembly": {
+      "name": "复合物招募 / 信号小体组装",
+      "en_name": "Scaffold Assembly",
+      "label": "复合物招募 / 信号小体组装",
+      "en_label": "Scaffold Assembly",
+      "description": "接头蛋白通过特定结构域招募多组分信号小体",
+      "en_description": "Adapter/scaffold protein recruits multi-protein signaling complex."
     },
-    "Complex_Assembly": {
-      "label": "复合物组装 / 招募结合",
-      "en_label": "Complex Assembly / Recruitment",
-      "color": "#8b5cf6",
-      "icon": "🔗",
-      "en_description": "Recruitment and physical assembly of multi-protein signaling complexes."
+    "Negative_Feedback_Loop": {
+      "name": "负反馈抑制 / 自限性阻断",
+      "en_name": "Negative Feedback Loop",
+      "label": "负反馈抑制 / 自限性阻断",
+      "en_label": "Negative Feedback Loop",
+      "description": "下游产物反向抑制上游起始节点以维持稳态",
+      "en_description": "Downstream product retroactively inhibits upstream nodes for homeostasis."
     },
-    "Translocation": {
-      "label": "核转位 / 亚细胞迁移",
-      "en_label": "Nuclear Translocation / Trafficking",
-      "color": "#06b6d4",
-      "icon": "🚚",
-      "en_description": "Subcellular trafficking, such as nuclear translocation or membrane recruitment."
-    },
-    "Allosteric_Regulation": {
-      "label": "变构调节 / 反馈回路",
-      "en_label": "Allosteric Regulation / Feedback",
-      "color": "#a855f7",
-      "icon": "🔄",
-      "en_description": "Non-covalent binding at an allosteric site altering protein conformation and activity."
+    "Cross_Talk_Regulation": {
+      "name": "旁路交互 / 通路间交叉对话",
+      "en_name": "Cross-Talk Regulation",
+      "label": "旁路交互 / 通路间交叉对话",
+      "en_label": "Cross-Talk Regulation",
+      "description": "不同信号通路之间的协同、互斥或旁路代偿",
+      "en_description": "Functional synergy, antagonism, or bypass compensation between signaling pathways."
     }
-  },
-  "en_name": "Molecular Signaling Cascades & Modifications",
-  "en_description": "Fine-grained ontology focused on intracellular signaling networks, kinase cascades, post-translational modifications, and transcriptional regulation.",
-  "rules": [
-    {
-      "category": "Kinase_Phosphatase",
-      "sub_type": "Kinase / Phosphatase Cascade",
-      "sub_type_zh": "激酶 / 磷酸酶",
-      "tag": "Kinase",
-      "confidence": 0.95,
-      "exact_matches": [
-        "MAPK1",
-        "MAPK3",
-        "AKT1",
-        "AKT2",
-        "AKT3",
-        "PIK3CA",
-        "MTOR",
-        "BRAF",
-        "ABL1",
-        "SRC",
-        "JAK1",
-        "JAK2",
-        "TYK2",
-        "CDK1",
-        "CDK2",
-        "CDK4",
-        "CDK6",
-        "ATM",
-        "ATR",
-        "CHEK1",
-        "CHEK2",
-        "PTEN",
-        "DUSP1",
-        "DUSP6",
-        "PP2A",
-        "PTPN11",
-        "SHP2",
-        "激酶",
-        "磷酸酶",
-        "蛋白激酶"
-      ],
-      "patterns": [
-        ".*kinase$",
-        ".*激酶$",
-        ".*phosphatase$",
-        ".*磷酸酶$",
-        ".*caspase[-0-9]*$",
-        ".*proteasome.*"
-      ],
-      "reason_zh": "匹配信号传导激酶或磷酸酶命名词缀",
-      "reason_en": "Matches signaling cascade kinase or phosphatase nomenclature"
-    },
-    {
-      "category": "Transcription_Factor",
-      "sub_type": "Transcription Factor / Nuclear Factor",
-      "sub_type_zh": "转录因子 / 核受体",
-      "tag": "TF",
-      "confidence": 0.95,
-      "exact_matches": [
-        "STAT1",
-        "STAT3",
-        "STAT5",
-        "NFKB1",
-        "NFKB2",
-        "RELA",
-        "RELB",
-        "MYC",
-        "JUN",
-        "FOS",
-        "HIF1A",
-        "SMAD2",
-        "SMAD3",
-        "SMAD4",
-        "TP53",
-        "P53",
-        "FOXO1",
-        "FOXO3",
-        "CREB1",
-        "IRF3",
-        "IRF7",
-        "转录因子",
-        "核受体"
-      ],
-      "patterns": [
-        ".*transcription factor$",
-        ".*转录因子$",
-        ".*nuclear receptor$",
-        ".*核受体$"
-      ],
-      "reason_zh": "匹配关键调控转录因子或核受体蛋白",
-      "reason_en": "Matches master transcription factor or nuclear receptor protein"
-    },
-    {
-      "category": "Receptor_Adapter",
-      "sub_type": "Membrane Receptor / Adapter Protein",
-      "sub_type_zh": "受体 / 接头蛋白",
-      "tag": "ReceptorAdapter",
-      "confidence": 0.93,
-      "exact_matches": [
-        "EGFR",
-        "ERBB2",
-        "VEGFR1",
-        "VEGFR2",
-        "MET",
-        "ALK",
-        "INSR",
-        "FGFR1",
-        "TGFBR1",
-        "TGFBR2",
-        "IFNGRI",
-        "IL6R",
-        "TNFRSF1A",
-        "GRB2",
-        "SOS1",
-        "MYD88",
-        "TRIF",
-        "TRAF6",
-        "TAB1",
-        "受体",
-        "接头蛋白",
-        "膜受体"
-      ],
-      "patterns": [
-        ".*receptor$",
-        ".*受体$",
-        ".*adapter$",
-        ".*接头蛋白$",
-        ".*gpcr$",
-        "^[a-z0-9]{2,6}r[0-9]+$"
-      ],
-      "reason_zh": "匹配信号起始跨膜受体或胞内接头分子",
-      "reason_en": "Matches membrane initiator receptor or adapter molecule"
-    },
-    {
-      "category": "Second_Messenger_Ion",
-      "sub_type": "Second Messenger / Signaling Ion",
-      "sub_type_zh": "第二信使 / 离子 / 代谢分子",
-      "tag": "SecondMessenger",
-      "confidence": 0.96,
-      "exact_matches": [
-        "camp",
-        "cgmp",
-        "ip3",
-        "dag",
-        "pip2",
-        "pip3",
-        "ca2+",
-        "mg2+",
-        "k+",
-        "na+",
-        "ros",
-        "no",
-        "atp",
-        "adp",
-        "gtp",
-        "gdp",
-        "nadh",
-        "nad+",
-        "第二信使",
-        "钙离子",
-        "活性氧"
-      ],
-      "patterns": [
-        ".*second messenger.*",
-        ".*第二信使.*",
-        ".*ion$",
-        ".*离子$"
-      ],
-      "reason_zh": "匹配细胞内信号级联第二信使、离子或高能代谢物",
-      "reason_en": "Matches intracellular second messenger, signaling ion, or metabolite"
-    },
-    {
-      "category": "Effector_Target_Gene",
-      "sub_type": "Downstream Effector / Target Gene",
-      "sub_type_zh": "下游效应蛋白 / 靶基因",
-      "tag": "EffectorGene",
-      "confidence": 0.9,
-      "exact_matches": [
-        "BCL2",
-        "BAX",
-        "BIRC5",
-        "CCND1",
-        "MYC",
-        "VEGFA",
-        "CDKN1A",
-        "P21",
-        "CDKN1B",
-        "P27",
-        "MMP2",
-        "MMP9",
-        "IL6",
-        "TNF",
-        "IFNG",
-        "下游效应分子",
-        "靶基因",
-        "效应蛋白"
-      ],
-      "patterns": [
-        ".*effector$",
-        ".*target gene$",
-        ".*靶基因$",
-        ".*效应蛋白$"
-      ],
-      "reason_zh": "匹配通路下游终末执行效应蛋白或转录靶基因",
-      "reason_en": "Matches downstream functional effector protein or transcriptional target gene"
-    },
-    {
-      "category": "Pathway_Module",
-      "sub_type": "Signaling Pathway / Process Module",
-      "sub_type_zh": "通路模块 / 生理过程",
-      "tag": "Pathway",
-      "confidence": 0.92,
-      "exact_matches": [
-        "mapk signaling",
-        "pi3k/akt pathway",
-        "wnt/beta-catenin",
-        "nf-kb pathway",
-        "jak/stat pathway",
-        "tgf-beta signaling",
-        "cell cycle",
-        "apoptosis",
-        "autophagy",
-        "ferroptosis",
-        "凋亡",
-        "细胞周期",
-        "糖酵解",
-        "铁死亡",
-        "级联反应"
-      ],
-      "patterns": [
-        ".*pathway$",
-        ".*signaling$",
-        ".*cascade$",
-        ".*通路$",
-        ".*信号转导$",
-        ".*级联反应$",
-        ".*ptosis$"
-      ],
-      "reason_zh": "匹配信号传导级联网络或细胞生物学通路模块",
-      "reason_en": "Matches signaling cascade network or biological pathway module"
-    }
-  ]
+  }
 }

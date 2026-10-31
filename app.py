@@ -2194,11 +2194,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             sorted_cats = sorted(cat_to_nodes.items(), key=lambda x: len(x[1]), reverse=True)
             for cat_id, nodes in sorted_cats:
                 c_def = ent_cat_defs.get(cat_id, {})
-                c_lbl = (c_def.get("en_label", cat_id) if is_en else c_def.get("label", cat_id)) or cat_id
-                c_icon = c_def.get("icon", "•")
+                c_lbl = ((c_def.get("en_name") or c_def.get("en_label", cat_id)) if is_en else (c_def.get("name") or c_def.get("label", cat_id))) or cat_id
                 pct = (len(nodes) / max(1, len(ents))) * 100
                 unit_txt = t("wb_unit_entities")
-                with st.expander(f"{c_icon} {c_lbl} — {len(nodes)} {unit_txt} ({pct:.1f}%)", expanded=False):
+                with st.expander(f"{c_lbl} — {len(nodes)} {unit_txt} ({pct:.1f}%)", expanded=False):
                     for nodename in nodes:
                         a = ent_annots.get(nodename, {})
                         sub = a.get("sub_type", "")
@@ -2223,10 +2222,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             sorted_mechs = sorted(mech_to_edges.items(), key=lambda x: len(x[1]), reverse=True)
             for mech_id, edge_tuples in sorted_mechs:
                 r_def = rel_cat_defs.get(mech_id, {})
-                r_lbl = (r_def.get("en_label", mech_id) if is_en else r_def.get("label", mech_id)) or mech_id
-                r_icon = r_def.get("icon", "•")
+                r_lbl = ((r_def.get("en_name") or r_def.get("en_label", mech_id)) if is_en else (r_def.get("name") or r_def.get("label", mech_id))) or mech_id
                 unit_rel = t("wb_unit_relations")
-                with st.expander(f"{r_icon} {r_lbl} — {len(edge_tuples)} {unit_rel}", expanded=False):
+                with st.expander(f"{r_lbl} — {len(edge_tuples)} {unit_rel}", expanded=False):
                     for src, tgt, rel, k in edge_tuples:
                         a = rel_annots.get(k, {})
                         verb = a.get("mechanism_verb", rel)
@@ -2329,7 +2327,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     sel_node = st.selectbox(t("wb_sel_ent_lbl"), all_node_names, key="wb_select_override_node")
                     cur_a = ent_annots.get(sel_node, {})
                     cur_type = cur_a.get("primary_type", "Uncertain")
-                    cur_cat_lbl = (ent_cat_defs.get(cur_type, {}).get("en_label", cur_type) if is_en else ent_cat_defs.get(cur_type, {}).get("label", cur_type)) or cur_type
+                    cur_cat_lbl = ((ent_cat_defs.get(cur_type, {}).get("en_name") or ent_cat_defs.get(cur_type, {}).get("en_label", cur_type)) if is_en else (ent_cat_defs.get(cur_type, {}).get("name") or ent_cat_defs.get(cur_type, {}).get("label", cur_type))) or cur_type
                     st.caption(f"{t('wb_cur_cat_lbl')}: **{cur_cat_lbl}** | {t('wb_round_lbl')}: `{cur_a.get('round', 'N/A')}` | {t('wb_conf_lbl')}: `{int(cur_a.get('confidence', 0)*100)}%`")
                     if cur_a.get("reasoning"):
                         st.caption(f"{t('wb_reason_trace_lbl')}: {cur_a.get('reasoning')}")
@@ -2339,8 +2337,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     def_cat_idx = cat_keys.index(cur_type) if cur_type in cat_keys else 0
                     def get_cat_fmt(k):
                         cd = ent_cat_defs.get(k, {})
-                        lbl = (cd.get("en_label", k) if is_en else cd.get("label", k)) or k
-                        return f"{cd.get('icon','')} {lbl}"
+                        return ((cd.get("en_name") or cd.get("en_label", k)) if is_en else (cd.get("name") or cd.get("label", k))) or k
                     target_cat = st.selectbox(t("wb_target_cat_lbl"), cat_keys, index=def_cat_idx,
                                               format_func=get_cat_fmt,
                                               key="wb_select_target_cat")
@@ -2397,7 +2394,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         s, t_node, orig_rel, k = edge_key_map[sel_edge_lbl]
                         cur_ra = rel_annots.get(k, {})
                         cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
-                        cur_mech_lbl = (rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat) if is_en else rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat)) or cur_mech_cat
+                        cur_mech_lbl = ((rel_cat_defs.get(cur_mech_cat, {}).get("en_name") or rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat)) if is_en else (rel_cat_defs.get(cur_mech_cat, {}).get("name") or rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat))) or cur_mech_cat
                         st.caption(f"{t('wb_cur_mech_lbl')}: **{cur_mech_lbl}** | {t('wb_cur_verb_lbl')}: `{cur_ra.get('mechanism_verb', orig_rel)}`")
                         if cur_ra.get("reasoning"):
                             st.caption(f"{t('wb_reason_trace_lbl')}: {cur_ra.get('reasoning')}")
@@ -2407,8 +2404,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         def_rel_idx = rel_keys.index(cur_mech_cat) if cur_mech_cat in rel_keys else 0
                         def get_rel_fmt(k):
                             rd = rel_cat_defs.get(k, {})
-                            lbl = (rd.get("en_label", k) if is_en else rd.get("label", k)) or k
-                            return f"{rd.get('icon','')} {lbl}"
+                            return ((rd.get("en_name") or rd.get("en_label", k)) if is_en else (rd.get("name") or rd.get("label", k))) or k
                         target_rel_cat = st.selectbox(t("wb_target_relcat_lbl"), rel_keys, index=def_rel_idx,
                                                       format_func=get_rel_fmt,
                                                       key="wb_select_target_relcat")

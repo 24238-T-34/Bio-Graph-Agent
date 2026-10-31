@@ -1,360 +1,148 @@
 {
   "id": "immunology_tme",
   "name": "肿瘤免疫与微环境预设",
+  "en_name": "Tumor Immunology & Microenvironment",
   "description": "专注于免疫细胞亚群、肿瘤免疫微环境(TME)、免疫检查点受体配体与细胞因子通信网络的分类体系。",
+  "en_description": "Ontology dedicated to immune cell subsets, tumor microenvironment (TME), checkpoints, and cytokine communication.",
   "entity_categories": {
     "Immune_Cell_Subset": {
+      "name": "免疫细胞亚群",
+      "en_name": "Immune Cell Subset",
       "label": "免疫细胞亚群",
       "en_label": "Immune Cell Subset",
-      "color": "#10b981",
-      "shape": "square",
-      "icon": "🛡️",
-      "description": "CD8+ T细胞、Treg调节性T细胞、NK细胞、巨噬细胞(M1/M2)、树突细胞(DC)等",
-      "en_description": "CD8+ T cells, regulatory T cells (Tregs), NK cells, M1/M2 macrophages, dendritic cells (DCs)."
-    },
-    "Tumor_Stroma_Cell": {
-      "label": "肿瘤细胞 / 基质细胞",
-      "en_label": "Tumor / Stroma Cell",
-      "color": "#ef4444",
-      "shape": "triangle",
-      "icon": "🧫",
-      "description": "恶性肿瘤克隆细胞、癌症相关成纤维细胞(CAF)、内皮细胞",
-      "en_description": "Malignant tumor clones, cancer-associated fibroblasts (CAFs), or endothelial cells."
-    },
-    "Immune_Checkpoint": {
-      "label": "免疫检查点受体 / 配体",
-      "en_label": "Immune Checkpoint Molecule",
-      "color": "#8b5cf6",
-      "shape": "diamond",
-      "icon": "🛑",
-      "description": "PD-1, PD-L1, CTLA-4, LAG-3, TIM-3, TIGIT, CD47等",
-      "en_description": "Coinhibitory or costimulatory receptors/ligands (PD-1, PD-L1, CTLA-4, LAG-3, TIGIT, CD47)."
-    },
-    "Cytokine_Chemokine": {
-      "label": "细胞因子 / 趋化因子",
-      "en_label": "Cytokine / Chemokine",
-      "color": "#3b82f6",
-      "shape": "dot",
-      "icon": "📨",
-      "description": "IFN-γ, TNF-α, TGF-β, IL-2, IL-6, IL-10, CXCL9/10等游离分子",
-      "en_description": "Soluble signaling molecules (IFN-γ, TNF-α, TGF-β, IL-2, IL-6, IL-10, CXCL9/10)."
-    },
-    "Metabolic_Soluble_Factor": {
-      "label": "微环境代谢物 / 胞外成分",
-      "en_label": "Metabolite / ECM Component",
-      "color": "#f59e0b",
-      "shape": "hexagon",
-      "icon": "🧪",
-      "description": "乳酸、腺苷、色氨酸代谢产物(Kynurenine)、胶原蛋白、胞外基质",
-      "en_description": "Microenvironmental metabolites (lactate, adenosine, kynurenine) and extracellular matrix (ECM)."
-    },
-    "Immune_Phenotype_Pathway": {
-      "label": "免疫表型 / 效应反应",
-      "en_label": "Immune Phenotype / Process",
-      "color": "#ec4899",
-      "shape": "star",
-      "icon": "🔥",
-      "description": "T细胞耗竭(Exhaustion)、免疫抑制、抗原呈递、穿孔素杀伤、炎症浸润",
-      "en_description": "T cell exhaustion, immunosuppression, antigen presentation, cytotoxic killing, or infiltration."
-    },
-    "Uncertain": {
-      "label": "无法判断 / 未定",
-      "en_label": "Uncertain / Unclassified",
-      "color": "#9ca3af",
-      "shape": "ellipse",
-      "icon": "❓",
-      "description": "文献证据不足或上下文含糊、无法明确归类的免疫分子或概念",
-      "en_description": "Immunological molecules or concepts lacking sufficient evidence in literature."
-    }
-  },
-  "relation_categories": {
-    "Immune_Suppression": {
-      "label": "免疫抑制 / 耗竭诱导",
-      "en_label": "Immune Suppression / Exhaustion",
-      "color": "#ef4444",
-      "icon": "🛑",
-      "en_description": "Induction of T cell exhaustion, checkpoint signaling, or immunosuppressive barrier formation."
-    },
-    "Immune_Activation_Cytotoxicity": {
-      "label": "免疫激活 / 细胞毒杀伤",
-      "en_label": "Immune Activation / Cytotoxicity",
-      "color": "#22c55e",
-      "icon": "⚔️",
-      "en_description": "Activation of effector immune cells and perforin/granzyme-mediated cytotoxic tumor killing."
-    },
-    "Ligand_Receptor_Binding": {
-      "label": "受体-配体特异性结合",
-      "en_label": "Receptor-Ligand Binding",
-      "color": "#3b82f6",
-      "icon": "🔗",
-      "en_description": "Specific immune checkpoint ligand-receptor engagement or cytokine-receptor binding."
-    },
-    "Recruitment_Chemotaxis": {
-      "label": "细胞招募 / 趋化迁移",
-      "en_label": "Recruitment / Chemotaxis",
-      "color": "#06b6d4",
-      "icon": "🧲",
-      "en_description": "Chemokine-directed immune cell trafficking, homing, or stromal infiltration."
-    },
-    "Cytokine_Secretory_Induction": {
-      "label": "诱导分泌 / 细胞因子释放",
-      "en_label": "Secretory Induction / Release",
-      "color": "#8b5cf6",
-      "icon": "📤",
-      "en_description": "Triggering transcriptional upregulation and secretion of cytokines or chemokines."
-    },
-    "Phenotype_Polarization": {
-      "label": "表型转化 / 极化分化",
-      "en_label": "Polarization / Differentiation",
-      "color": "#ea580c",
-      "icon": "🔄",
-      "en_description": "Phenotypic polarization or differentiation (e.g. M1 to M2 macrophage transition)."
-    }
-  },
-  "en_name": "Tumor Immunology & Microenvironment",
-  "en_description": "Classification framework focused on immune cell subsets, tumor microenvironment (TME), checkpoint molecules, and cytokine signaling.",
-  "rules": [
-    {
-      "category": "Immune_Cell_Subset",
-      "sub_type": "Immune Cell Subset / Infiltrate",
-      "sub_type_zh": "免疫细胞亚群",
-      "tag": "ImmuneCell",
-      "confidence": 0.96,
-      "exact_matches": [
-        "t cell",
-        "cd4+ t cell",
-        "cd8+ t cell",
-        "cytotoxic t cell",
-        "helper t cell",
-        "th1",
-        "th2",
-        "th17",
-        "regulatory t cell",
-        "treg",
-        "b cell",
-        "plasma cell",
-        "natural killer cell",
-        "nk cell",
-        "macrophage",
-        "m1 macrophage",
-        "m2 macrophage",
-        "tam",
-        "dendritic cell",
-        "dc",
-        "neutrophil",
-        "myeloid-derived suppressor cell",
-        "mdsc",
-        "淋巴细胞",
-        "巨噬细胞",
-        "树突状细胞",
-        "中性粒细胞",
-        "t细胞",
-        "b细胞",
-        "nk细胞",
-        "髓系抑制细胞"
-      ],
+      "description": "T细胞、B细胞、NK细胞、巨噬细胞、树突状细胞等功能亚群",
+      "en_description": "T cells, B cells, NK cells, macrophages, dendritic cells, and functional subsets.",
       "patterns": [
         ".*(?:t[- ]?cell|b[- ]?cell|nk[- ]?cell|macrophage|dendritic cell|treg|mdsc|neutrophil|monocyte|lymphocyte)$",
-        ".*(?:淋巴细胞|单核细胞|巨噬细胞|中性粒细胞|树突状细胞|t细胞|b细胞)$"
-      ],
-      "reason_zh": "匹配肿瘤浸润免疫细胞亚群或造血淋巴细胞命名",
-      "reason_en": "Matches immune cell subpopulation or tumor-infiltrating lymphocyte nomenclature"
+        ".*(?:淋巴细胞|单核细胞|巨噬细胞|中性粒细胞|树突状细胞|t细胞|b细胞)$",
+        "^(?:t cell|cd4\\+ t cell|cd8\\+ t cell|cytotoxic t cell|helper t cell|th1|th2|th17|regulatory t cell|treg|b cell|plasma cell|natural killer cell|nk cell|macrophage|m1 macrophage|m2 macrophage|tam|dendritic cell|dc|neutrophil|myeloid-derived suppressor cell|mdsc)$"
+      ]
     },
-    {
-      "category": "Tumor_Stroma_Cell",
-      "sub_type": "Tumor Cell / Stroma Component",
-      "sub_type_zh": "肿瘤细胞 / 基质细胞",
-      "tag": "TumorStroma",
-      "confidence": 0.94,
-      "exact_matches": [
-        "tumor cell",
-        "cancer cell",
-        "malignant cell",
-        "cancer-associated fibroblast",
-        "caf",
-        "endothelial cell",
-        "pericyte",
-        "tumor stroma",
-        "extracellular matrix",
-        "肿瘤细胞",
-        "癌细胞",
-        "成纤维细胞",
-        "内皮细胞",
-        "周细胞",
-        "基质细胞",
-        "hela",
-        "jurkat",
-        "mcf-7",
-        "a549",
-        "hepg2"
-      ],
+    "Tumor_Stroma_Cell": {
+      "name": "肿瘤细胞 / 基质细胞",
+      "en_name": "Tumor / Stroma Cell",
+      "label": "肿瘤细胞 / 基质细胞",
+      "en_label": "Tumor / Stroma Cell",
+      "description": "恶性肿瘤细胞、肿瘤相关成纤维细胞(CAF)、内皮细胞或周细胞",
+      "en_description": "Malignant tumor cells, CAFs, endothelial cells, or pericytes in the TME.",
       "patterns": [
         ".*(?:tumor cell|cancer cell|fibroblast|caf|endothelial cell|stromal cell)$",
-        ".*(?:肿瘤细胞|癌细胞|基质细胞|内皮细胞|成纤维细胞)$"
-      ],
-      "reason_zh": "匹配恶性肿瘤细胞系或微环境基质细胞类型",
-      "reason_en": "Matches malignant tumor cell line or stromal cell component"
+        ".*(?:肿瘤细胞|癌细胞|基质细胞|内皮细胞|成纤维细胞)$",
+        "^(?:tumor cell|cancer cell|malignant cell|cancer-associated fibroblast|caf|endothelial cell|pericyte|tumor stroma|extracellular matrix|hela|jurkat|mcf-7|a549|hepg2)$"
+      ]
     },
-    {
-      "category": "Immune_Checkpoint",
-      "sub_type": "Immune Checkpoint Receptor / Ligand",
-      "sub_type_zh": "免疫检查点受体 / 配体",
-      "tag": "Checkpoint",
-      "confidence": 0.98,
-      "exact_matches": [
-        "pd-1",
-        "pdcd1",
-        "pd-l1",
-        "cd274",
-        "pd-l2",
-        "pdcd1lg2",
-        "ctla-4",
-        "ctla4",
-        "lag-3",
-        "lag3",
-        "tim-3",
-        "havcr2",
-        "tigit",
-        "vsta",
-        "b7-h3",
-        "cd276",
-        "4-1bb",
-        "tnfrsf9",
-        "ox40",
-        "tnfrsf4",
-        "gitr",
-        "tnfrsf18",
-        "cd28",
-        "cd80",
-        "cd86",
-        "免疫检查点",
-        "检查点受体"
-      ],
+    "Immune_Checkpoint": {
+      "name": "免疫检查点受体 / 配体",
+      "en_name": "Immune Checkpoint Molecule",
+      "label": "免疫检查点受体 / 配体",
+      "en_label": "Immune Checkpoint Molecule",
+      "description": "调控免疫耐受或介导免疫逃逸的共刺激/共抑制跨膜分子",
+      "en_description": "Costimulatory or coinhibitory transmembrane molecules mediating tolerance or escape.",
       "patterns": [
-        ".*checkpoint.*",
-        ".*检查点.*"
-      ],
-      "reason_zh": "匹配经典免疫检查点共刺激/共抑制分子受体或配体",
-      "reason_en": "Matches canonical immune checkpoint receptor or ligand"
+        ".*(?:checkpoint|检查点).*",
+        "^(?:pd-1|pdcd1|pd-l1|cd274|pd-l2|pdcd1lg2|ctla-4|ctla4|lag-3|lag3|tim-3|havcr2|tigit|vsta|b7-h3|cd276|4-1bb|tnfrsf9|ox40|tnfrsf4|gitr|tnfrsf18|cd28|cd80|cd86)$"
+      ]
     },
-    {
-      "category": "Cytokine_Chemokine",
-      "sub_type": "Cytokine / Chemokine Communication",
-      "sub_type_zh": "细胞因子 / 趋化因子",
-      "tag": "Cytokine",
-      "confidence": 0.96,
-      "exact_matches": [
-        "il-1",
-        "il-2",
-        "il-4",
-        "il-6",
-        "il-10",
-        "il-12",
-        "il-17",
-        "il-21",
-        "ifn-alpha",
-        "ifn-beta",
-        "ifn-gamma",
-        "ifng",
-        "tnf-alpha",
-        "tnfa",
-        "tgf-beta",
-        "tgfb1",
-        "cxcl8",
-        "il-8",
-        "cxcl9",
-        "cxcl10",
-        "cxcl12",
-        "ccl2",
-        "ccl5",
-        "ccl19",
-        "ccl21",
-        "gm-csf",
-        "g-csf",
-        "细胞因子",
-        "趋化因子",
-        "白介素",
-        "干扰素",
-        "肿瘤坏死因子"
-      ],
+    "Cytokine_Chemokine": {
+      "name": "细胞因子 / 趋化因子",
+      "en_name": "Cytokine / Chemokine",
+      "label": "细胞因子 / 趋化因子",
+      "en_label": "Cytokine / Chemokine",
+      "description": "介导细胞间通信与免疫细胞趋化招募的可溶性细胞因子",
+      "en_description": "Intercellular communication cytokines, interleukins, interferons, or chemokines.",
       "patterns": [
         ".*(?:interleukin|cytokine|chemokine|interferon)$",
         ".*(?:细胞因子|趋化因子|白介素|干扰素)$",
         "^il-[0-9]+$",
         "^cxcl[0-9]+$",
-        "^ccl[0-9]+$"
-      ],
-      "reason_zh": "匹配细胞间通信白介素、干扰素或趋化因子命名",
-      "reason_en": "Matches intercellular communication cytokine, interleukin, or chemokine"
+        "^ccl[0-9]+$",
+        "^(?:il-1|il-2|il-4|il-6|il-10|il-12|il-17|il-21|ifn-alpha|ifn-beta|ifn-gamma|ifng|tnf-alpha|tnfa|tgf-beta|tgfb1|cxcl8|il-8|cxcl9|cxcl10|cxcl12|ccl2|ccl5|ccl19|ccl21|gm-csf|g-csf)$"
+      ]
     },
-    {
-      "category": "Metabolic_Soluble_Factor",
-      "sub_type": "TME Soluble Factor / Metabolite",
-      "sub_type_zh": "微环境代谢物 / 胞外成分",
-      "tag": "SolubleFactor",
-      "confidence": 0.92,
-      "exact_matches": [
-        "lactate",
-        "lactic acid",
-        "adenosine",
-        "kynurenine",
-        "vegfa",
-        "vegf",
-        "ido1",
-        "arg1",
-        "inos",
-        "nos2",
-        "pge2",
-        "ros",
-        "hypoxia",
-        "glucose",
-        "ecm",
-        "collagen",
-        "fibronectin",
-        "乳酸",
-        "腺苷",
-        "犬尿氨酸",
-        "缺氧",
-        "细胞外基质",
-        "胶原"
-      ],
+    "Metabolic_Soluble_Factor": {
+      "name": "微环境代谢物 / 胞外成分",
+      "en_name": "Metabolite / ECM Component",
+      "label": "微环境代谢物 / 胞外成分",
+      "en_label": "Metabolite / ECM Component",
+      "description": "乳酸、腺苷等免疫抑制性代谢物或细胞外基质胶原成分",
+      "en_description": "Immunosuppressive metabolites, extracellular matrix (ECM) components, or hypoxia mediators.",
       "patterns": [
         ".*(?:metabolite|soluble factor|ecm|collagen)$",
-        ".*(?:代谢物|微环境因子|基质胶原)$"
-      ],
-      "reason_zh": "匹配肿瘤微环境特征可溶性因子、免疫代谢物或胞外基质",
-      "reason_en": "Matches tumor microenvironment soluble factor, immunometabolite, or ECM component"
+        ".*(?:代谢物|微环境因子|基质胶原)$",
+        "^(?:lactate|lactic acid|adenosine|kynurenine|vegfa|vegf|ido1|arg1|inos|nos2|pge2|ros|hypoxia|glucose|ecm|collagen|fibronectin)$"
+      ]
     },
-    {
-      "category": "Immune_Phenotype_Pathway",
-      "sub_type": "Immune Response / Phenotype Process",
-      "sub_type_zh": "免疫表型 / 效应反应",
-      "tag": "ImmunePhenotype",
-      "confidence": 0.92,
-      "exact_matches": [
-        "immune evasion",
-        "immune escape",
-        "t cell exhaustion",
-        "antigen presentation",
-        "cytotoxic killing",
-        "cytokine storm",
-        "crs",
-        "cold tumor",
-        "hot tumor",
-        "immunosuppression",
-        "免疫逃逸",
-        "t细胞耗竭",
-        "免疫抑制",
-        "细胞因子释放综合征",
-        "冷肿瘤",
-        "热肿瘤"
-      ],
+    "Immune_Phenotype_Pathway": {
+      "name": "免疫表型 / 效应反应",
+      "en_name": "Immune Phenotype / Process",
+      "label": "免疫表型 / 效应反应",
+      "en_label": "Immune Phenotype / Process",
+      "description": "抗原呈递、T细胞耗竭、免疫逃逸或细胞毒性杀伤等过程",
+      "en_description": "Antigen presentation, T cell exhaustion, immune evasion, or cytotoxic killing.",
       "patterns": [
         ".*(?:exhaustion|evasion|killing|suppression|phenotype|storm)$",
-        ".*(?:逃逸|耗竭|抑制|表型|杀伤)$"
-      ],
-      "reason_zh": "匹配肿瘤免疫微环境效应表型或免疫反应过程",
-      "reason_en": "Matches tumor microenvironment immune response or phenotype process"
+        ".*(?:逃逸|耗竭|抑制|表型|杀伤)$",
+        "^(?:immune evasion|immune escape|t cell exhaustion|antigen presentation|cytotoxic killing|cytokine storm|crs|cold tumor|hot tumor|immunosuppression)$"
+      ]
+    },
+    "Uncertain": {
+      "name": "无法判断 / 未定",
+      "en_name": "Uncertain / Unclassified",
+      "label": "无法判断 / 未定",
+      "en_label": "Uncertain / Unclassified",
+      "description": "无法归类或证据不足的免疫微环境实体概念",
+      "en_description": "Ambiguous or unidentifiable immune/TME component.",
+      "patterns": []
     }
-  ]
+  },
+  "relation_categories": {
+    "Checkpoint_Engagement_Exhaustion": {
+      "name": "检查点结合 / 免疫耗竭诱导",
+      "en_name": "Checkpoint Engagement / Exhaustion",
+      "label": "检查点结合 / 免疫耗竭诱导",
+      "en_label": "Checkpoint Engagement / Exhaustion",
+      "description": "PD-1/PD-L1等分子结合介导T细胞受体信号抑制与耗竭",
+      "en_description": "Checkpoint receptor-ligand interaction inducing T cell functional exhaustion."
+    },
+    "Cytotoxic_Killing_Lysis": {
+      "name": "细胞毒性杀伤 / 溶瘤清除",
+      "en_name": "Cytotoxic Killing / Lysis",
+      "label": "细胞毒性杀伤 / 溶瘤清除",
+      "en_label": "Cytotoxic Killing / Lysis",
+      "description": "效应CD8+ T细胞或NK细胞释放穿孔素/颗粒酶裂解靶细胞",
+      "en_description": "Effector lymphocyte killing target cell via perforin/granzyme pathway."
+    },
+    "Immunosuppressive_Inhibition": {
+      "name": "微环境抑制 / 免疫耐受诱导",
+      "en_name": "Immunosuppressive Inhibition",
+      "label": "微环境抑制 / 免疫耐受诱导",
+      "en_label": "Immunosuppressive Inhibition",
+      "description": "Treg、MDSC或免疫抑制性代谢物对效应细胞活力的压制",
+      "en_description": "Suppression of effector immunity by regulatory cells or immunosuppressive metabolites."
+    },
+    "Chemotactic_Recruitment_Infiltration": {
+      "name": "趋化招募 / 组织浸润",
+      "en_name": "Chemotactic Recruitment / Infiltration",
+      "label": "趋化招募 / 组织浸润",
+      "en_label": "Chemotactic Recruitment / Infiltration",
+      "description": "趋化因子浓度梯度诱导特异性白细胞迁移并浸润至微环境",
+      "en_description": "Chemokine gradient directing leukocyte migration and tumor infiltration."
+    },
+    "Antigen_Presentation_Priming": {
+      "name": "抗原呈递 / 免疫初筛激活",
+      "en_name": "Antigen Presentation / Priming",
+      "label": "抗原呈递 / 免疫初筛激活",
+      "en_label": "Antigen Presentation / Priming",
+      "description": "树突状细胞通过MHC分子向初始T细胞呈递肿瘤抗原肽",
+      "en_description": "Dendritic cell presents tumor antigenic peptides via MHC to naive T cells."
+    },
+    "Stroma_Remodeling_Angiogenesis": {
+      "name": "基质重塑 / 异常血管生成",
+      "en_name": "Stroma Remodeling / Angiogenesis",
+      "label": "基质重塑 / 异常血管生成",
+      "en_label": "Stroma Remodeling / Angiogenesis",
+      "description": "CAF分泌细胞外基质或VEGF促进肿瘤异常血管新生",
+      "en_description": "Fibroblast ECM remodeling or angiogenic factor release promoting vascularization."
+    }
+  }
 }

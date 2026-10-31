@@ -536,6 +536,62 @@ class GraphVisualizer:
         ent_cat_defs = ontology.get("entity_categories", {})
         rel_cat_defs = ontology.get("relation_categories", {})
 
+        # 学术科研调色板与几何形态池 (Nature/Science 风格，无 Emoji)
+        SCIENTIFIC_PALETTE = [
+            "#2563eb",  # 皇家深蓝
+            "#d97706",  # 琥珀金黄
+            "#dc2626",  # 砖石深红
+            "#059669",  # 翡翠墨绿
+            "#7c3aed",  # 稳重紫罗兰
+            "#0891b2",  # 蓝青
+            "#ea580c",  # 珊瑚橙
+            "#db2777",  # 洋红粉
+            "#0d9488",  # 墨松绿
+            "#4f46e5",  # 经典靛蓝
+        ]
+        SCIENTIFIC_SHAPES = [
+            "dot",
+            "diamond",
+            "square",
+            "triangle",
+            "hexagon",
+            "star",
+            "box",
+            "triangleDown"
+        ]
+        RELATION_PALETTE = [
+            "#16a34a",  # 翠绿 (正调控/激活)
+            "#dc2626",  # 赤红 (负调控/抑制)
+            "#2563eb",  # 蔚蓝 (结合/互作)
+            "#d97706",  # 琥珀黄 (靶向/催化)
+            "#9333ea",  # 稳重紫 (代谢/转化)
+            "#0891b2",  # 青蓝 (生物过程)
+            "#64748b",  # 中性蓝灰 (相关/伴随)
+        ]
+
+        # 动态映射实体分类色彩与形态（按 JSON 定义顺序自动分配）
+        entity_style_map = {}
+        ent_idx = 0
+        for cat_id, cat_def in ent_cat_defs.items():
+            if cat_id == "Uncertain":
+                entity_style_map[cat_id] = {
+                    "color": cat_def.get("color", "#9ca3af"),
+                    "shape": cat_def.get("shape", "ellipse")
+                }
+            else:
+                c = cat_def.get("color") or SCIENTIFIC_PALETTE[ent_idx % len(SCIENTIFIC_PALETTE)]
+                s = cat_def.get("shape") or SCIENTIFIC_SHAPES[ent_idx % len(SCIENTIFIC_SHAPES)]
+                entity_style_map[cat_id] = {"color": c, "shape": s}
+                ent_idx += 1
+
+        # 动态映射关系分类色彩（按 JSON 定义顺序自动分配）
+        relation_style_map = {}
+        rel_idx = 0
+        for rel_id, rel_def in rel_cat_defs.items():
+            rc = rel_def.get("color") or RELATION_PALETTE[rel_idx % len(RELATION_PALETTE)]
+            relation_style_map[rel_id] = {"color": rc}
+            rel_idx += 1
+
         net = Network(
             height="750px",
             width="100%",
@@ -585,12 +641,12 @@ class GraphVisualizer:
             present_entity_cats.add(primary_type)
 
             cat_def = ent_cat_defs.get(primary_type, {})
-            node_shape = cat_def.get("shape", "ellipse" if primary_type == "Uncertain" else "dot")
-            node_color = cat_def.get("color", "#9ca3af" if primary_type == "Uncertain" else "#4da6ff")
-            cat_label = (cat_def.get("en_label", primary_type) if is_en else cat_def.get("label", primary_type)) or primary_type
-            cat_icon = cat_def.get("icon", "🧬")
+            cat_style = entity_style_map.get(primary_type, {"color": "#9ca3af", "shape": "dot"})
+            node_shape = cat_style["shape"]
+            node_color = cat_style["color"]
+            cat_label = ((cat_def.get("en_name") or cat_def.get("en_label") or primary_type) if is_en else (cat_def.get("name") or cat_def.get("label") or primary_type))
 
-            # 构建科学元数据悬停卡片
+            # 构建科学元数据悬停卡片 (学术文字排版，无 Emoji)
             lbl_type = "Category" if is_en else "实体分类"
             lbl_subtype = "Sub-type / Function" if is_en else "细分子类/功能"
             lbl_status = "Analysis Status" if is_en else "分析状态"
@@ -605,20 +661,20 @@ class GraphVisualizer:
                 status_str += " (" + ("Pending / Uncertain" if is_en else "待定 / 无法判断") + ")"
 
             title_lines = [
-                f"{cat_icon} {std_name}",
-                f"🏷️ {lbl_type}: {cat_label}",
+                f"{std_name} ({cat_label})",
+                f"{lbl_type}: {cat_label}",
             ]
             if sub_type:
-                title_lines.append(f"🔬 {lbl_subtype}: {sub_type}")
+                title_lines.append(f"{lbl_subtype}: {sub_type}")
             if tags:
-                title_lines.append(f"🔖 Tags: {', '.join(tags)}")
-            title_lines.append(f"🎯 {lbl_status}: {status_str} ({lbl_conf}: {int(confidence * 100)}%)")
+                title_lines.append(f"Tags: {', '.join(tags)}")
+            title_lines.append(f"{lbl_status}: {status_str} ({lbl_conf}: {int(confidence * 100)}%)")
             if reasoning:
-                title_lines.append(f"💡 {lbl_reason}: {reasoning}")
+                title_lines.append(f"{lbl_reason}: {reasoning}")
             if info["aliases"]:
-                title_lines.append(f"📚 {lbl_aliases}: {', '.join(info['aliases'])}")
-            title_lines.append(f"📄 {lbl_source}: {info['doc_source']}")
-            title_lines.append(f"🔥 {lbl_heat}: {heat_val:.1f}")
+                title_lines.append(f"{lbl_aliases}: {', '.join(info['aliases'])}")
+            title_lines.append(f"{lbl_source}: {info['doc_source']}")
+            title_lines.append(f"{lbl_heat}: {heat_val:.1f}")
 
             node_title = "\n".join(title_lines)
             node_size = 20 + heat_val * 2.5
@@ -648,7 +704,7 @@ class GraphVisualizer:
             for node in [source, target]:
                 if node not in entity_info_map:
                     net.add_node(node, label=node, color="#ff9999", shape="ellipse", size=20,
-                                 title=f"⚠️ 模型幻觉节点\n📄 来源: {doc_source}")
+                                 title=f"模型幻觉节点\n来源: {doc_source}" if not is_en else f"Hallucinated Node\nSource: {doc_source}")
                     entity_info_map[node] = {"aliases": [], "doc_source": doc_source}
 
             edge_key = f"{source}|{target}|{rel_type}"
@@ -664,14 +720,13 @@ class GraphVisualizer:
                 present_relation_cats.add(mech_cat)
 
             rel_def = rel_cat_defs.get(mech_cat, {}) if mech_cat else {}
-            edge_color = rel_def.get("color", "#aaaaaa")
-            rel_cat_lbl = (rel_def.get("en_label", mech_cat) if is_en else rel_def.get("label", mech_cat)) or rel_type
-            rel_icon = rel_def.get("icon", "🔗")
+            edge_color = relation_style_map.get(mech_cat, {}).get("color", "#aaaaaa") if mech_cat else "#aaaaaa"
+            rel_cat_lbl = ((rel_def.get("en_name") or rel_def.get("en_label") or mech_cat) if is_en else (rel_def.get("name") or rel_def.get("label") or mech_cat)) or rel_type
 
             display_width = 1.5 + (rel_weight * 0.6)
             edge_label = mech_verb if mech_verb else rel_type
 
-            # 构建连线科学悬停说明
+            # 构建连线科学悬停说明 (学术文字排版，无 Emoji)
             lbl_edge_mech = "Mechanism" if is_en else "深层机制"
             lbl_orig_rel = "Original Relation" if is_en else "原抽取关系"
             lbl_edge_evi = "Evidence" if is_en else "文献原文证据"
@@ -679,15 +734,15 @@ class GraphVisualizer:
             lbl_reason_txt = "Reasoning" if is_en else "依据"
 
             edge_title_lines = [
-                f"{rel_icon} {lbl_edge_mech}: {rel_cat_lbl} ({edge_label})",
-                f"🔍 {lbl_orig_rel}: {rel_type}"
+                f"{lbl_edge_mech}: {rel_cat_lbl} ({edge_label})",
+                f"{lbl_orig_rel}: {rel_type}"
             ]
             if mech_reason:
-                edge_title_lines.append(f"💡 {lbl_reason_txt}: {mech_reason}")
+                edge_title_lines.append(f"{lbl_reason_txt}: {mech_reason}")
             if mech_conf > 0:
-                edge_title_lines.append(f"🎯 {lbl_conf_txt}: {int(mech_conf * 100)}% (Round {mech_round})")
-            edge_title_lines.append(f"📝 {lbl_edge_evi}: {evidence}")
-            edge_title_lines.append(f"📄 {lbl_source}: {doc_source}")
+                edge_title_lines.append(f"{lbl_conf_txt}: {int(mech_conf * 100)}% (Round {mech_round})")
+            edge_title_lines.append(f"{lbl_edge_evi}: {evidence}")
+            edge_title_lines.append(f"{lbl_source}: {doc_source}")
 
             edge_title = "\n".join(edge_title_lines)
 
@@ -709,57 +764,58 @@ class GraphVisualizer:
 
         net.save_graph(output_file)
 
-        # 5. 注入半透明、响应式、可折叠的本体图例控制面板
+        # 5. 注入半透明、响应式、可折叠的本体图例控制面板 (纯学术色块与符号，无 Emoji)
         try:
             with open(output_file, "r", encoding="utf-8") as f:
                 html_content = f.read()
 
-            legend_title = "🧬 Ontology Legend" if is_en else "🧬 本体分类图例"
-            entity_sec_title = "Entity Types" if is_en else "实体分类 (形态 & 色彩)"
-            rel_sec_title = "Relation Mechanisms" if is_en else "深层机制 (连线色彩)"
+            legend_title = "Ontology Legend" if is_en else "本体分类图例"
+            entity_sec_title = "Entity Categories" if is_en else "实体分类 (形态 & 色彩)"
+            rel_sec_title = "Mechanisms" if is_en else "深层机制 (连线色彩)"
             toggle_tip = "Click to collapse / expand" if is_en else "点击折叠/展开"
+            btn_collapse = "Collapse" if is_en else "折叠"
+            btn_expand = "Expand" if is_en else "展开"
 
-            # 动态生成实体图例项目
+            # 动态生成实体图例项目 (无 Emoji，纯学术几何形态与色标)
+            shape_map = {
+                "dot": "●", "diamond": "◆", "triangle": "▲", "triangleDown": "▼",
+                "square": "■", "box": "▣", "hexagon": "⬡", "star": "★",
+                "circle": "○", "ellipse": "⬭"
+            }
             ent_legend_items = []
             for cat_id, cat_info in ent_cat_defs.items():
                 if cat_id in present_entity_cats or not present_entity_cats:
-                    lbl = cat_info.get("en_label", cat_id) if is_en else cat_info.get("label", cat_id)
-                    color = cat_info.get("color", "#9ca3af")
-                    shape = cat_info.get("shape", "dot")
-                    icon = cat_info.get("icon", "•")
-                    shape_map = {
-                        "dot": "●", "diamond": "◆", "triangle": "▲", "triangleDown": "▼",
-                        "square": "■", "box": "▣", "hexagon": "⬡", "star": "★",
-                        "circle": "○", "ellipse": "⬭"
-                    }
+                    lbl = (cat_info.get("en_name") or cat_info.get("en_label", cat_id)) if is_en else (cat_info.get("name") or cat_info.get("label", cat_id))
+                    style = entity_style_map.get(cat_id, {"color": "#9ca3af", "shape": "dot"})
+                    color = style["color"]
+                    shape = style["shape"]
                     shape_symbol = shape_map.get(shape, "●")
                     ent_legend_items.append(f"""
                     <div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
                         <span style="color:{color};font-size:14px;width:16px;text-align:center;">{shape_symbol}</span>
-                        <span style="font-size:12px;color:#e5e7eb;">{icon} {lbl}</span>
+                        <span style="font-size:12px;color:#e5e7eb;font-weight:500;">{lbl}</span>
                     </div>
                     """)
 
-            # 动态生成关系图例项目
+            # 动态生成关系图例项目 (无 Emoji，纯色线标)
             rel_legend_items = []
             for cat_id, rel_info in rel_cat_defs.items():
                 if cat_id in present_relation_cats or not present_relation_cats:
-                    lbl = rel_info.get("en_label", cat_id) if is_en else rel_info.get("label", cat_id)
-                    color = rel_info.get("color", "#9ca3af")
-                    icon = rel_info.get("icon", "—")
+                    lbl = (rel_info.get("en_name") or rel_info.get("en_label", cat_id)) if is_en else (rel_info.get("name") or rel_info.get("label", cat_id))
+                    color = relation_style_map.get(cat_id, {}).get("color", "#9ca3af")
                     rel_legend_items.append(f"""
                     <div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
                         <span style="background:{color};width:16px;height:3px;display:inline-block;border-radius:2px;"></span>
-                        <span style="font-size:12px;color:#e5e7eb;">{icon} {lbl}</span>
+                        <span style="font-size:12px;color:#e5e7eb;font-weight:500;">{lbl}</span>
                     </div>
                     """)
 
             legend_html = f"""
-            <!-- 🧬 图谱分析工作台悬浮动态图例 -->
+            <!-- 图谱分析工作台悬浮动态图例 (无 Emoji 极简学术规范) -->
             <div id="workbench-legend-panel" style="position:fixed;top:16px;right:16px;background:rgba(17,24,39,0.88);backdrop-filter:blur(8px);border:1px solid rgba(75,85,99,0.6);border-radius:10px;padding:12px 16px;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,0.5);z-index:9999;max-width:280px;user-select:none;">
                 <div id="legend-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:13px;border-bottom:1px solid rgba(75,85,99,0.5);padding-bottom:6px;margin-bottom:8px;" title="{toggle_tip}">
                     <span>{legend_title}</span>
-                    <span id="legend-toggle-btn" style="font-size:11px;color:#9ca3af;background:rgba(55,65,81,0.6);padding:2px 6px;border-radius:4px;">折叠 ➖</span>
+                    <span id="legend-toggle-btn" style="font-size:11px;color:#9ca3af;background:rgba(55,65,81,0.6);padding:2px 6px;border-radius:4px;">{btn_collapse}</span>
                 </div>
                 <div id="legend-body" style="transition:all 0.2s ease;">
                     <div style="font-weight:600;color:#9ca3af;font-size:11px;text-transform:uppercase;margin:4px 0;">{entity_sec_title}</div>
@@ -779,10 +835,10 @@ class GraphVisualizer:
                         collapsed = !collapsed;
                         if (collapsed) {{
                             body.style.display = 'none';
-                            btn.innerText = '展开 ➕';
+                            btn.innerText = '{btn_expand}';
                         }} else {{
                             body.style.display = 'block';
-                            btn.innerText = '折叠 ➖';
+                            btn.innerText = '{btn_collapse}';
                         }}
                     }};
                 }})();
