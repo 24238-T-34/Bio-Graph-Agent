@@ -106,12 +106,94 @@ class PDFProcessor:
                 return extracted
         return None
 
+    def _cluster_page_figures(self, doc, page, min_dim=35, min_area=2500, padding=12):
+        """
+        对单页内的切片/分层光栅位图进行空间聚类，将重叠或邻近的图片切片合并为完整的机制图复合区域
+        :param min_dim: 单个切片最小宽/高（低于此值视为微型图标或分割线）
+        :param min_area: 单个切片最小面积（平方点）
+        :param padding: 邻近切片合并的膨胀外边距（点）
+        :return: List[dict] [{'rect': fitz.Rect, 'expanded_rect': fitz.Rect, 'items': [{'xref': int, 'rect': fitz.Rect}]}]
+        """
+        img_list = page.get_images()
+        if not img_list:
+            return []
+
+        import fitz
+        rect_entries = []
+        for img_info in img_list:
+            xref = img_info[0]
+            rects = page.get_image_rects(xref)
+            for r in rects:
+                if r.width < min_dim or r.height < min_dim or (r.width * r.height < min_area):
+                    continue
+                rect_entries.append({'xref': xref, 'rect': r})
+
+        if not rect_entries:
+            return []
+
+        clusters = []
+        for item in rect_entries:
+            r = item['rect']
+            expanded_r = fitz.Rect(r.x0 - padding, r.y0 - padding, r.x1 + padding, r.y1 + padding)
+            matched_indices = []
+            for c_idx, c in enumerate(clusters):
+                if c['expanded_rect'].intersects(expanded_r):
+                    matched_indices.append(c_idx)
+
+            if not matched_indices:
+                clusters.append({
+                    'rect': fitz.Rect(r),
+                    'expanded_rect': expanded_r,
+                    'items': [item]
+                })
+            else:
+                first_idx = matched_indices[0]
+                clusters[first_idx]['rect'] |= r
+                clusters[first_idx]['items'].append(item)
+                for m_idx in reversed(matched_indices[1:]):
+                    merged = clusters.pop(m_idx)
+                    clusters[first_idx]['rect'] |= merged['rect']
+                    clusters[first_idx]['items'].extend(merged['items'])
+                cr = clusters[first_idx]['rect']
+                clusters[first_idx]['expanded_rect'] = fitz.Rect(cr.x0 - padding, cr.y0 - padding, cr.x1 + padding, cr.y1 + padding)
+
+        return clusters
+
+    def _find_nearest_caption(self, page, cluster_rect):
+        """
+        根据聚类边界框，查找页面上物理距离最近的 Figure / Scheme / Graphical abstract 标题与说明
+        """
+        import fitz
+        blocks = page.get_text("blocks")
+        caption_candidates = []
+        fig_pattern = re.compile(r'(?:^|\n)\s*(?:fig(?:ure)?\.?\s*\d+|graphical\s+abstract|scheme\s*\d*)', re.IGNORECASE)
+
+        for b in blocks:
+            text = b[4].strip()
+            if not text:
+                continue
+            b_rect = fitz.Rect(b[:4])
+            if fig_pattern.search(text) or ("Figure " in text or "Fig." in text or "Graphical abstract" in text):
+                if b_rect.y0 >= cluster_rect.y1:
+                    dist = b_rect.y0 - cluster_rect.y1
+                elif b_rect.y1 <= cluster_rect.y0:
+                    dist = cluster_rect.y0 - b_rect.y1
+                else:
+                    dist = 0
+                caption_candidates.append((dist, text))
+
+        if caption_candidates:
+            caption_candidates.sort(key=lambda x: x[0])
+            best_text = caption_candidates[0][1]
+            return " ".join(best_text.split()[:60])
+        return ""
+
     def extract_figures(self, pdf_path, start_page=0, end_page=None, mode="off", keyword="", min_size=200):
         """
-        从选定页码中提取目标插图及关联图注
+        从选定页码中提取目标插图及关联图注（支持空间聚类复合图提取与矢量通路图高清机制渲染）
         :param mode: 'off' | 'match' | 'all'
         :param keyword: 精准匹配词（如 'Fig 4', 'Figure 2', 'pathway'）
-        :param min_size: 最小像素宽高过滤阀值，避免图标与分割线
+        :param min_size: 最小像素宽高过滤阀值
         :return: List[dict] [{'image_bytes': b'...', 'ext': 'png', 'page': 5, 'caption': '...', 'label': 'Fig 4'}]
         """
         if mode == "off" or not os.path.exists(pdf_path):
@@ -126,9 +208,9 @@ class PDFProcessor:
                 end_page = total_pages
 
             kw_clean = keyword.strip() if keyword else ""
-            # 模式 2：精准匹配
+
+            # 模式 2：精准匹配模式
             if mode == "match" and kw_clean:
-                # 智能识别数字编号（如 "Fig 4", "Fig. 4", "Figure 4", "4"）或普通关键词（如 "pathway"）
                 kw_num_match = re.search(r"(?:fig(?:ure)?\.?\s*)?(\d+[a-zA-Z]?)", kw_clean, re.IGNORECASE)
                 if kw_num_match and kw_num_match.group(1):
                     fig_num = kw_num_match.group(1)
@@ -145,26 +227,32 @@ class PDFProcessor:
 
                     captions = list(kw_pattern.finditer(page_text))
                     is_single_page = (total_pages == 1)
+
                     if captions or is_single_page:
                         matched_caption = captions[0].group(0).strip() if captions else (kw_clean or f"Page {page_num} Diagram")
-                        img_list = page.get_images()
-                        for img_info in img_list:
-                            xref = img_info[0]
-                            base_img = doc.extract_image(xref)
-                            w, h = base_img["width"], base_img["height"]
-                            if (w >= min_size and h >= min_size) or (w * h >= 60000):
-                                matched_figures.append({
-                                    "image_bytes": base_img["image"],
-                                    "ext": base_img["ext"],
-                                    "page": page_num,
-                                    "caption": matched_caption,
-                                    "label": kw_clean or f"Page{page_num}_Fig"
-                                })
-                                break
+                        clusters = self._cluster_page_figures(doc, page)
 
-                        # 💡 矢量通路图/单页海报兜底：若命中了关键词或为单页海报，但未找到光栅位图，且页面包含矢量绘图
-                        if not matched_figures and (len(page.get_drawings()) >= 10 or is_single_page):
-                            print(f"📐 [PDFProcessor] 页面 {page_num} 检测到矢量绘图 ({len(page.get_drawings())} 个路径)，自动执行 150-DPI 高清机制图渲染...")
+                        # 如果聚类成功捕获了位图区域
+                        for c_idx, cl in enumerate(clusters):
+                            clip = cl['rect'] & page.rect
+                            if clip.width < 50 or clip.height < 50 or (clip.width * clip.height < 5000):
+                                continue
+                            pix = page.get_pixmap(clip=clip, dpi=150)
+                            cap_detail = self._find_nearest_caption(page, cl['rect'])
+                            full_caption = f"{matched_caption}: {cap_detail}" if cap_detail and matched_caption not in cap_detail else (cap_detail or matched_caption)
+                            matched_figures.append({
+                                "image_bytes": pix.tobytes("png"),
+                                "ext": "png",
+                                "page": page_num,
+                                "caption": full_caption,
+                                "label": kw_clean or f"Page{page_num}_Fig{c_idx+1}"
+                            })
+                            break
+
+                        # 💡 矢量通路图/单页海报兜底：若命中了关键词或为单页海报，但未找到光栅位图，且页面包含矢量绘图（门槛适中，防止文本页规则线条误判）
+                        dw_count = len(page.get_drawings())
+                        is_vector = (is_single_page and dw_count >= 10) or (not is_single_page and dw_count >= 25)
+                        if not matched_figures and is_vector:
                             pix = page.get_pixmap(dpi=150)
                             matched_figures.append({
                                 "image_bytes": pix.tobytes("png"),
@@ -177,38 +265,57 @@ class PDFProcessor:
                         if matched_figures:
                             break
 
-            # 模式 3：全开模式 (过滤掉微型图标和公式位图)
+            # 模式 3：全开模式 (空间聚类复合图 + 均衡矢量检测)
             elif mode == "all":
                 for page_idx in range(start_page, end_page):
                     page = doc[page_idx]
                     page_num = page_idx + 1
-                    img_list = page.get_images()
+                    clusters = self._cluster_page_figures(doc, page)
                     found_raster = False
-                    for idx, img_info in enumerate(img_list):
-                        xref = img_info[0]
-                        base_img = doc.extract_image(xref)
-                        w, h = base_img["width"], base_img["height"]
-                        if (w >= min_size and h >= min_size) or (w * h >= 60000):
-                            matched_figures.append({
-                                "image_bytes": base_img["image"],
-                                "ext": base_img["ext"],
-                                "page": page_num,
-                                "caption": f"Page {page_num} Figure {idx + 1}",
-                                "label": f"Page{page_num}_Fig{idx + 1}"
-                            })
-                            found_raster = True
 
-                    # 💡 矢量机制图/单页海报兜底：若本页无符合尺寸的光栅图，但包含显著矢量绘图或为单页海报
-                    if not found_raster and (len(page.get_drawings()) >= 20 or total_pages == 1):
-                        print(f"📐 [PDFProcessor] 页面 {page_num} 检测到矢量绘图 ({len(page.get_drawings())} 个路径)，自动执行 150-DPI 高清机制图渲染...")
-                        pix = page.get_pixmap(dpi=150)
+                    for c_idx, cl in enumerate(clusters):
+                        clip = cl['rect'] & page.rect
+                        if clip.width < 60 or clip.height < 60 or (clip.width * clip.height < 6000):
+                            continue
+                        pix = page.get_pixmap(clip=clip, dpi=150)
+                        cap = self._find_nearest_caption(page, cl['rect']) or f"Page {page_num} Figure {c_idx + 1}"
                         matched_figures.append({
                             "image_bytes": pix.tobytes("png"),
                             "ext": "png",
                             "page": page_num,
-                            "caption": f"Page {page_num} 机制通路图 (矢量渲染)",
-                            "label": f"Page{page_num}_VectorFig"
+                            "caption": cap,
+                            "label": f"Page{page_num}_Fig{c_idx + 1}"
                         })
+                        found_raster = True
+
+                    # 💡 矢量机制图/单页海报兜底：兼顾单页图与多页文献，防止普通文本页误判，同时不设过高门槛
+                    if not found_raster:
+                        drawings = page.get_drawings()
+                        dw_count = len(drawings)
+                        text = page.get_text()
+                        has_fig_kw = bool(re.search(r'(?:fig(?:ure)?\.?\s*\d+|graphical\s+abstract|scheme\s*\d*|pathway|model)', text, re.IGNORECASE))
+                        is_single = (total_pages == 1)
+
+                        is_vector = False
+                        if is_single and dw_count >= 10:
+                            is_vector = True
+                        elif not is_single:
+                            if has_fig_kw and dw_count >= 25:
+                                is_vector = True
+                            elif dw_count >= 75:
+                                is_vector = True
+
+                        if is_vector:
+                            print(f"📐 [PDFProcessor] 页面 {page_num} 检测到矢量绘图 ({dw_count} 个路径)，自动执行 150-DPI 高清机制图渲染...")
+                            pix = page.get_pixmap(dpi=150)
+                            cap = self._find_nearest_caption(page, page.rect) or f"Page {page_num} 机制通路图 (矢量渲染)"
+                            matched_figures.append({
+                                "image_bytes": pix.tobytes("png"),
+                                "ext": "png",
+                                "page": page_num,
+                                "caption": cap,
+                                "label": f"Page{page_num}_VectorFig"
+                            })
 
             doc.close()
         except Exception as e:

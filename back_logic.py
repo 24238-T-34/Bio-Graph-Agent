@@ -714,25 +714,60 @@ class BioGraphPipeline:
             )
 
             if figures:
+                total_figs = len(figures)
                 msg_fig_found = (
-                    f"📷 [Vision] Found {len(figures)} candidate figure(s). Transcribing mechanism text..."
+                    f"📷 [Vision] Found {total_figs} candidate figure(s). Transcribing mechanism text in parallel..."
                     if is_en else
-                    f"📷 [视觉解析] 命中 {len(figures)} 张目标插图，正在调用视觉模型转译为学术机制文本..."
+                    f"📷 [视觉解析] 命中 {total_figs} 张目标插图，正在并发调用视觉模型转译为学术机制文本..."
                 )
-                report_progress(0.05, 1.0, msg_fig_found)
+                report_progress(0.04, 1.0, msg_fig_found)
 
-                for f_idx, fig in enumerate(figures):
+                # 并发转译机制图，使用线程池提升吞吐，同时保持装配结果严格有序
+                v_worker_count = max(1, min(int(concurrency), total_figs, 6))
+                print(f"⚡ [Vision] 启动机制图并行视觉转译 (候选插图数={total_figs}, 并发线程数={v_worker_count})...")
+
+                trans_results = [None] * total_figs
+
+                def _transcribe_worker(f_idx, fig):
                     fig_label = fig.get("label", f"Fig_{f_idx+1}")
                     fig_caption = fig.get("caption", "")
                     fig_page = fig.get("page", start_page + 1)
+                    try:
+                        text_trans = self.agent.transcribe_figure_to_text(
+                            image_bytes=fig["image_bytes"],
+                            image_ext=fig.get("ext", "png"),
+                            caption=fig_caption,
+                            vision_model=vision_model,
+                            output_lang=output_lang
+                        )
+                        return f_idx, fig_label, fig_page, fig_caption, text_trans
+                    except Exception as e:
+                        print(f"⚠️ [Vision] 图 {fig_label} (P.{fig_page}) 并发转译遇到异常: {e}")
+                        return f_idx, fig_label, fig_page, fig_caption, ""
 
-                    text_transcription = self.agent.transcribe_figure_to_text(
-                        image_bytes=fig["image_bytes"],
-                        image_ext=fig.get("ext", "png"),
-                        caption=fig_caption,
-                        vision_model=vision_model,
-                        output_lang=output_lang
-                    )
+                completed_figs = 0
+                with concurrent.futures.ThreadPoolExecutor(max_workers=v_worker_count) as v_executor:
+                    v_futures = {
+                        v_executor.submit(_transcribe_worker, idx, fig): idx
+                        for idx, fig in enumerate(figures)
+                    }
+                    for fut in concurrent.futures.as_completed(v_futures):
+                        f_idx, fig_label, fig_page, fig_caption, text_trans = fut.result()
+                        trans_results[f_idx] = (fig_label, fig_page, fig_caption, text_trans)
+                        completed_figs += 1
+                        v_progress = 0.04 + (completed_figs / total_figs) * 0.06
+                        p_msg = (
+                            f"📷 [Vision] Transcribed {completed_figs}/{total_figs} figure(s) ({fig_label})..."
+                            if is_en else
+                            f"📷 [视觉解析] 已完成 {completed_figs}/{total_figs} 张机制图转译 ({fig_label})..."
+                        )
+                        report_progress(v_progress, 1.0, p_msg)
+
+                # 按原图顺序组装机制文本 Chunk，确保上下文时序确定性
+                for res in trans_results:
+                    if not res:
+                        continue
+                    fig_label, fig_page, fig_caption, text_transcription = res
                     if text_transcription and text_transcription.strip():
                         # 组装为带学术元数据的机制文本 Chunk，融入后续两阶段实体与关系抽取流
                         v_chunk = (
