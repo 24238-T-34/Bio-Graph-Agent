@@ -9,7 +9,8 @@
       "color": "#3b82f6",
       "shape": "dot",
       "icon": "🧬",
-      "description": "编码或非编码核酸、功能性蛋白质、酶、受体蛋白及分子亚基"
+      "description": "编码或非编码核酸、功能性蛋白质、酶、受体蛋白及分子亚基",
+      "en_description": "Coding and non-coding nucleic acids, functional proteins, enzymes, receptors, and molecular subunits."
     },
     "Chemical_Drug": {
       "label": "化学小分子 / 药物 / 代谢物",
@@ -17,7 +18,8 @@
       "color": "#f59e0b",
       "shape": "diamond",
       "icon": "💊",
-      "description": "外源化合物、合成药物先导物、内源代谢物、无机离子与生化试剂"
+      "description": "外源化合物、合成药物先导物、内源代谢物、无机离子与生化试剂",
+      "en_description": "Exogenous small molecules, synthetic drug leads, endogenous metabolites, biochemical ions, and reagents."
     },
     "Disease_Phenotype": {
       "label": "疾病 / 病理表型",
@@ -25,7 +27,8 @@
       "color": "#ef4444",
       "shape": "triangle",
       "icon": "🩺",
-      "description": "临床疾病、病理状态、异常生理指征或组织病变"
+      "description": "临床疾病、病理状态、异常生理指征或组织病变",
+      "en_description": "Clinical diseases, pathological conditions, physiological abnormalities, and tissue lesions."
     },
     "Biological_Process": {
       "label": "生物学过程 / 信号通路",
@@ -33,7 +36,8 @@
       "color": "#8b5cf6",
       "shape": "hexagon",
       "icon": "🔄",
-      "description": "细胞内信号级联、生理功能反应、代谢过程与程序性死亡"
+      "description": "细胞内信号级联、生理功能反应、代谢过程与程序性死亡",
+      "en_description": "Intracellular signaling cascades, physiological responses, metabolic processes, and programmed cell death."
     },
     "Cell_CellLine": {
       "label": "细胞亚群 / 模式细胞系",
@@ -41,7 +45,8 @@
       "color": "#10b981",
       "shape": "square",
       "icon": "🔬",
-      "description": "免疫细胞亚群、原代细胞、干细胞及模式细胞系 (如 T细胞、HeLa、Jurkat)"
+      "description": "免疫细胞亚群、原代细胞、干细胞及模式细胞系 (如 T细胞、HeLa、Jurkat)",
+      "en_description": "Immune cell subpopulations, primary cells, stem cells, and model cell lines (e.g. T cells, HeLa, Jurkat)."
     },
     "Organ_Tissue": {
       "label": "组织器官 / 解剖学系统",
@@ -49,7 +54,8 @@
       "color": "#06b6d4",
       "shape": "box",
       "icon": "🫀",
-      "description": "解剖学器官、组织切片、生理系统与屏障 (如 脑、肝脏、心血管系统、血脑屏障)"
+      "description": "解剖学器官、组织切片、生理系统与屏障 (如 脑、肝脏、心血管系统、血脑屏障)",
+      "en_description": "Anatomical organs, tissue sections, physiological systems, and biological barriers (e.g. brain, liver, CNS, BBB)."
     },
     "Species_Organism": {
       "label": "物种 / 宿主 / 模式生物",
@@ -57,7 +63,8 @@
       "color": "#14b8a6",
       "shape": "triangleDown",
       "icon": "🐒",
-      "description": "生物宿主、人类受试者及模式生物 (如 人类 Homo sapiens、小鼠 Mus musculus、斑马鱼、果蝇)"
+      "description": "生物宿主、人类受试者及模式生物 (如 人类 Homo sapiens、小鼠 Mus musculus、斑马鱼、果蝇)",
+      "en_description": "Biological hosts, human subjects, and model organisms (e.g. Homo sapiens, Mus musculus, zebrafish, Drosophila)."
     },
     "Microbe_Pathogen": {
       "label": "微生物 / 细菌 / 病毒 / 病原体",
@@ -65,7 +72,8 @@
       "color": "#ea580c",
       "shape": "star",
       "icon": "🦠",
-      "description": "致病病毒、共生/致病细菌、真菌、寄生虫及微生物群落 (如 SARS-CoV-2、大肠杆菌、幽门螺杆菌、肠道菌群)"
+      "description": "致病病毒、共生/致病细菌、真菌、寄生虫及微生物群落 (如 SARS-CoV-2、大肠杆菌、幽门螺杆菌、肠道菌群)",
+      "en_description": "Pathogenic viruses, commensal and pathogenic bacteria, fungi, parasites, and microbiota (e.g. SARS-CoV-2, E. coli)."
     },
     "Sequence_Variant": {
       "label": "突变位点 / 基因变异",
@@ -73,7 +81,8 @@
       "color": "#ec4899",
       "shape": "circle",
       "icon": "⚡",
-      "description": "点突变、单核苷酸多态性(SNP)、插入缺失或染色体变异"
+      "description": "点突变、单核苷酸多态性(SNP)、插入缺失或染色体变异",
+      "en_description": "Point mutations, single-nucleotide polymorphisms (SNPs), indels, copy-number variations (CNVs), and amino-acid alterations."
     },
     "Uncertain": {
       "label": "无法判断 / 未定概念",
@@ -81,7 +90,8 @@
       "color": "#9ca3af",
       "shape": "ellipse",
       "icon": "❓",
-      "description": "文献证据不足或上下文含糊、无法明确归类的概念"
+      "description": "文献证据不足或上下文含糊、无法明确归类的概念",
+      "en_description": "Concepts lacking sufficient literature evidence, ambiguous abbreviations, or unidentifiable entities."
     }
   },
   "relation_categories": {
@@ -89,49 +99,59 @@
       "label": "正向调控 / 激活 / 促进",
       "en_label": "Positive Regulation / Activation",
       "color": "#22c55e",
-      "icon": "🟢"
+      "icon": "🟢",
+      "en_description": "Upregulation, activation, stimulation, expression induction, or catalytic enhancement."
     },
     "Negative_Regulation": {
       "label": "负向调控 / 抑制 / 降解",
       "en_label": "Negative Regulation / Inhibition",
       "color": "#ef4444",
-      "icon": "🔴"
+      "icon": "🔴",
+      "en_description": "Downregulation, inhibition, suppression, degradation, or pathway blockade."
     },
     "Physical_Binding": {
       "label": "物理结合 / 复合物组装",
       "en_label": "Physical Binding / Assembly",
       "color": "#3b82f6",
-      "icon": "🔗"
+      "icon": "🔗",
+      "en_description": "Direct physical protein-protein/ligand-receptor binding or stable complex assembly."
     },
     "Catalysis_Conversion": {
       "label": "催化 / 生化转化",
       "en_label": "Catalysis / Conversion",
       "color": "#f59e0b",
-      "icon": "⚙️"
+      "icon": "⚙️",
+      "en_description": "Enzymatic biochemical reaction, post-translational modification, or metabolic conversion."
     },
     "Infection_Pathogenesis": {
       "label": "感染 / 宿主入侵 / 致病机制",
       "en_label": "Infection / Pathogenesis",
       "color": "#ea580c",
-      "icon": "☣️"
+      "icon": "☣️",
+      "en_description": "Microbial infection, host cell entry, virulence mechanism, or pathological progression."
     },
     "Localization_Targeting": {
       "label": "定位 / 组织靶向",
       "en_label": "Localization / Targeting",
       "color": "#06b6d4",
-      "icon": "🎯"
+      "icon": "🎯",
+      "en_description": "Subcellular/tissue localization, anatomical homing, or organ targeting."
     },
     "Association_Correlation": {
       "label": "一般关联 / 相互作用",
       "en_label": "Association / Correlation",
       "color": "#9ca3af",
-      "icon": "⚪"
+      "icon": "⚪",
+      "en_description": "General clinical correlation, functional linkage, or co-expression."
     },
     "Hierarchy_Component": {
       "label": "从属组成 / 亚基归属",
       "en_label": "Hierarchy / Subunit",
       "color": "#a855f7",
-      "icon": "🟣"
+      "icon": "🟣",
+      "en_description": "Structural subunit, molecular complex component, or hierarchical containment."
     }
-  }
+  },
+  "en_name": "BioRED Universal Benchmark (NIH/NLM Standard)",
+  "en_description": "Universal biomedical taxonomy based on the NIH/NLM BioRED standard, spanning molecules, cells, pathogens, tissues/anatomy, and host organisms."
 }

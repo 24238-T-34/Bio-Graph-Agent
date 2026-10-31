@@ -204,9 +204,9 @@ class RulePreFilter:
     ]
 
     @classmethod
-    def classify(cls, node_name: str, aliases: Optional[List[str]] = None, ontology: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    def classify(cls, node_name: str, aliases: Optional[List[str]] = None, ontology: Optional[Dict[str, Any]] = None, language: str = "zh") -> Optional[Dict[str, Any]]:
         """
-        尝试使用基于医学规则的快速分类 (覆盖宏观物种、微生物、器官、细胞至分子突变)
+        尝试使用基于医学规则的快速分类 (覆盖宏观物种、微生物、器官、细胞至分子突变，支持中英双语推理理由输出)
         """
         raw_name = node_name.strip()
         lower_name = raw_name.lower()
@@ -215,8 +215,9 @@ class RulePreFilter:
             all_candidates.extend([a.strip().lower() for a in aliases if a.strip()])
 
         target_categories = set(ontology.get("entity_categories", {}).keys()) if ontology else set()
+        is_en = "en" in str(language).lower()
 
-        def make_res(cat_id: str, sub_type: str, tag: str, conf: float, reason: str) -> Optional[Dict[str, Any]]:
+        def make_res(cat_id: str, sub_type: str, tag: str, conf: float, reason_zh: str, reason_en: str) -> Optional[Dict[str, Any]]:
             final_cat = cat_id
             if target_categories:
                 if final_cat not in target_categories:
@@ -247,7 +248,7 @@ class RulePreFilter:
                 "sub_type": sub_type,
                 "tags": [tag],
                 "confidence": conf,
-                "reasoning": reason,
+                "reasoning": reason_en if is_en else reason_zh,
                 "round": 0,
                 "status": "resolved"
             }
@@ -255,89 +256,106 @@ class RulePreFilter:
         # 1. 检查是否为物种/宿主/模式生物 (Species / Organism)
         for cand in all_candidates:
             if cand in cls.KNOWN_SPECIES:
-                return make_res("Species_Organism", "Model Organism / Species", "Species", 0.98, "匹配权威生物物种与模式生物词库")
+                return make_res("Species_Organism", "Model Organism / Species", "Species", 0.98,
+                                "匹配权威生物物种与模式生物词库", "Matched canonical model organism / species database")
             for pat in cls.SPECIES_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Species_Organism", "Host / Organism", "Species", 0.95, f"匹配生物学物种命名规则: {pat}")
+                    return make_res("Species_Organism", "Host / Organism", "Species", 0.95,
+                                    f"匹配生物学物种命名规则: {pat}", f"Matched binomial species nomenclature rule: {pat}")
 
         # 2. 检查是否为微生物/病原体/细菌/病毒 (Microbe / Pathogen)
         for cand in all_candidates:
             if cand in cls.KNOWN_PATHOGENS:
-                return make_res("Microbe_Pathogen", "Microorganism / Pathogen", "Pathogen", 0.98, "匹配权威病原微生物/细菌/病毒词库")
+                return make_res("Microbe_Pathogen", "Microorganism / Pathogen", "Pathogen", 0.98,
+                                "匹配权威病原微生物/细菌/病毒词库", "Matched authoritative pathogen / microbe vocabulary")
             for pat in cls.MICROBE_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Microbe_Pathogen", "Microbe / Pathogen", "Microbiology", 0.92, f"匹配微生物/病毒命名规则: {pat}")
+                    return make_res("Microbe_Pathogen", "Microbe / Pathogen", "Microbiology", 0.92,
+                                    f"匹配微生物/病毒命名规则: {pat}", f"Matched microbe / virus naming pattern: {pat}")
 
         # 3. 检查是否为变异位点
         for cand in all_candidates:
             for pat in cls.VARIANT_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Sequence_Variant", "Sequence Mutation", "Gene Variant", 0.95, f"匹配权威基因变异/突变命名规则: {pat}")
+                    return make_res("Sequence_Variant", "Sequence Mutation", "Gene Variant", 0.95,
+                                    f"匹配权威基因变异/突变命名规则: {pat}", f"Matched canonical sequence variant / mutation rule: {pat}")
 
         # 4. 检查是否为代谢物或无机离子
         for cand in all_candidates:
             if cand in cls.METABOLITES_AND_IONS:
-                return make_res("Chemical_Drug", "Metabolite / Ion", "Biochemical Molecule", 0.96, "匹配权威内源性代谢小分子/离子词库")
+                return make_res("Chemical_Drug", "Metabolite / Ion", "Biochemical Molecule", 0.96,
+                                "匹配权威内源性代谢小分子/离子词库", "Matched endogenous metabolite / biochemical ion library")
 
         # 5. 检查 INN 药物词缀
         for cand in all_candidates:
             for pat in cls.INN_DRUG_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Chemical_Drug", "Targeted / Synthetic Drug", "INN Pharmaceutical", 0.96, f"匹配 INN 国际权威药名词缀规则: {pat}")
+                    return make_res("Chemical_Drug", "Targeted / Synthetic Drug", "INN Pharmaceutical", 0.96,
+                                    f"匹配 INN 国际权威药名词缀规则: {pat}", f"Matched INN international pharmaceutical stem rule: {pat}")
 
         # 6. 检查通用化合物词缀
         for cand in all_candidates:
             for pat in cls.CHEM_COMPOUND_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Chemical_Drug", "Chemical Compound", "Compound", 0.88, f"匹配化学分子词缀: {pat}")
+                    return make_res("Chemical_Drug", "Chemical Compound", "Compound", 0.88,
+                                    f"匹配化学分子词缀: {pat}", f"Matched chemical compound nomenclature affix: {pat}")
 
         # 7. 检查非编码 RNA
         for cand in all_candidates:
             for pat in cls.RNA_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Gene_Protein", "Non-coding RNA", "RNA", 0.95, f"匹配非编码 RNA 命名规则: {pat}")
+                    return make_res("Gene_Protein", "Non-coding RNA", "RNA", 0.95,
+                                    f"匹配非编码 RNA 命名规则: {pat}", f"Matched non-coding RNA naming convention: {pat}")
 
         # 8. 检查酶/激酶
         for cand in all_candidates:
             for pat in cls.ENZYME_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Gene_Protein", "Enzyme / Kinase", "Catalytic Protein", 0.92, f"匹配酶学催化蛋白质命名词缀: {pat}")
+                    return make_res("Gene_Protein", "Enzyme / Kinase", "Catalytic Protein", 0.92,
+                                    f"匹配酶学催化蛋白质命名词缀: {pat}", f"Matched enzymatic catalytic protein suffix: {pat}")
 
         # 9. 检查受体
         for cand in all_candidates:
             for pat in cls.RECEPTOR_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Gene_Protein", "Receptor Protein", "Receptor", 0.90, f"匹配生物膜/细胞受体命名规则: {pat}")
+                    return make_res("Gene_Protein", "Receptor Protein", "Receptor", 0.90,
+                                    f"匹配生物膜/细胞受体命名规则: {pat}", f"Matched membrane / cellular receptor nomenclature: {pat}")
 
         # 10. 检查标准知名基因符号 (TP53, EGFR 等)
         if raw_name in cls.KNOWN_MAJOR_GENES:
-            return make_res("Gene_Protein", "Protein / Gene", "Canonical Gene", 0.98, "匹配权威人类核心基因/蛋白数据库列表")
+            return make_res("Gene_Protein", "Protein / Gene", "Canonical Gene", 0.98,
+                            "匹配权威人类核心基因/蛋白数据库列表", "Matched canonical human core gene / protein database")
 
         # 11. 检查细胞系与细胞类型 (Cell / CellLine)
         for cand in all_candidates:
             if cand in cls.CELL_LINES:
-                return make_res("Cell_CellLine", "Cell Line", "Model Cell Line", 0.96, "匹配国际标准细胞系名称列表")
+                return make_res("Cell_CellLine", "Cell Line", "Model Cell Line", 0.96,
+                                "匹配国际标准细胞系名称列表", "Matched international standard cell line registry")
             for pat in cls.CELL_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Cell_CellLine", "Cell Subpopulation", "Cell Type", 0.92, f"匹配细胞类型规则: {pat}")
+                    return make_res("Cell_CellLine", "Cell Subpopulation", "Cell Type", 0.92,
+                                    f"匹配细胞类型规则: {pat}", f"Matched cell subpopulation nomenclature pattern: {pat}")
 
         # 12. 检查宏观组织器官与解剖结构 (Organ / Tissue)
         for cand in all_candidates:
             for pat in cls.ORGAN_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Organ_Tissue", "Organ / Tissue / Anatomy", "Anatomy", 0.92, f"匹配组织器官解剖系统规则: {pat}")
+                    return make_res("Organ_Tissue", "Organ / Tissue / Anatomy", "Anatomy", 0.92,
+                                    f"匹配组织器官解剖系统规则: {pat}", f"Matched anatomical organ / tissue system pattern: {pat}")
 
         # 13. 检查生物学过程与通路 (优先于疾病词缀以防 -ptosis/-osis 混淆)
         for cand in all_candidates:
             for pat in cls.PROCESS_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Biological_Process", "Biological Pathway / Process", "Process", 0.90, f"匹配生物信号传导/生理通路词缀: {pat}")
+                    return make_res("Biological_Process", "Biological Pathway / Process", "Process", 0.90,
+                                    f"匹配生物信号传导/生理通路词缀: {pat}", f"Matched biological pathway / signaling process suffix: {pat}")
 
         # 14. 检查疾病与病理表型
         for cand in all_candidates:
             for pat in cls.DISEASE_PATTERNS:
                 if re.match(pat, cand, re.IGNORECASE):
-                    return make_res("Disease_Phenotype", "Clinical Disease / Pathology", "Pathology", 0.90, f"匹配医学病理学/疾病名称词缀: {pat}")
+                    return make_res("Disease_Phenotype", "Clinical Disease / Pathology", "Pathology", 0.90,
+                                    f"匹配医学病理学/疾病名称词缀: {pat}", f"Matched clinical pathology / disease suffix: {pat}")
 
         # 规则无法明确判断，交由 LLM 状态机后续分轮处理
         return None
@@ -512,20 +530,29 @@ class WorkbenchAnalysisEngine:
 
         return matched_sentences
 
-    def _format_ontology_categories(self) -> str:
-        """格式化实体候选类别清单供 Prompt 注入"""
+    def _format_ontology_categories(self, language: str = "zh") -> str:
+        """格式化实体候选类别清单供 Prompt 注入 (支持中英双语候选描述适配)"""
         cats = self.ontology.get("entity_categories", {})
         lines = []
+        is_en = "en" in str(language).lower()
         for k, v in cats.items():
-            lines.append(f"- `{k}` ({v.get('label', k)}): {v.get('description', '')}")
+            lbl = v.get("en_label", v.get("label", k)) if is_en else v.get("label", k)
+            desc = v.get("en_description", v.get("description", "")) if is_en else v.get("description", "")
+            lines.append(f"- `{k}` ({lbl}): {desc}")
         return "\n".join(lines)
 
-    def _format_relation_categories(self) -> str:
-        """格式化关系机制候选类别清单供 Prompt 注入"""
+    def _format_relation_categories(self, language: str = "zh") -> str:
+        """格式化关系机制候选类别清单供 Prompt 注入 (支持中英双语候选描述适配)"""
         cats = self.ontology.get("relation_categories", {})
         lines = []
+        is_en = "en" in str(language).lower()
         for k, v in cats.items():
-            lines.append(f"- `{k}` ({v.get('label', k)})")
+            lbl = v.get("en_label", v.get("label", k)) if is_en else v.get("label", k)
+            desc = v.get("en_description", v.get("description", "")) if is_en else v.get("description", "")
+            if desc:
+                lines.append(f"- `{k}` ({lbl}): {desc}")
+            else:
+                lines.append(f"- `{k}` ({lbl})")
         return "\n".join(lines)
 
     def _parse_llm_json(self, raw_str: str) -> Optional[Dict[str, Any]]:
@@ -544,32 +571,59 @@ class WorkbenchAnalysisEngine:
                     pass
         return None
 
-    def _llm_classify_entity_round1(self, node_name: str, micro_ctx: Dict[str, Any]) -> Dict[str, Any]:
-        """Round 1: 依据局部网络微上下文分类单节点"""
-        system_prompt = (
-            "你是一位资深的计算生物学与生物信息学本体专家。你的任务是根据图谱局部微上下文对生物医学实体进行严谨分类。\n"
-            "若上下文证据足以判断，请归类到指定类别之一；若信息不足、缺乏把握或无法明确判定，务必直接输出 primary_type 为 \"Uncertain\"。"
-        )
-        cat_str = self._format_ontology_categories()
-        neighbors_str = "\n".join(micro_ctx["neighbors"]) if micro_ctx["neighbors"] else "无直接记录"
-        evidence_str = "\n".join(micro_ctx["evidence"]) if micro_ctx["evidence"] else "无直接原文微证据"
+    def _llm_classify_entity_round1(self, node_name: str, micro_ctx: Dict[str, Any], language: str = "zh") -> Dict[str, Any]:
+        """Round 1: 依据局部网络微上下文分类单节点 (严格适配系统语言)"""
+        is_en = "en" in str(language).lower()
+        cat_str = self._format_ontology_categories(language=language)
 
-        user_content = (
-            f"【待分析实体】: {node_name}\n"
-            f"【实体已知别名】: {', '.join(micro_ctx['aliases']) if micro_ctx['aliases'] else '无'}\n"
-            f"【网络邻居关系】:\n{neighbors_str}\n"
-            f"【局部文献证据】:\n{evidence_str}\n\n"
-            f"【候选实体类别集合】:\n{cat_str}\n\n"
-            "【输出要求】:\n"
-            "请严格以单条合法 JSON 格式输出，不要包含任何多余解释:\n"
-            "{\n"
-            "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
-            "  \"sub_type\": \"<细分子类别或具体生物学功能>\",\n"
-            "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
-            "  \"confidence\": 0.85,\n"
-            "  \"reasoning\": \"<简明推断理由，50字以内>\"\n"
-            "}"
-        )
+        if is_en:
+            system_prompt = (
+                "You are a senior computational biologist and biomedical ontology curator. Your task is to rigorously classify biomedical entities based on local graph topological micro-context.\n"
+                "If the context provides sufficient evidence, classify the entity into one of the designated candidate categories. If evidence is insufficient, ambiguous, or lacks confidence, you MUST directly set primary_type to \"Uncertain\"."
+            )
+            neighbors_str = "\n".join(micro_ctx["neighbors"]) if micro_ctx["neighbors"] else "No direct records"
+            evidence_str = "\n".join(micro_ctx["evidence"]) if micro_ctx["evidence"] else "No direct literature micro-evidence"
+
+            user_content = (
+                f"【Entity to Classify】: {node_name}\n"
+                f"【Known Aliases】: {', '.join(micro_ctx['aliases']) if micro_ctx['aliases'] else 'None'}\n"
+                f"【Network Neighbor Relations】:\n{neighbors_str}\n"
+                f"【Local Literature Evidence】:\n{evidence_str}\n\n"
+                f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English. Do not add markdown or explanation outside the JSON:\n"
+                "{\n"
+                "  \"primary_type\": \"<Candidate Category ID or Uncertain>\",\n"
+                "  \"sub_type\": \"<Specific functional subtype or role in English>\",\n"
+                "  \"tags\": [\"<Tag1>\", \"<Tag2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<Concise justification in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位资深的计算生物学与生物信息学本体专家。你的任务是根据图谱局部微上下文对生物医学实体进行严谨分类。\n"
+                "若上下文证据足以判断，请归类到指定类别之一；若信息不足、缺乏把握或无法明确判定，务必直接输出 primary_type 为 \"Uncertain\"。"
+            )
+            neighbors_str = "\n".join(micro_ctx["neighbors"]) if micro_ctx["neighbors"] else "无直接记录"
+            evidence_str = "\n".join(micro_ctx["evidence"]) if micro_ctx["evidence"] else "无直接原文微证据"
+
+            user_content = (
+                f"【待分析实体】: {node_name}\n"
+                f"【实体已知别名】: {', '.join(micro_ctx['aliases']) if micro_ctx['aliases'] else '无'}\n"
+                f"【网络邻居关系】:\n{neighbors_str}\n"
+                f"【局部文献证据】:\n{evidence_str}\n\n"
+                f"【候选实体类别集合】:\n{cat_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文:\n"
+                "{\n"
+                "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
+                "  \"sub_type\": \"<细分子类别或具体生物学功能>\",\n"
+                "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<简明推断理由，50字以内>\"\n"
+                "}"
+            )
 
         try:
             raw = self.llm_agent._ask_llm(system_prompt, user_content)
@@ -584,32 +638,53 @@ class WorkbenchAnalysisEngine:
             "sub_type": "",
             "tags": [],
             "confidence": 0.0,
-            "reasoning": "大模型调用异常或未能返回合法结构"
+            "reasoning": "LLM call error or invalid response" if is_en else "大模型调用异常或未能返回合法结构"
         }
 
-    def _llm_classify_entity_round2(self, node_name: str, matched_sentences: List[str]) -> Dict[str, Any]:
-        """Round 2: 根据正则精准回溯原文语句进行判定"""
-        system_prompt = (
-            "你是一位资深的生物医学专家。前轮分析因上下文微弱无法断定该实体类型，现通过原文献正则精准检索到以下关键句子。\n"
-            "请根据这些真实文献语句再次进行分类。若依然缺乏把握或证据不足，请将 primary_type 设为 \"Uncertain\"。"
-        )
-        cat_str = self._format_ontology_categories()
+    def _llm_classify_entity_round2(self, node_name: str, matched_sentences: List[str], language: str = "zh") -> Dict[str, Any]:
+        """Round 2: 根据正则精准回溯原文语句进行判定 (严格适配系统语言)"""
+        is_en = "en" in str(language).lower()
+        cat_str = self._format_ontology_categories(language=language)
         sents_str = "\n".join([f"- {s}" for s in matched_sentences])
 
-        user_content = (
-            f"【待分析实体】: {node_name}\n"
-            f"【从原文精准检索出的上下文语句】:\n{sents_str}\n\n"
-            f"【候选实体类别集合】:\n{cat_str}\n\n"
-            "【输出要求】:\n"
-            "请严格以单条合法 JSON 格式输出:\n"
-            "{\n"
-            "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
-            "  \"sub_type\": \"<细分子类别>\",\n"
-            "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
-            "  \"confidence\": 0.85,\n"
-            "  \"reasoning\": \"<原文支持证据与理由，50字以内>\"\n"
-            "}"
-        )
+        if is_en:
+            system_prompt = (
+                "You are a senior biomedical researcher. The previous round could not determine this entity's type due to weak context. Targeted regex search from the original paper full text retrieved the following sentences.\n"
+                "Re-evaluate and classify this entity based on these genuine literature sentences. If evidence remains insufficient or ambiguous, you MUST set primary_type to \"Uncertain\"."
+            )
+            user_content = (
+                f"【Entity to Classify】: {node_name}\n"
+                f"【Sentences Retrieved from Original Paper】:\n{sents_str}\n\n"
+                f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English:\n"
+                "{\n"
+                "  \"primary_type\": \"<Candidate Category ID or Uncertain>\",\n"
+                "  \"sub_type\": \"<Specific subtype in English>\",\n"
+                "  \"tags\": [\"<Tag1>\", \"<Tag2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<Literature-grounded evidence & rationale in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位资深的生物医学专家。前轮分析因上下文微弱无法断定该实体类型，现通过原文献正则精准检索到以下关键句子。\n"
+                "请根据这些真实文献语句再次进行分类。若依然缺乏把握或证据不足，请将 primary_type 设为 \"Uncertain\"。"
+            )
+            user_content = (
+                f"【待分析实体】: {node_name}\n"
+                f"【从原文精准检索出的上下文语句】:\n{sents_str}\n\n"
+                f"【候选实体类别集合】:\n{cat_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文:\n"
+                "{\n"
+                "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
+                "  \"sub_type\": \"<细分子类别>\",\n"
+                "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<原文支持证据与理由，50字以内>\"\n"
+                "}"
+            )
 
         try:
             raw = self.llm_agent._ask_llm(system_prompt, user_content)
@@ -624,30 +699,50 @@ class WorkbenchAnalysisEngine:
             "sub_type": "",
             "tags": [],
             "confidence": 0.0,
-            "reasoning": "Round 2 原文回溯分析未果"
+            "reasoning": "Round 2 literature re-fetch unconfirmed" if is_en else "Round 2 原文回溯分析未果"
         }
 
-    def _llm_classify_entity_round3(self, node_name: str) -> Dict[str, Any]:
-        """Round 3: 兜底通用生物知识判定"""
-        system_prompt = (
-            "你是一位资深的生物信息学专家。该实体在文献局部和原文语句中信息均不足。\n"
-            "请仅根据你在通用生物医学领域的常识进行最终研判。如果你确信其属于某个类别，请输出对应类别；若该词汇为课题自命名代号或无法确认，请坦率输出 \"Uncertain\"。"
-        )
-        cat_str = self._format_ontology_categories()
+    def _llm_classify_entity_round3(self, node_name: str, language: str = "zh") -> Dict[str, Any]:
+        """Round 3: 兜底通用生物知识判定 (严格适配系统语言)"""
+        is_en = "en" in str(language).lower()
+        cat_str = self._format_ontology_categories(language=language)
 
-        user_content = (
-            f"【待分析生物医学实体名】: {node_name}\n\n"
-            f"【候选实体类别集合】:\n{cat_str}\n\n"
-            "【输出要求】:\n"
-            "请严格以合法 JSON 输出:\n"
-            "{\n"
-            "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
-            "  \"sub_type\": \"<细分子类别>\",\n"
-            "  \"tags\": [\"<标签1>\"],\n"
-            "  \"confidence\": 0.70,\n"
-            "  \"reasoning\": \"<通用知识研判依据，50字以内>\"\n"
-            "}"
-        )
+        if is_en:
+            system_prompt = (
+                "You are a senior bioinformatics expert. The entity has limited context in the literature.\n"
+                "Adjudicate its category using your biomedical domain world knowledge. If confident, assign the proper candidate category; if it is an internal project code or unidentifiable, honestly output \"Uncertain\"."
+            )
+            user_content = (
+                f"【Biomedical Entity Name】: {node_name}\n\n"
+                f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object in English:\n"
+                "{\n"
+                "  \"primary_type\": \"<Candidate Category ID or Uncertain>\",\n"
+                "  \"sub_type\": \"<Specific subtype in English>\",\n"
+                "  \"tags\": [\"<Tag1>\"],\n"
+                "  \"confidence\": 0.70,\n"
+                "  \"reasoning\": \"<Domain knowledge reasoning in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位资深的生物信息学专家。该实体在文献局部和原文语句中信息均不足。\n"
+                "请仅根据你在通用生物医学领域的常识进行最终研判。如果你确信其属于某个类别，请输出对应类别；若该词汇为课题自命名代号或无法确认，请坦率输出 \"Uncertain\"。"
+            )
+            user_content = (
+                f"【待分析生物医学实体名】: {node_name}\n\n"
+                f"【候选实体类别集合】:\n{cat_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以合法 JSON 输出，所有文本字段（sub_type, tags, reasoning）务必使用中文:\n"
+                "{\n"
+                "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
+                "  \"sub_type\": \"<细分子类别>\",\n"
+                "  \"tags\": [\"<标签1>\"],\n"
+                "  \"confidence\": 0.70,\n"
+                "  \"reasoning\": \"<通用知识研判依据，50字以内>\"\n"
+                "}"
+            )
 
         try:
             raw = self.llm_agent._ask_llm(system_prompt, user_content)
@@ -662,34 +757,56 @@ class WorkbenchAnalysisEngine:
             "sub_type": "",
             "tags": [],
             "confidence": 0.0,
-            "reasoning": "Round 3 通用知识兜底研判未果"
+            "reasoning": "Round 3 world knowledge fallback unconfirmed" if is_en else "Round 3 通用知识兜底研判未果"
         }
 
-    def _llm_classify_relation(self, source: str, target: str, orig_rel: str, evidence: str) -> Dict[str, Any]:
-        """对单条关系进行深层机制分类与机制动词归纳"""
-        system_prompt = (
-            "你是一位分子机制生物学家。你的任务是对生物知识图谱中的关系进行深层机制分类，"
-            "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解、受体识别、感染宿主等）。"
-        )
-        rel_cat_str = self._format_relation_categories()
-        src_type = self.entity_annotations.get(source, {}).get("primary_type", "未知")
-        tgt_type = self.entity_annotations.get(target, {}).get("primary_type", "未知")
+    def _llm_classify_relation(self, source: str, target: str, orig_rel: str, evidence: str, language: str = "zh") -> Dict[str, Any]:
+        """对单条关系进行深层机制分类与机制动词归纳 (严格适配系统语言)"""
+        is_en = "en" in str(language).lower()
+        rel_cat_str = self._format_relation_categories(language=language)
+        src_type = self.entity_annotations.get(source, {}).get("primary_type", "Unknown" if is_en else "未知")
+        tgt_type = self.entity_annotations.get(target, {}).get("primary_type", "Unknown" if is_en else "未知")
 
-        user_content = (
-            f"【主体实体】: {source} (已分类为: {src_type})\n"
-            f"【客体实体】: {target} (已分类为: {tgt_type})\n"
-            f"【原始关系谓词】: {orig_rel}\n"
-            f"【文献原文证据】: {evidence if evidence else '无具体原文句子'}\n\n"
-            f"【候选关系机制类别】:\n{rel_cat_str}\n\n"
-            "【输出要求】:\n"
-            "请严格以合法 JSON 输出，不要包含任何多余文字:\n"
-            "{\n"
-            "  \"mechanism_category\": \"<候选类别ID>\",\n"
-            "  \"mechanism_verb\": \"<精准精炼的机制动词，10字以内>\",\n"
-            "  \"confidence\": 0.90,\n"
-            "  \"reasoning\": \"<简明归类依据，50字以内>\"\n"
-            "}"
-        )
+        if is_en:
+            system_prompt = (
+                "You are a molecular mechanism biologist. Your task is to classify biomedical knowledge graph relationships into deep mechanism categories "
+                "and distill a precise, concise English mechanism verb (e.g., 'Phosphorylates', 'Competitively inhibits', 'Transcriptional activation', 'Targeted degradation', 'Binds', 'Infects')."
+            )
+            user_content = (
+                f"【Subject Entity】: {source} (Classified as: {src_type})\n"
+                f"【Object Entity】: {target} (Classified as: {tgt_type})\n"
+                f"【Original Relation Predicate】: {orig_rel}\n"
+                f"【Original Literature Evidence】: {evidence if evidence else 'No direct sentence available'}\n\n"
+                f"【Candidate Mechanism Categories】:\n{rel_cat_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object. All field values (mechanism_verb, reasoning) MUST be in English:\n"
+                "{\n"
+                "  \"mechanism_category\": \"<Exact Candidate Category ID>\",\n"
+                "  \"mechanism_verb\": \"<Precise concise English mechanism verb, 1-3 words>\",\n"
+                "  \"confidence\": 0.90,\n"
+                "  \"reasoning\": \"<Concise mechanism rationale in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位分子机制生物学家。你的任务是对生物知识图谱中的关系进行深层机制分类，"
+                "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解、受体识别、感染宿主等）。"
+            )
+            user_content = (
+                f"【主体实体】: {source} (已分类为: {src_type})\n"
+                f"【客体实体】: {target} (已分类为: {tgt_type})\n"
+                f"【原始关系谓词】: {orig_rel}\n"
+                f"【文献原文证据】: {evidence if evidence else '无具体原文句子'}\n\n"
+                f"【候选关系机制类别】:\n{rel_cat_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以合法 JSON 输出，不要包含任何多余文字，mechanism_verb 与 reasoning 务必使用中文:\n"
+                "{\n"
+                "  \"mechanism_category\": \"<候选类别ID>\",\n"
+                "  \"mechanism_verb\": \"<精准精炼的机制动词，10字以内>\",\n"
+                "  \"confidence\": 0.90,\n"
+                "  \"reasoning\": \"<简明归类依据，50字以内>\"\n"
+                "}"
+            )
 
         try:
             raw = self.llm_agent._ask_llm(system_prompt, user_content)
@@ -703,7 +820,7 @@ class WorkbenchAnalysisEngine:
             "mechanism_category": "Association_Correlation",
             "mechanism_verb": orig_rel,
             "confidence": 0.5,
-            "reasoning": "分析降级至默认关联"
+            "reasoning": "Analysis defaulted to general correlation" if is_en else "分析降级至默认关联"
         }
 
     def run_analysis(self,
@@ -717,18 +834,21 @@ class WorkbenchAnalysisEngine:
                      enable_round3_world: bool = True,
                      force_reanalyze: bool = False,
                      max_workers: int = 4,
+                     language: str = "zh",
                      progress_callback: Optional[Callable[[float, str], None]] = None,
                      log_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
         """
-        执行完整的工作台分级分析工作流（支持 ThreadPoolExecutor 多线程高并发加速）
+        执行完整的工作台分级分析工作流（支持 ThreadPoolExecutor 多线程高并发加速与中英双语运行回显）
         """
+        is_en = "en" in str(language).lower()
+
         def log(msg: str):
             if log_callback:
                 log_callback(msg)
             print(f"[WorkbenchEngine] {msg}")
 
         workers_cnt = max(1, min(max_workers, 16))
-        log(f"🚀 启动图谱分析工作台流水线 (并发线程数: {workers_cnt})...")
+        log(f"🚀 Initializing Graph Analysis Workbench Pipeline ({workers_cnt} workers)..." if is_en else f"🚀 启动图谱分析工作台流水线 (并发线程数: {workers_cnt})...")
 
         # 1. 计算热度与优先级
         degrees = self.compute_node_degrees(relations)
@@ -744,12 +864,12 @@ class WorkbenchAnalysisEngine:
         # 阶段 A: 实体分级升级状态机 (Round 0 -> 1 -> 2 -> 3)
         # ----------------------------------------------------
         if enable_entities and total_nodes > 0:
-            log(f"📊 实体分析队列已就绪，共计 {total_nodes} 个实体，已按拓扑中心度降序排列。")
+            log(f"📊 Entity queue ready ({total_nodes} entities), sorted by degree centrality." if is_en else f"📊 实体分析队列已就绪，共计 {total_nodes} 个实体，已按拓扑中心度降序排列。")
 
             # === Round 0: 快速规则匹配 (0 Token, 极速预过滤) ===
             r0_hits = 0
             if enable_round0_rules:
-                log("⚡ [Round 0: 快速规则预分流] 正在执行无 Token 规则词缀初筛...")
+                log("⚡ [Round 0: Fast Rule Pre-Filter] Executing 0-token rule & nomenclature screening..." if is_en else "⚡ [Round 0: 快速规则预分流] 正在执行无 Token 规则词缀初筛...")
                 for idx, node in enumerate(sorted_nodes):
                     if not force_reanalyze and node in self.entity_annotations:
                         cur = self.entity_annotations[node]
@@ -762,7 +882,7 @@ class WorkbenchAnalysisEngine:
                             aliases = ent.get("aliases", [])
                             break
 
-                    rule_res = RulePreFilter.classify(node, aliases, self.ontology)
+                    rule_res = RulePreFilter.classify(node, aliases, self.ontology, language=language)
                     if rule_res:
                         self.entity_annotations[node] = rule_res
                         r0_hits += 1
@@ -773,25 +893,25 @@ class WorkbenchAnalysisEngine:
                                 "sub_type": "",
                                 "tags": [],
                                 "confidence": 0.0,
-                                "reasoning": "待进一步分级判断",
+                                "reasoning": "Pending further escalation analysis" if is_en else "待进一步分级判断",
                                 "round": 0,
                                 "status": "uncertain"
                             }
                 self.stats["round0_hits"] = r0_hits
-                log(f"✅ [Round 0 完成] 极速命中 {r0_hits} 个实体，节省大量 LLM Token！")
+                log(f"✅ [Round 0 Complete] Successfully resolved {r0_hits} entities, saving LLM tokens!" if is_en else f"✅ [Round 0 完成] 极速命中 {r0_hits} 个实体，节省大量 LLM Token！")
 
             # === Round 1: 微上下文分析 (ThreadPoolExecutor 并发) ===
             if enable_round1_context and self.llm_agent:
                 r1_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r1 = len(r1_candidates)
-                log(f"🧠 [Round 1: 局部微上下文分析] 共有 {total_r1} 个待决实体进入大模型并发分析 (Workers: {workers_cnt})...")
+                log(f"🧠 [Round 1: Micro-Context Reasoning] {total_r1} candidates queued for LLM analysis ({workers_cnt} workers)..." if is_en else f"🧠 [Round 1: 局部微上下文分析] 共有 {total_r1} 个待决实体进入大模型并发分析 (Workers: {workers_cnt})...")
 
                 r1_lock = threading.Lock()
                 r1_done = 0
 
                 def task_r1(n_name: str):
                     ctx = self._extract_micro_context(n_name, entities, relations)
-                    res = self._llm_classify_entity_round1(n_name, ctx)
+                    res = self._llm_classify_entity_round1(n_name, ctx, language=language)
                     return n_name, res
 
                 with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
@@ -803,7 +923,7 @@ class WorkbenchAnalysisEngine:
                             if progress_callback:
                                 progress_callback(
                                     0.1 + 0.3 * (r1_done / max(1, total_r1)),
-                                    f"Round 1 并发分析 ({r1_done}/{total_r1}): {node}"
+                                    f"Round 1 Micro-Context ({r1_done}/{total_r1}): {node}" if is_en else f"Round 1 并发分析 ({r1_done}/{total_r1}): {node}"
                                 )
                             cat = res.get("primary_type")
                             valid_cats = self.ontology.get("entity_categories", {})
@@ -822,13 +942,13 @@ class WorkbenchAnalysisEngine:
                                     "status": "uncertain"
                                 }
 
-                log(f"✅ [Round 1 完成] 成功解析 {self.stats['round1_hits']} 个实体。")
+                log(f"✅ [Round 1 Complete] Resolved {self.stats['round1_hits']} entities." if is_en else f"✅ [Round 1 完成] 成功解析 {self.stats['round1_hits']} 个实体。")
 
             # === Round 2: 文献正则精准回溯 (ThreadPoolExecutor 并发) ===
             if enable_round2_regex and self.llm_agent and self.paper_full_texts:
                 r2_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r2 = len(r2_candidates)
-                log(f"📖 [Round 2: 文献精准原文回溯] 共有 {total_r2} 个顽固未决实体进入文献并发检索...")
+                log(f"📖 [Round 2: Targeted In-Paper Regex Re-fetch] {total_r2} unresolved candidates queued for regex retrieval..." if is_en else f"📖 [Round 2: 文献精准原文回溯] 共有 {total_r2} 个顽固未决实体进入文献并发检索...")
 
                 r2_lock = threading.Lock()
                 r2_done = 0
@@ -836,7 +956,7 @@ class WorkbenchAnalysisEngine:
                 def task_r2(n_name: str):
                     matched = self._fetch_paper_sentences(n_name, entities)
                     if matched:
-                        res = self._llm_classify_entity_round2(n_name, matched)
+                        res = self._llm_classify_entity_round2(n_name, matched, language=language)
                         return n_name, res, True
                     return n_name, None, False
 
@@ -849,7 +969,7 @@ class WorkbenchAnalysisEngine:
                             if progress_callback:
                                 progress_callback(
                                     0.4 + 0.2 * (r2_done / max(1, total_r2)),
-                                    f"Round 2 原文回溯 ({r2_done}/{total_r2}): {node}"
+                                    f"Round 2 Regex Re-fetch ({r2_done}/{total_r2}): {node}" if is_en else f"Round 2 原文回溯 ({r2_done}/{total_r2}): {node}"
                                 )
                             if had_sents and res:
                                 cat = res.get("primary_type")
@@ -869,19 +989,19 @@ class WorkbenchAnalysisEngine:
                                         "status": "uncertain"
                                     }
 
-                log(f"✅ [Round 2 完成] 文献回溯成功破解 {self.stats['round2_hits']} 个实体。")
+                log(f"✅ [Round 2 Complete] Resolved {self.stats['round2_hits']} entities from paper text." if is_en else f"✅ [Round 2 完成] 文献回溯成功破解 {self.stats['round2_hits']} 个实体。")
 
             # === Round 3: 通用常识兜底 (ThreadPoolExecutor 并发) ===
             if enable_round3_world and self.llm_agent:
                 r3_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r3 = len(r3_candidates)
-                log(f"🌐 [Round 3: 通用生物医学常识兜底] 共有 {total_r3} 个未决实体尝试领域常识研判...")
+                log(f"🌐 [Round 3: World Knowledge Fallback] {total_r3} candidates queued for domain knowledge reasoning..." if is_en else f"🌐 [Round 3: 通用生物医学常识兜底] 共有 {total_r3} 个未决实体尝试领域常识研判...")
 
                 r3_lock = threading.Lock()
                 r3_done = 0
 
                 def task_r3(n_name: str):
-                    res = self._llm_classify_entity_round3(n_name)
+                    res = self._llm_classify_entity_round3(n_name, language=language)
                     return n_name, res
 
                 with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
@@ -893,7 +1013,7 @@ class WorkbenchAnalysisEngine:
                             if progress_callback:
                                 progress_callback(
                                     0.6 + 0.15 * (r3_done / max(1, total_r3)),
-                                    f"Round 3 常识研判 ({r3_done}/{total_r3}): {node}"
+                                    f"Round 3 World Knowledge ({r3_done}/{total_r3}): {node}" if is_en else f"Round 3 常识研判 ({r3_done}/{total_r3}): {node}"
                                 )
                             cat = res.get("primary_type")
                             valid_cats = self.ontology.get("entity_categories", {})
@@ -912,7 +1032,7 @@ class WorkbenchAnalysisEngine:
                                     "status": "uncertain"
                                 }
 
-                log(f"✅ [Round 3 完成] 领域常识兜底解析出 {self.stats['round3_hits']} 个实体。")
+                log(f"✅ [Round 3 Complete] Resolved {self.stats['round3_hits']} entities via world knowledge." if is_en else f"✅ [Round 3 完成] 领域常识兜底解析出 {self.stats['round3_hits']} 个实体。")
 
         # ----------------------------------------------------
         # 阶段 B: 关系机制深层分析与机制动词归纳 (ThreadPoolExecutor 并发)
@@ -931,7 +1051,7 @@ class WorkbenchAnalysisEngine:
                 target_relations.append(rel)
 
             total_rc = len(target_relations)
-            log(f"🔗 关系分析队列已就绪，共计 {total_rc} 条待分析关系 (并发线程数: {workers_cnt})...")
+            log(f"🔗 Relation queue ready ({total_rc} relations, {workers_cnt} workers)..." if is_en else f"🔗 关系分析队列已就绪，共计 {total_rc} 条待分析关系 (并发线程数: {workers_cnt})...")
 
             rel_lock = threading.Lock()
             rel_done = 0
@@ -942,7 +1062,7 @@ class WorkbenchAnalysisEngine:
                 orig_rel = r_item.get("relation", "相关")
                 evidence = r_item.get("evidence", "")
                 edge_key = f"{src}|{tgt}|{orig_rel}"
-                res = self._llm_classify_relation(src, tgt, orig_rel, evidence)
+                res = self._llm_classify_relation(src, tgt, orig_rel, evidence, language=language)
                 return edge_key, res
 
             with ThreadPoolExecutor(max_workers=workers_cnt) as executor:
@@ -954,7 +1074,7 @@ class WorkbenchAnalysisEngine:
                         if progress_callback:
                             progress_callback(
                                 0.75 + 0.25 * (rel_done / max(1, total_rc)),
-                                f"关系机制分析 ({rel_done}/{total_rc})"
+                                f"Analyzing Relation Mechanism ({rel_done}/{total_rc})" if is_en else f"关系机制分析 ({rel_done}/{total_rc})"
                             )
                         self.relation_annotations[edge_key] = {
                             **res,
@@ -963,7 +1083,7 @@ class WorkbenchAnalysisEngine:
                         }
                         self.stats["analyzed_relations"] += 1
 
-            log(f"✅ [关系机制分析完成] 成功提炼 {self.stats['analyzed_relations']} 条深层机制动词与类别。")
+            log(f"✅ [Relation Distillation Complete] Successfully distilled {self.stats['analyzed_relations']} mechanism verbs and categories." if is_en else f"✅ [关系机制分析完成] 成功提炼 {self.stats['analyzed_relations']} 条深层机制动词与类别。")
 
         # ----------------------------------------------------
         # 阶段 C: 统计与指标计算
@@ -976,7 +1096,7 @@ class WorkbenchAnalysisEngine:
         if progress_callback:
             progress_callback(1.0, "分析全部完成！正在渲染工作台图谱...")
 
-        log("🎉 [图谱分析工作台流水线全部执行完毕！]")
+        log("🎉 [Workbench Pipeline Analysis Completed!]" if is_en else "🎉 [图谱分析工作台流水线全部执行完毕！]")
         return self.get_state()
 
     def override_entity(self, node_name: str, primary_type: str, sub_type: str = "", tags: Optional[List[str]] = None, reasoning: str = "专家手动调换修正") -> Dict[str, Any]:

@@ -9,7 +9,8 @@
       "color": "#3b82f6",
       "shape": "dot",
       "icon": "🎯",
-      "description": "激酶、GPCR、核受体、离子通道等具备调控潜力的生物靶标"
+      "description": "激酶、GPCR、核受体、离子通道等具备调控潜力的生物靶标",
+      "en_description": "Kinases, GPCRs, nuclear receptors, ion channels, or disease-modifying biological targets."
     },
     "Small_Molecule_Drug": {
       "label": "小分子化学药物 / 先导物",
@@ -17,7 +18,8 @@
       "color": "#f59e0b",
       "shape": "diamond",
       "icon": "💊",
-      "description": "小分子抑制剂、激动剂、变构调节剂或前体化合物"
+      "description": "小分子抑制剂、激动剂、变构调节剂或前体化合物",
+      "en_description": "Synthetic small-molecule inhibitors, agonists, allosteric modulators, or prodrugs."
     },
     "Biologics_ADC": {
       "label": "生物制品 / 单抗 / ADC",
@@ -25,7 +27,8 @@
       "color": "#8b5cf6",
       "shape": "star",
       "icon": "🛡️",
-      "description": "治疗性单抗、抗体偶联药物(ADC)、重组细胞因子或融合蛋白"
+      "description": "治疗性单抗、抗体偶联药物(ADC)、重组细胞因子或融合蛋白",
+      "en_description": "Therapeutic monoclonal antibodies, antibody-drug conjugates (ADCs), or recombinant proteins."
     },
     "PROTAC_Degrader": {
       "label": "靶向蛋白降解剂 / PROTAC",
@@ -33,7 +36,8 @@
       "color": "#ea580c",
       "shape": "hexagon",
       "icon": "🧪",
-      "description": "蛋白降解靶向嵌合体(PROTAC)、分子胶或靶向自噬降解嵌合体"
+      "description": "蛋白降解靶向嵌合体(PROTAC)、分子胶或靶向自噬降解嵌合体",
+      "en_description": "Proteolysis-targeting chimeras (PROTACs), molecular glues, or targeted degraders."
     },
     "Disease_Indication": {
       "label": "临床适应症 / 疾病模型",
@@ -41,7 +45,8 @@
       "color": "#ef4444",
       "shape": "triangle",
       "icon": "🩺",
-      "description": "肿瘤适应症、神经退行性疾病、代谢病或动物造模表型"
+      "description": "肿瘤适应症、神经退行性疾病、代谢病或动物造模表型",
+      "en_description": "Oncological indications, neurodegenerative diseases, metabolic syndromes, or animal models."
     },
     "Biomarker_Resistant_Mutation": {
       "label": "疗效标志物 / 耐药突变",
@@ -49,7 +54,8 @@
       "color": "#ec4899",
       "shape": "square",
       "icon": "⚡",
-      "description": "预后/伴随诊断标志物、靶向药获得性耐药突变位点"
+      "description": "预后/伴随诊断标志物、靶向药获得性耐药突变位点",
+      "en_description": "Prognostic/companion biomarkers or acquired drug-resistance mutation sites."
     },
     "Uncertain": {
       "label": "无法判断 / 未定",
@@ -57,7 +63,8 @@
       "color": "#9ca3af",
       "shape": "ellipse",
       "icon": "❓",
-      "description": "文献证据不足或上下文含糊、无法明确归类的药理实体"
+      "description": "文献证据不足或上下文含糊、无法明确归类的药理实体",
+      "en_description": "Pharmacological entities with ambiguous context or unverified classification."
     }
   },
   "relation_categories": {
@@ -65,43 +72,52 @@
       "label": "靶点抑制 / 拮抗",
       "en_label": "Target Inhibition / Antagonism",
       "color": "#ef4444",
-      "icon": "🛑"
+      "icon": "🛑",
+      "en_description": "Functional antagonism or competitive/allosteric inhibition of target activity."
     },
     "Target_Activation": {
       "label": "靶点激活 / 激动",
       "en_label": "Target Activation / Agonism",
       "color": "#22c55e",
-      "icon": "🟢"
+      "icon": "🟢",
+      "en_description": "Agonistic stimulation or pharmacological activation of target receptor/enzyme."
     },
     "Targeted_Degradation": {
       "label": "诱导靶点降解",
       "en_label": "Targeted Degradation",
       "color": "#ea580c",
-      "icon": "🗑️"
+      "icon": "🗑️",
+      "en_description": "Chimeric or glue-mediated induction of target ubiquitination and degradation."
     },
     "Competitive_Binding": {
       "label": "竞争性结合 / 变构调节",
       "en_label": "Competitive / Allosteric Binding",
       "color": "#3b82f6",
-      "icon": "🔗"
+      "icon": "🔗",
+      "en_description": "Direct competitive receptor/ligand occupancy or allosteric pocket binding."
     },
     "Therapeutic_Efficacy": {
       "label": "抗病疗效 / 抑制肿瘤进展",
       "en_label": "Therapeutic Efficacy / Tumor Suppression",
       "color": "#10b981",
-      "icon": "✨"
+      "icon": "✨",
+      "en_description": "Demonstrated pharmacological efficacy, tumor regression, or disease symptom alleviation."
     },
     "Drug_Resistance_Induction": {
       "label": "诱导耐药 / 旁路激活",
       "en_label": "Drug Resistance / Bypass Activation",
       "color": "#dc2626",
-      "icon": "⚠️"
+      "icon": "⚠️",
+      "en_description": "Induction of secondary resistance mutations, bypass activation, or efflux upregulation."
     },
     "Adverse_Toxicity": {
       "label": "不良反应 / 细胞毒性",
       "en_label": "Adverse Effect / Cytotoxicity",
       "color": "#9ca3af",
-      "icon": "☣️"
+      "icon": "☣️",
+      "en_description": "On-target or off-target adverse effects, organ toxicity, or pathological liabilities."
     }
-  }
+  },
+  "en_name": "Pharmacology & Drug Target Discovery",
+  "en_description": "Taxonomy focused on drug molecules, druggable targets, mechanisms of action (MoA), and clinical disease indications."
 }

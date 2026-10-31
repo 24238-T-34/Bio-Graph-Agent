@@ -1629,6 +1629,21 @@ UI_TEXT = {
     "wb_verb_lbl": {"zh": "提炼机制谓词动词 (如: 催化磷酸化, 竞争性抑制)", "en": "Mechanism Verb (e.g. Phosphorylates, Inhibits)"},
     "wb_btn_save_rel": {"zh": "💾 确认调换关系机制并即时更新", "en": "💾 Save & Override Mechanism"},
     "wb_btn_bottom_return": {"zh": "⬅️ 返回主图谱构建工作区", "en": "⬅️ Return to Main Graph Workspace"},
+    "wb_log_expander_title": {"zh": "📝 实时执行分析日志 (Real-time Analysis Logs)", "en": "📝 Real-time Analysis Logs"},
+    "wb_toast_analysis_done": {"zh": "🎉 工作台全量分析完成并生成拓扑图谱！", "en": "🎉 Workbench analysis completed and topology graph generated!"},
+    "wb_toast_rerender_done": {"zh": "工作台画布重新渲染完成！", "en": "Workbench canvas re-rendered successfully!"},
+    "wb_toast_override_done": {"zh": "实体分类调换成功！", "en": "Entity reclassification saved successfully!"},
+    "wb_toast_rel_override_done": {"zh": "关系机制调换成功！", "en": "Relation mechanism override saved successfully!"},
+    "wb_no_rel_edges": {"zh": "当前图谱尚无关系连线。", "en": "No relation edges in current graph."},
+    "wb_cur_cat_lbl": {"zh": "当前类别", "en": "Category"},
+    "wb_round_lbl": {"zh": "分析轮次", "en": "Round"},
+    "wb_conf_lbl": {"zh": "置信度", "en": "Confidence"},
+    "wb_reason_trace_lbl": {"zh": "推断依据", "en": "Reasoning"},
+    "wb_cur_mech_lbl": {"zh": "机制类别", "en": "Mechanism"},
+    "wb_cur_verb_lbl": {"zh": "机制动词", "en": "Verb"},
+    "wb_orig_rel_prefix": {"zh": "原", "en": "orig"},
+    "wb_unit_entities": {"zh": "个实体", "en": "entities"},
+    "wb_unit_relations": {"zh": "条关系", "en": "relations"},
 }
 
 
@@ -1891,8 +1906,15 @@ with st.sidebar:
 
         st.markdown("---")
         st.markdown(t("sidebar_db_title"))
-        db_sources = ["PubMed (生物医学权威)", "Semantic Scholar (全科AI智能)"]
-        st.selectbox(t("sidebar_db_select"), db_sources, key="search_database", on_change=save_config)
+        db_sources = ["PubMed", "Semantic Scholar"]
+        cur_db = st.session_state.get("search_database", "PubMed")
+        db_idx = 0 if "PubMed" in cur_db else 1
+        is_en_ui = "en" in str(st.session_state.get("ui_language", "zh")).lower()
+        def get_db_display(k):
+            if k == "PubMed":
+                return "PubMed (Biomedical Authority)" if is_en_ui else "PubMed (生物医学权威)"
+            return "Semantic Scholar (Multidisciplinary AI)" if is_en_ui else "Semantic Scholar (全科AI智能)"
+        st.selectbox(t("sidebar_db_select"), db_sources, index=db_idx, format_func=get_db_display, key="search_database", on_change=save_config)
 
         st.markdown("---")
 
@@ -1993,21 +2015,28 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     # 3. 本体预设与分析控制面板
     mgr = OntologyManager()
     presets = mgr.list_presets()
-    preset_map = {p["name"]: p for p in presets}
-    preset_names = list(preset_map.keys())
-    default_idx = 0
-    for idx, p in enumerate(presets):
-        if p.get("id") == "universal_biored":
-            default_idx = idx
-            break
+    preset_id_map = {p["id"]: p for p in presets}
+    preset_ids = list(preset_id_map.keys())
+    default_idx = preset_ids.index("universal_biored") if "universal_biored" in preset_ids else 0
 
     with st.container(border=True):
         st.markdown(f"#### {t('wb_config_title')}")
         col_p1, col_p2 = st.columns([3, 2])
         with col_p1:
-            selected_pname = st.selectbox(t("wb_preset_select"), preset_names, index=default_idx, key="wb_preset_select")
-            selected_preset = preset_map[selected_pname]
-            st.caption(f"ℹ️ {selected_preset.get('description', '')}")
+            def get_preset_fmt(pid):
+                p = preset_id_map.get(pid, {})
+                return p.get("en_name", p.get("name", pid)) if is_en else p.get("name", pid)
+
+            selected_pid = st.selectbox(
+                t("wb_preset_select"),
+                options=preset_ids,
+                format_func=get_preset_fmt,
+                index=default_idx,
+                key="wb_preset_select"
+            )
+            selected_preset = preset_id_map[selected_pid]
+            desc = selected_preset.get('en_description', selected_preset.get('description', '')) if is_en else selected_preset.get('description', '')
+            st.caption(f"ℹ️ {desc}")
         with col_p2:
             custom_file = st.file_uploader(t("wb_custom_preset_upload"), type=["json"], key="wb_custom_preset_upload")
             if custom_file:
@@ -2070,7 +2099,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
             p_bar = st.progress(0.0)
             status_elem = st.empty()
-            log_expander = st.expander("📝 实时执行分析日志 (Real-time Analysis Logs)", expanded=True)
+            log_expander = st.expander(t("wb_log_expander_title"), expanded=True)
             log_placeholder = log_expander.empty()
             captured_logs = []
 
@@ -2093,6 +2122,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 enable_round3_world=enable_r3,
                 force_reanalyze=force_reanalyze,
                 max_workers=concurrency_val,
+                language=st.session_state.get("ui_language", "zh"),
                 progress_callback=on_prog,
                 log_callback=on_log
             )
@@ -2113,7 +2143,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             )
 
             save_local_vault()
-            st.toast("🎉 工作台全量分析完成并生成拓扑图谱！", icon="✨")
+            st.toast(t("wb_toast_analysis_done"), icon="✨")
             st.rerun()
 
         if btn_rerender:
@@ -2128,7 +2158,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 output_file=wb_html_path,
                 output_lang=st.session_state.get("ui_language", "zh")
             )
-            st.toast("工作台画布重新渲染完成！", icon="🎨")
+            st.toast(t("wb_toast_rerender_done"), icon="🎨")
             st.rerun()
 
     # 4. 条件渲染：仅在存在分析结果时展示大盘、画布与调换操作台 (Point 4)
@@ -2167,7 +2197,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 c_lbl = (c_def.get("en_label", cat_id) if is_en else c_def.get("label", cat_id)) or cat_id
                 c_icon = c_def.get("icon", "•")
                 pct = (len(nodes) / max(1, len(ents))) * 100
-                unit_txt = "entities" if is_en else "个实体"
+                unit_txt = t("wb_unit_entities")
                 with st.expander(f"{c_icon} {c_lbl} — {len(nodes)} {unit_txt} ({pct:.1f}%)", expanded=False):
                     for nodename in nodes:
                         a = ent_annots.get(nodename, {})
@@ -2195,14 +2225,14 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 r_def = rel_cat_defs.get(mech_id, {})
                 r_lbl = (r_def.get("en_label", mech_id) if is_en else r_def.get("label", mech_id)) or mech_id
                 r_icon = r_def.get("icon", "•")
-                unit_rel = "relations" if is_en else "条关系"
+                unit_rel = t("wb_unit_relations")
                 with st.expander(f"{r_icon} {r_lbl} — {len(edge_tuples)} {unit_rel}", expanded=False):
                     for src, tgt, rel, k in edge_tuples:
                         a = rel_annots.get(k, {})
                         verb = a.get("mechanism_verb", rel)
                         conf = a.get("confidence", 0.0)
                         rsn = a.get("reasoning", "")
-                        orig_prefix = "orig" if is_en else "原"
+                        orig_prefix = t("wb_orig_rel_prefix")
                         st.markdown(f"**{src}** ➔ **{tgt}** : `{verb}` *({orig_prefix}: {rel})*")
                         if rsn:
                             st.caption(f"💡 {rsn}")
@@ -2239,9 +2269,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     cur_a = ent_annots.get(sel_node, {})
                     cur_type = cur_a.get("primary_type", "Uncertain")
                     cur_cat_lbl = (ent_cat_defs.get(cur_type, {}).get("en_label", cur_type) if is_en else ent_cat_defs.get(cur_type, {}).get("label", cur_type)) or cur_type
-                    st.caption(f"Category: **{cur_cat_lbl}** | Round: `{cur_a.get('round', 'N/A')}` | Conf: `{int(cur_a.get('confidence', 0)*100)}%`")
+                    st.caption(f"{t('wb_cur_cat_lbl')}: **{cur_cat_lbl}** | {t('wb_round_lbl')}: `{cur_a.get('round', 'N/A')}` | {t('wb_conf_lbl')}: `{int(cur_a.get('confidence', 0)*100)}%`")
                     if cur_a.get("reasoning"):
-                        st.caption(f"Reason: {cur_a.get('reasoning')}")
+                        st.caption(f"{t('wb_reason_trace_lbl')}: {cur_a.get('reasoning')}")
 
                 with col_e2:
                     cat_keys = list(ent_cat_defs.keys())
@@ -2282,7 +2312,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         output_lang=st.session_state.get("ui_language", "zh")
                     )
                     save_local_vault()
-                    st.toast(f"✅ {sel_node} ➔ {target_cat}", icon="✅")
+                    st.toast(f"✅ {sel_node} ➔ {target_cat} ({t('wb_toast_override_done')})", icon="✅")
                     st.rerun()
 
             with tab_rel:
@@ -2298,7 +2328,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     edge_key_map[label] = (s, t_node, rel, k)
 
                 if not edge_display_list:
-                    st.info("No relation edges in current graph." if is_en else "当前图谱尚无关系连线。")
+                    st.info(t("wb_no_rel_edges"))
                 else:
                     col_r1, col_r2 = st.columns([1, 1])
                     with col_r1:
@@ -2307,9 +2337,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         cur_ra = rel_annots.get(k, {})
                         cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
                         cur_mech_lbl = (rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat) if is_en else rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat)) or cur_mech_cat
-                        st.caption(f"Mechanism: **{cur_mech_lbl}** | Verb: `{cur_ra.get('mechanism_verb', orig_rel)}`")
+                        st.caption(f"{t('wb_cur_mech_lbl')}: **{cur_mech_lbl}** | {t('wb_cur_verb_lbl')}: `{cur_ra.get('mechanism_verb', orig_rel)}`")
                         if cur_ra.get("reasoning"):
-                            st.caption(f"Reason: {cur_ra.get('reasoning')}")
+                            st.caption(f"{t('wb_reason_trace_lbl')}: {cur_ra.get('reasoning')}")
 
                     with col_r2:
                         rel_keys = list(rel_cat_defs.keys())
@@ -2349,7 +2379,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             output_lang=st.session_state.get("ui_language", "zh")
                         )
                         save_local_vault()
-                        st.toast(f"✅ {s} ➔ {t_node} : {target_verb}", icon="✅")
+                        st.toast(f"✅ {s} ➔ {t_node} : {target_verb} ({t('wb_toast_rel_override_done')})", icon="✅")
                         st.rerun()
 
     # 7. 底部返回按钮

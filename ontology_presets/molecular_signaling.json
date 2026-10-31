@@ -9,7 +9,8 @@
       "color": "#3b82f6",
       "shape": "dot",
       "icon": "⚡",
-      "description": "催化磷酸化或去磷酸化级联反应的关键酶蛋白"
+      "description": "催化磷酸化或去磷酸化级联反应的关键酶蛋白",
+      "en_description": "Key catalytic enzymes mediating phosphorylation or dephosphorylation cascades."
     },
     "Transcription_Factor": {
       "label": "转录因子 / 核受体",
@@ -17,7 +18,8 @@
       "color": "#8b5cf6",
       "shape": "diamond",
       "icon": "🧬",
-      "description": "特异性结合DNA并调控基因转录的因子或辅因子"
+      "description": "特异性结合DNA并调控基因转录的因子或辅因子",
+      "en_description": "Sequence-specific DNA-binding factors and cofactors regulating gene transcription."
     },
     "Receptor_Adapter": {
       "label": "受体 / 接头蛋白",
@@ -25,7 +27,8 @@
       "color": "#06b6d4",
       "shape": "square",
       "icon": "📡",
-      "description": "膜受体、胞质受体及传递信号的支架接头蛋白"
+      "description": "膜受体、胞质受体及传递信号的支架接头蛋白",
+      "en_description": "Membrane receptors, cytosolic sensors, and scaffold/adapter signaling proteins."
     },
     "Second_Messenger_Ion": {
       "label": "第二信使 / 离子 / 代谢分子",
@@ -33,7 +36,8 @@
       "color": "#f59e0b",
       "shape": "triangle",
       "icon": "🧪",
-      "description": "cAMP, IP3, DAG, Ca2+及信号级联中的小分子信使"
+      "description": "cAMP, IP3, DAG, Ca2+及信号级联中的小分子信使",
+      "en_description": "Small molecules and ions (cAMP, IP3, DAG, Ca2+) propagating intracellular signals."
     },
     "Effector_Target_Gene": {
       "label": "下游效应蛋白 / 靶基因",
@@ -41,7 +45,8 @@
       "color": "#10b981",
       "shape": "hexagon",
       "icon": "🎯",
-      "description": "通路末端效应蛋白、细胞骨架组件或激活转录的靶基因"
+      "description": "通路末端效应蛋白、细胞骨架组件或激活转录的靶基因",
+      "en_description": "Downstream effector proteins, cytoskeletal components, or transcribed target genes."
     },
     "Pathway_Module": {
       "label": "通路模块 / 生理过程",
@@ -49,7 +54,8 @@
       "color": "#ec4899",
       "shape": "star",
       "icon": "🔄",
-      "description": "如MAPK通路、PI3K/AKT级联、凋亡进程或自噬流"
+      "description": "如MAPK通路、PI3K/AKT级联、凋亡进程或自噬流",
+      "en_description": "Canonical signaling pathways (MAPK, PI3K/AKT), apoptosis cascades, or autophagy flux."
     },
     "Uncertain": {
       "label": "无法判断 / 未定",
@@ -57,7 +63,8 @@
       "color": "#9ca3af",
       "shape": "ellipse",
       "icon": "❓",
-      "description": "文献证据不足或上下文含糊、无法明确归类的分子实体"
+      "description": "文献证据不足或上下文含糊、无法明确归类的分子实体",
+      "en_description": "Molecular entities with ambiguous context or insufficient evidence in literature."
     }
   },
   "relation_categories": {
@@ -65,43 +72,52 @@
       "label": "磷酸化 / 激活修饰",
       "en_label": "Phosphorylation / Modification",
       "color": "#22c55e",
-      "icon": "🟢"
+      "icon": "🟢",
+      "en_description": "Enzymatic addition of a phosphate group leading to functional activation or conformational change."
     },
     "Dephosphorylation": {
       "label": "去磷酸化 / 失活",
       "en_label": "Dephosphorylation / Inactivation",
       "color": "#ef4444",
-      "icon": "🔴"
+      "icon": "🔴",
+      "en_description": "Enzymatic removal of a phosphate group, typically causing inactivation."
     },
     "Ubiquitination_Degradation": {
       "label": "泛素化 / 靶向降解",
       "en_label": "Ubiquitination / Degradation",
       "color": "#ea580c",
-      "icon": "🗑️"
+      "icon": "🗑️",
+      "en_description": "Ubiquitin conjugation targeting substrates for proteasomal or lysosomal degradation."
     },
     "Transcriptional_Activation": {
       "label": "转录激活 / 诱导表达",
       "en_label": "Transcriptional Activation / Induction",
       "color": "#3b82f6",
-      "icon": "📈"
+      "icon": "📈",
+      "en_description": "Binding to promoter/enhancer elements to upregulate target gene expression."
     },
     "Complex_Assembly": {
       "label": "复合物组装 / 招募结合",
       "en_label": "Complex Assembly / Recruitment",
       "color": "#8b5cf6",
-      "icon": "🔗"
+      "icon": "🔗",
+      "en_description": "Recruitment and physical assembly of multi-protein signaling complexes."
     },
     "Translocation": {
       "label": "核转位 / 亚细胞迁移",
       "en_label": "Nuclear Translocation / Trafficking",
       "color": "#06b6d4",
-      "icon": "🚚"
+      "icon": "🚚",
+      "en_description": "Subcellular trafficking, such as nuclear translocation or membrane recruitment."
     },
     "Allosteric_Regulation": {
       "label": "变构调节 / 反馈回路",
       "en_label": "Allosteric Regulation / Feedback",
       "color": "#a855f7",
-      "icon": "🔄"
+      "icon": "🔄",
+      "en_description": "Non-covalent binding at an allosteric site altering protein conformation and activity."
     }
-  }
+  },
+  "en_name": "Molecular Signaling Cascades & Modifications",
+  "en_description": "Fine-grained ontology focused on intracellular signaling networks, kinase cascades, post-translational modifications, and transcriptional regulation."
 }
