@@ -889,14 +889,18 @@ class WorkbenchAnalysisEngine:
 # =====================================================================
 class PathwayDecompositionEngine:
     """
-    工作台第二阶段：信号/关系通路拆解与建模引擎 (Pathway Decomposition Engine)
-    功能：
-    1. 候选节点的多维综合评分（拓扑中心度 + 类别柔性加权 + 意图语义相关度）
-    2. 自由组合与最小连通骨干子网络诱导（Backbone Subgraphs）
-    3. 有向闭环（Directed Simple Cycles）与自调节反馈极性代数判定（自促进/正反馈 vs 自抑制/负反馈）
-    4. 跨文献跳跃桥接检测与新假说发现（Cross-Paper Pivot & Synthetic Bridges）
-    5. 大模型驱动的生物学因果建模与结构化机制叙事
-    6. 专属工程子目录 (projects/<pid>/pathways/) 落盘与一键独立导出
+    工作台第二阶段：信号/关系通路拆解与建模核心引擎 (Pathway Decomposition Engine)
+    重构准则：
+    1. 图谱不变性 (Graph Invariance)：严格从大图谱已知真实实体与关系中诱导有向子网络，绝不改写或虚构关系
+    2. 严格有向性与动力学反馈循环 (Strict Directed Feedback Loops)：
+       - 环路上每一条边必须是具备明确调控方向的有向功能边 (正作用/负作用/机制动词)
+       - 坚决剔除包含“包含”、“语义相关”、“同义分类”的伪环，杜绝将单向“促进”或对称“相关”误判为“自促进”
+    3. 文献来源清洗与工程权威对齐 (Canonical Literature Alignment)：
+       - 拆分 | 等拼接符，过滤 AI分析/规则推导等噪音，严格映射至工程真实导入的 analyzed_files
+    4. 极简学术规范大模型总结 (Academic Naming & Concise Mechanistic Summary)：
+       - 输出专业学术命名 (LaTeX 形式，如 $\\text{CRL5}^{\\text{SOCS4}}$ 介导的泛素化降解途径与神经退行抗性)
+       - 2~3 句精炼机制阐释 (若涉及真实闭环，适当融入动力学分析)
+    5. 独立交互子图落盘与持久化存储 (projects/<pid>/pathways/)
     """
 
     def __init__(self,
@@ -904,13 +908,88 @@ class PathwayDecompositionEngine:
                  ontology: Optional[Dict[str, Any]] = None,
                  entity_annotations: Optional[Dict[str, Any]] = None,
                  relation_annotations: Optional[Dict[str, Any]] = None,
-                 project_dir: Optional[str] = None):
+                 project_dir: Optional[str] = None,
+                 canonical_papers: Optional[List[str]] = None):
         self.llm_agent = llm_agent
         self.ontology = ontology or {}
         self.entity_annotations = entity_annotations or {}
         self.relation_annotations = relation_annotations or {}
         self.project_dir = project_dir
         self.pathways_dir = os.path.join(project_dir, "pathways") if project_dir else None
+
+        # 优先读取工程权威真实文献列表，用于文献对齐与硬上限约束
+        self.canonical_papers = list(canonical_papers) if canonical_papers else []
+        if not self.canonical_papers and project_dir:
+            pkg_file = os.path.join(project_dir, "project.biokg")
+            if os.path.exists(pkg_file):
+                try:
+                    with open(pkg_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    self.canonical_papers = data.get("analyzed_files", [])
+                except Exception:
+                    pass
+
+    @staticmethod
+    def parse_and_canonicalize_doc_sources(raw_doc: str, canonical_papers: Optional[List[str]] = None) -> List[str]:
+        """
+        清洗并规范化文献来源：
+        1. 按 | ; \\n 拆分多文献合并串
+        2. 彻底过滤 AI分析、逻辑推导、未知 等非真实文献标记
+        3. 修复递归嵌套 PMID 字符串
+        4. 严格对齐至当前工程真实导入的 canonical_papers 集合
+        """
+        if not raw_doc:
+            return []
+        parts = re.split(r'[\r\n|;；]+', str(raw_doc))
+        clean_docs = set()
+        canonical_list = canonical_papers or []
+
+        for p in parts:
+            p_str = p.strip()
+            if not p_str:
+                continue
+            p_lower = p_str.lower()
+
+            # 过滤非真实文献标识
+            if any(ign in p_lower for ign in [
+                "ai 分析", "ai分析", "ai 推导", "ai推导", "ai 智能逻辑推导", "ai analysis",
+                "系统规则", "逻辑推导", "未知文献", "未知", "unknown", "none"
+            ]):
+                continue
+
+            # 消除递归嵌套的 (PMID: ... (PMID: 42417502))))
+            if "pmid:" in p_lower:
+                m = re.findall(r'(\d{6,9})', p_str)
+                if m:
+                    target_pmid = m[-1]
+                    matched_canonical = None
+                    for c_doc in canonical_list:
+                        if target_pmid in c_doc:
+                            matched_canonical = c_doc
+                            break
+                    if matched_canonical:
+                        clean_docs.add(matched_canonical)
+                        continue
+                    else:
+                        clean_docs.add(f"PMID: {target_pmid}")
+                        continue
+
+            # 尝试与当前工程权威文献列表对齐
+            matched = False
+            for c_doc in canonical_list:
+                c_clean = os.path.splitext(os.path.basename(c_doc))[0].strip().lower()
+                p_clean = os.path.splitext(os.path.basename(p_str))[0].strip().lower()
+                if c_clean in p_clean or p_clean in c_clean or c_clean[:35] in p_clean or p_clean[:35] in c_clean:
+                    clean_docs.add(c_doc)
+                    matched = True
+                    break
+
+            if not matched:
+                clean_name = os.path.basename(p_str).strip()
+                if clean_name and len(clean_name) >= 3:
+                    clean_docs.add(clean_name)
+
+        return sorted(list(clean_docs))
 
     def score_candidate_seeds(self,
                               entities: List[Dict[str, Any]],
@@ -919,7 +998,7 @@ class PathwayDecompositionEngine:
                               max_seeds: int = 15) -> List[Tuple[str, float, Dict[str, Any]]]:
         """
         多维综合评分候选节点发现 (Multi-Criteria Node Scoring)
-        得分 = 拓扑度数中心度 + 拓扑介数中心度 + 生物学类别先验倾向 + 用户输入语义相关度
+        综合考量有向度数、介数中心度、生物学类别软先验与意图关键词提权
         """
         if not relations:
             return []
@@ -927,7 +1006,7 @@ class PathwayDecompositionEngine:
         G = nx.DiGraph()
         for r in relations:
             s = str(r.get("source", "")).strip()
-            t = str(r.get("target", "").strip())
+            t = str(r.get("target", "")).strip()
             if s and t and s != t:
                 w = float(r.get("weight", 1))
                 G.add_edge(s, t, weight=w)
@@ -948,12 +1027,10 @@ class PathwayDecompositionEngine:
 
         scores = []
         for n in G.nodes():
-            # 1. 拓扑得分 (归一化到 0~3)
             deg_val = deg_dict.get(n, 0)
             deg_norm = (deg_val / max_deg) * 2.5
             bet_norm = betweenness_dict.get(n, 0.0) * 2.5
 
-            # 2. 类别柔性加权 (Soft Prior)
             cat_annot = self.entity_annotations.get(n, {})
             primary_type = str(cat_annot.get("primary_type", "")).lower()
             sub_type = str(cat_annot.get("sub_type", "")).lower()
@@ -961,17 +1038,16 @@ class PathwayDecompositionEngine:
 
             cat_weight = 0.0
             if any(k in combined_type for k in ["疾病", "disease", "表型", "phenotype", "pathology", "cancer", "tumor", "syndrome", "死", "凋亡", "自噬"]):
-                cat_weight += 2.0  # 天然终点/效应
+                cat_weight += 2.0
             elif any(k in combined_type for k in ["药物", "drug", "化学", "chemical", "small molecule", "compound", "inhibitor", "agonist"]):
-                cat_weight += 1.8  # 天然起点/刺激
+                cat_weight += 1.8
             elif any(k in combined_type for k in ["激酶", "kinase", "受体", "receptor", "转录因子", "transcription factor"]):
-                cat_weight += 1.6  # 核心中继
+                cat_weight += 1.6
             elif any(k in combined_type for k in ["基因", "gene", "蛋白", "protein"]):
                 cat_weight += 1.2
             elif any(k in combined_type for k in ["过程", "process", "通路", "pathway"]):
                 cat_weight += 1.4
 
-            # 3. 语义意图匹配提权
             query_boost = 0.0
             if query_lower:
                 n_lower = n.lower()
@@ -996,120 +1072,177 @@ class PathwayDecompositionEngine:
     def cluster_and_induce_subgraphs(self,
                                       relations: List[Dict[str, Any]],
                                       seeds: List[str],
-                                      max_pathways: int = 3) -> List[Dict[str, Any]]:
+                                      max_pathways: int = 3,
+                                      user_query: str = "") -> List[Dict[str, Any]]:
         """
-        自由组合与骨干子网诱导 (Backbone Subgraph Induction)
-        提取各核心种子组合之间的最小连通骨干网
+        基于图谱已知真实关系的严格有向级联诱导 (Strict Directed Subgraph Induction)
+        - 节点 100% 取自已知图谱，关系 100% 直取自 master_relations
+        - 沿真实有向调控边（正作用/负作用）追踪信号流动主干，杜绝无向乱序与虚假串联
+        - 保证各通路间具备独立性与高生物信息密度
         """
         if not relations or not seeds:
             return []
 
-        G = nx.DiGraph()
+        # 1. 构建有向网络，区分功能调控边与辅助边
+        G_dir = nx.DiGraph()
         for r in relations:
             s = str(r.get("source", "")).strip()
             t = str(r.get("target", "")).strip()
             if s and t and s != t:
-                G.add_edge(s, t, rel_data=r)
+                orig_rel = str(r.get("relation", r.get("relation_type", ""))).strip()
+                edge_k = f"{s}|{t}|{orig_rel}"
+                ann = self.relation_annotations.get(edge_k, {})
+                verb = str(ann.get("mechanism_verb", orig_rel)).lower()
+                cat = str(ann.get("mechanism_category", "")).lower()
 
-        G_undir = G.to_undirected()
+                is_reg = (orig_rel in ["正作用", "负作用"]) or any(kw in (cat + " " + verb) for kw in [
+                    "inhibit", "activat", "promot", "suppress", "degrad", "phospho",
+                    "抑制", "激活", "促进", "阻断", "降解", "诱导", "磷酸化"
+                ])
+                # 调控边权重大，辅助边权重小
+                w = 1.0 if is_reg else 2.5
+                G_dir.add_edge(s, t, rel=r, is_regulatory=is_reg, weight=w)
 
-        # 若种子数量较少，直接构建单一整体通路
-        if len(seeds) <= 6:
-            seed_clusters = [seeds]
-        else:
-            seed_clusters = []
-            remaining_seeds = list(seeds)
-            target_num_clusters = min(max_pathways, max(1, len(seeds) // 4))
+        if len(G_dir) == 0:
+            return []
 
-            while remaining_seeds and len(seed_clusters) < target_num_clusters:
-                center = remaining_seeds.pop(0)
-                cluster = [center]
-                to_remove = []
-                for s in remaining_seeds:
-                    try:
-                        if nx.has_path(G_undir, center, s):
-                            dist = nx.shortest_path_length(G_undir, center, s)
-                            if dist <= 2 and len(cluster) < 5:
-                                cluster.append(s)
-                                to_remove.append(s)
-                    except Exception:
-                        pass
-                for s in to_remove:
-                    remaining_seeds.remove(s)
-                seed_clusters.append(cluster)
+        selected_subsets = []
+        seen_node_sets = []
 
-            for s in remaining_seeds:
-                best_c = None
-                best_d = 999
-                for c in seed_clusters:
-                    for c_node in c:
+        # 2. 针对每个关键种子追踪有向传导流 (下游效应 + 上游调节)
+        for seed in seeds:
+            if len(selected_subsets) >= max_pathways:
+                break
+
+            cascade_nodes = {seed}
+
+            # A. 沿有向出边搜寻直接下游效应 (Downstream Cascade, 最深 2 步)
+            downstream = []
+            if seed in G_dir:
+                for succ in G_dir.successors(seed):
+                    downstream.append(succ)
+                    if len(downstream) < 5:
+                        for s2 in G_dir.successors(succ):
+                            if s2 != seed:
+                                downstream.append(s2)
+            cascade_nodes.update(downstream[:5])
+
+            # B. 沿有向入边搜寻上游刺激/输入 (Upstream Regulators, 最深 2 步)
+            upstream = []
+            if seed in G_dir:
+                for pred in G_dir.predecessors(seed):
+                    upstream.append(pred)
+                    if len(upstream) < 4:
+                        for p2 in G_dir.predecessors(pred):
+                            if p2 != seed and p2 not in cascade_nodes:
+                                upstream.append(p2)
+            cascade_nodes.update(upstream[:4])
+
+            # 约束节点规模在 4~10 个之间
+            if len(cascade_nodes) < 3:
+                # 补充与其它高分种子的有向最短路径
+                for other in seeds:
+                    if other != seed and other in G_dir and len(cascade_nodes) < 7:
                         try:
-                            if nx.has_path(G_undir, c_node, s):
-                                d = nx.shortest_path_length(G_undir, c_node, s)
-                                if d < best_d:
-                                    best_d = d
-                                    best_c = c
+                            if nx.has_path(G_dir, seed, other):
+                                p = nx.shortest_path(G_dir, seed, other, weight="weight")
+                                cascade_nodes.update(p)
+                            elif nx.has_path(G_dir, other, seed):
+                                p = nx.shortest_path(G_dir, other, seed, weight="weight")
+                                cascade_nodes.update(p)
                         except Exception:
                             pass
-                if best_c is not None and len(best_c) < 7:
-                    best_c.append(s)
 
-        subgraphs = []
-        for cluster_idx, cluster in enumerate(seed_clusters):
-            sub_nodes = set(cluster)
-            for i in range(len(cluster)):
-                for j in range(i + 1, len(cluster)):
-                    u = cluster[i]
-                    v = cluster[j]
-                    try:
-                        if nx.has_path(G_undir, u, v):
-                            p = nx.shortest_path(G_undir, u, v)
-                            if len(p) <= 4:
-                                sub_nodes.update(p)
-                    except Exception:
-                        pass
+            if len(cascade_nodes) > 10:
+                deg_map = dict(G_dir.degree())
+                sorted_cand = sorted(list(cascade_nodes), key=lambda x: (x == seed, deg_map.get(x, 0)), reverse=True)
+                cascade_nodes = set(sorted_cand[:10])
 
-            if len(sub_nodes) > 10:
-                deg_in_g = dict(G.degree())
-                sorted_nodes = sorted(list(sub_nodes), key=lambda x: (x in cluster, deg_in_g.get(x, 0)), reverse=True)
-                sub_nodes = set(sorted_nodes[:10])
-
-            sub_relations = []
+            # 3. 严格从 master_relations 中切片诱导已知边 (原封不动保持不变)
+            sub_rels = []
             for r in relations:
                 src = str(r.get("source", "")).strip()
                 tgt = str(r.get("target", "")).strip()
-                if src in sub_nodes and tgt in sub_nodes and src != tgt:
-                    sub_relations.append(r)
+                if src in cascade_nodes and tgt in cascade_nodes and src != tgt:
+                    sub_rels.append(r)
 
-            if len(sub_nodes) >= 2 and len(sub_relations) >= 1:
-                subgraphs.append({
-                    "cluster_id": cluster_idx + 1,
-                    "seed_nodes": cluster,
-                    "nodes": sorted(list(sub_nodes)),
-                    "relations": sub_relations
-                })
+            if len(cascade_nodes) >= 2 and len(sub_rels) >= 1:
+                # 检查与已采纳通路的 Jaccard 相似度，避免重复雷同通路
+                is_duplicate = False
+                for existing in seen_node_sets:
+                    jaccard = len(cascade_nodes.intersection(existing)) / max(1, len(cascade_nodes.union(existing)))
+                    if jaccard >= 0.70:
+                        is_duplicate = True
+                        break
 
-        return subgraphs[:max_pathways]
+                if not is_duplicate:
+                    seen_node_sets.append(cascade_nodes)
+                    selected_subsets.append({
+                        "cluster_id": len(selected_subsets) + 1,
+                        "seed_nodes": [seed],
+                        "nodes": sorted(list(cascade_nodes)),
+                        "relations": sub_rels
+                    })
+
+        return selected_subsets[:max_pathways]
 
     def detect_feedback_loops(self,
                               subgraph_nodes: List[str],
                               subgraph_relations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        有向闭环与自调节反馈极性代数判定 (Feedback Polarity Algebra)
-        - 查找有向简单环路 (Cycle Length 2~5)
-        - 统计抑制/负调控边数量，偶数条 -> 自促进/正反馈；奇数条 -> 自抑制/负反馈
+        严谨生物学动力学自调节反馈回路检测 (Strict Biological Feedback Loop Detection)
+        1. 严格遵循有向性：必须是顺次指向闭合的有向简单环 (Directed Simple Cycles)
+        2. 严格限定调控语义：环路上每一条边必须是明确的功能性因果调控边 (正作用/负作用/机制动词)，
+           坚决过滤包含“包含”、“语义相关”、“分类层级”的伪环；
+        3. 二元环反伪互促过滤：对于 2 元环 A <-> B，必须双方均为明确反向调控机制，杜绝无向关系对称化假象；
+        4. 极性代数判定自抑制 (负反馈) 与自促进 (正反馈)。
         """
-        sub_G = nx.DiGraph()
+        G_reg = nx.DiGraph()
         rel_lookup = {}
+
         for r in subgraph_relations:
             s = str(r.get("source", "")).strip()
             t = str(r.get("target", "")).strip()
-            if s and t and s != t:
-                sub_G.add_edge(s, t)
-                rel_lookup[(s, t)] = r
+            if not s or not t or s == t:
+                continue
+
+            orig_rel = str(r.get("relation", r.get("relation_type", ""))).strip()
+            edge_k = f"{s}|{t}|{orig_rel}"
+            ann = self.relation_annotations.get(edge_k, {})
+            mech_cat = str(ann.get("mechanism_category", "")).lower()
+            mech_verb = str(ann.get("mechanism_verb", orig_rel)).lower()
+            evi_text = str(r.get("evidence", r.get("reason", ""))).strip()
+
+            # 严格过滤非因果调控关系（包含、相关、属于等）
+            if orig_rel in ["包含", "相关", "属于", "部分", "等价", "hierarchy", "association", "correlation"]:
+                if not any(kw in (mech_cat + " " + mech_verb) for kw in [
+                    "inhibit", "activat", "promot", "suppress", "degrad", "phospho",
+                    "抑制", "激活", "促进", "阻断", "降解", "磷酸化"
+                ]):
+                    continue
+
+            is_neg = (orig_rel == "负作用") or any(kw in (mech_cat + " " + mech_verb) for kw in [
+                "negative", "inhibit", "degrad", "suppress", "block", "repress",
+                "downregulat", "负", "抑制", "降解", "阻断", "下调", "去磷酸化", "衰减"
+            ])
+            is_pos = (orig_rel == "正作用") or any(kw in (mech_cat + " " + mech_verb) for kw in [
+                "positive", "activat", "promot", "induc", "upregulat", "phospho",
+                "正", "激活", "促进", "诱导", "上调", "磷酸化"
+            ])
+
+            # 只有明确属于功能调控的边才进入调控图
+            if is_neg or is_pos:
+                G_reg.add_edge(s, t)
+                rel_lookup[(s, t)] = {
+                    "relation": r,
+                    "is_neg": is_neg,
+                    "verb": ann.get("mechanism_verb", orig_rel),
+                    "evidence": evi_text,
+                    "doc_source": str(r.get("doc_source", ""))
+                }
 
         try:
-            raw_cycles = list(nx.simple_cycles(sub_G))
+            raw_cycles = list(nx.simple_cycles(G_reg))
         except Exception:
             raw_cycles = []
 
@@ -1125,26 +1258,25 @@ class PathwayDecompositionEngine:
 
         detected_loops = []
         for cycle in unique_cycles:
+            # 2元环严格鉴伪 (Anti-Symmetric False Positive Check)
+            if len(cycle) == 2:
+                u, v = cycle[0], cycle[1]
+                edge_uv = rel_lookup.get((u, v), {})
+                edge_vu = rel_lookup.get((v, u), {})
+                # 若双向边依据完全相同且关系动词一致，说明是提取时无向关系对称化产生的伪环，坚决丢弃
+                if edge_uv.get("evidence") == edge_vu.get("evidence") and edge_uv.get("verb") == edge_vu.get("verb"):
+                    continue
+
             neg_count = 0
             cycle_steps = []
             for i in range(len(cycle)):
                 u = cycle[i]
                 v = cycle[(i + 1) % len(cycle)]
-                edge_rel = rel_lookup.get((u, v), {})
-                orig_rel = str(edge_rel.get("relation", edge_rel.get("relation_type", "")))
-
-                edge_k = f"{u}|{v}|{orig_rel}"
-                annot = self.relation_annotations.get(edge_k, {})
-                mech_cat = str(annot.get("mechanism_category", "")).lower()
-                mech_verb = str(annot.get("mechanism_verb", orig_rel)).lower()
-
-                is_neg = (orig_rel == "负作用") or any(kw in (mech_cat + " " + mech_verb) for kw in [
-                    "negative", "inhibit", "degrad", "suppress", "block", "repress",
-                    "downregulat", "负", "抑制", "降解", "阻断", "下调", "去磷酸化", "衰减"
-                ])
+                edge_info = rel_lookup.get((u, v), {})
+                is_neg = edge_info.get("is_neg", False)
                 if is_neg:
                     neg_count += 1
-                cycle_steps.append((u, v, annot.get("mechanism_verb", orig_rel), is_neg))
+                cycle_steps.append((u, v, edge_info.get("verb", "调控"), is_neg))
 
             is_negative_loop = (neg_count % 2 == 1)
             loop_type = "negative" if is_negative_loop else "positive"
@@ -1166,41 +1298,20 @@ class PathwayDecompositionEngine:
                                    subgraph_nodes: List[str],
                                    subgraph_relations: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        跨文献跳跃桥接检测 (Cross-Paper Bridge Tagging)
-        识别连接不同文献来源的桥接中枢节点与跨文献假说
+        跨文献合成通路识别 (Cross-Paper Bridge Tagging)
+        严格清洗 doc_source 并对齐当前工程权威文献，严谨判定是否跨越 >=2 篇真实文献
         """
         paper_sources = set()
-        node_in_sources = {n: set() for n in subgraph_nodes}
-        node_out_sources = {n: set() for n in subgraph_nodes}
-
         for r in subgraph_relations:
-            src = str(r.get("source", "")).strip()
-            tgt = str(r.get("target", "")).strip()
             raw_doc = str(r.get("doc_source", "")).strip()
-            if raw_doc and raw_doc not in ["未知文献", "未知", "Unknown", "unknown", "None"]:
-                clean_doc = os.path.basename(raw_doc)
-                paper_sources.add(clean_doc)
-                if src in node_out_sources:
-                    node_out_sources[src].add(clean_doc)
-                if tgt in node_in_sources:
-                    node_in_sources[tgt].add(clean_doc)
+            parsed = self.parse_and_canonicalize_doc_sources(raw_doc, self.canonical_papers)
+            paper_sources.update(parsed)
 
-        pivot_nodes = []
-        for n in subgraph_nodes:
-            in_s = node_in_sources.get(n, set())
-            out_s = node_out_sources.get(n, set())
-            if in_s and out_s and (in_s != out_s or len(in_s.union(out_s)) >= 2):
-                pivot_nodes.append({
-                    "node": n,
-                    "in_papers": sorted(list(in_s)),
-                    "out_papers": sorted(list(out_s))
-                })
-
+        clean_papers = sorted(list(paper_sources))
         return {
-            "is_cross_paper": len(paper_sources) >= 2,
-            "paper_sources": sorted(list(paper_sources)),
-            "pivot_nodes": pivot_nodes,
-            "paper_count": len(paper_sources)
+            "is_cross_paper": len(clean_papers) >= 2,
+            "paper_sources": clean_papers,
+            "paper_count": len(clean_papers)
         }
 
     def _parse_llm_json(self, raw_str: str) -> Optional[Dict[str, Any]]:
@@ -1228,21 +1339,20 @@ class PathwayDecompositionEngine:
                                      user_query: str = "",
                                      language: str = "zh") -> Dict[str, Any]:
         """
-        大模型驱动的生物学因果建模与结构化机制叙事
-        生成包含主轴流动、自调节闭环效应与跨文献假说的标准报告
+        大模型驱动的极简学术命名与机制解读 (Scholarly Naming & Concise Mechanistic Narrative)
+        - title: 规范化学术命名 (支持 LaTeX，如 $\\text{CRL5}^{\\text{SOCS4}}$ 介导的泛素化降解途径与神经退行抗性)
+        - summary: 2~3 句精炼机制阐释 (若涉及真实闭环回路，适当分析其自反馈动力学效应)
+        - 坚决杜绝 AI 凭空捏造不存在的因果关系
         """
         is_en = "en" in str(language).lower()
 
-        # 整理输入上下文
+        # 整理真实存在的已知实体与机制连线
         nodes_desc = []
         for n in subgraph_nodes:
             ann = self.entity_annotations.get(n, {})
-            ptype = ann.get("primary_type", "Uncertain")
-            stype = ann.get("sub_type", "")
-            type_str = f"[{ptype}]" if ptype != "Uncertain" else ""
-            if stype:
-                type_str += f" ({stype})"
-            nodes_desc.append(f"- {n} {type_str}")
+            ptype = ann.get("primary_type", "")
+            type_str = f"[{ptype}]" if ptype and ptype != "Uncertain" else ""
+            nodes_desc.append(f"- {n} {type_str}".strip())
 
         edges_desc = []
         for r in subgraph_relations:
@@ -1252,108 +1362,90 @@ class PathwayDecompositionEngine:
             edge_k = f"{s}|{t}|{rel}"
             ann = self.relation_annotations.get(edge_k, {})
             verb = ann.get("mechanism_verb", rel)
-            evi = r.get("evidence", r.get("reason", "无"))
-            doc = os.path.basename(str(r.get("doc_source", "未知文献")))
-            edges_desc.append(f"- {s} ➔ {t} : `{verb}` (原文依据: {evi[:80]}; 来源: {doc})")
+            evi = str(r.get("evidence", r.get("reason", "无")))[:80]
+            edges_desc.append(f"- {s} ➔ {t} : `{verb}` (原文依据: {evi})")
 
         loops_desc = []
         for lp in feedback_loops:
-            ltype = "🔴 自抑制负反馈回路 (Negative Feedback Loop)" if lp.get("is_self_inhibition") else "🟢 自促进正反馈回路 (Positive Feedback Loop)"
-            loops_desc.append(f"- 闭环: {lp.get('cycle_str')} [{ltype}]")
+            ltype = "自抑制负反馈回路 (Negative Feedback Loop)" if lp.get("is_self_inhibition") else "自促进正反馈回路 (Positive Feedback Loop)"
+            loops_desc.append(f"- 有向闭环: {lp.get('cycle_str')} [{ltype}]")
 
-        bridges_desc = []
-        if cross_paper_info.get("is_cross_paper"):
-            pivots = [p["node"] for p in cross_paper_info.get("pivot_nodes", [])]
-            papers = cross_paper_info.get("paper_sources", [])
-            bridges_desc.append(f"- 跨越文献: {', '.join(papers)}")
-            bridges_desc.append(f"- 桥接中枢: {', '.join(pivots) if pivots else '局部连线拼接'}")
-
-        # 组装 Prompt
         if is_en:
             sys_prompt = (
-                "You are an expert in systems biology, signal transduction networks, and molecular medicine. "
-                "Your task is to analyze a biological subnetwork module and synthesize a rigorous causal signaling pathway model. "
-                "Highlight the core causal flow, feedback loops (self-inhibition for homeostasis, self-promotion for amplification), "
-                "and cross-literature synthesis insights."
+                "You are an expert in systems biology and molecular oncology. "
+                "You will be given an exact biological subnetwork module induced from a validated knowledge graph. "
+                "Your task is to synthesize: "
+                "1. A highly professional academic pathway title using LaTeX format where appropriate "
+                "(e.g. '$\\text{CRL5}^{\\text{SOCS4}}$-mediated ubiquitination pathway and neurodegeneration resistance'). "
+                "2. A concise 2-3 sentence executive summary explaining the molecular mechanism. "
+                "If a feedback loop is verified in the network, briefly discuss its dynamic role (homeostasis or bistable switch). "
+                "Do NOT invent or fabricate any relations not present in the graph."
             )
             user_prompt = (
-                f"【Pathway Module #{pathway_idx} Context】\n"
-                f"【User Exploration Intent】: {user_query if user_query else 'Global autonomous discovery'}\n"
-                f"【Key Entities in Subnetwork】:\n" + "\n".join(nodes_desc) + "\n\n"
-                f"【Direct Mechanism Interactions】:\n" + "\n".join(edges_desc) + "\n\n"
-                f"【Detected Feedback Loops】:\n" + ("\n".join(loops_desc) if loops_desc else "None (Linear cascade)") + "\n\n"
-                f"【Cross-Literature Evidence】:\n" + ("\n".join(bridges_desc) if bridges_desc else "Intra-paper pathway") + "\n\n"
+                f"【Pathway #{pathway_idx} Verified Context】\n"
+                f"【User Focus】: {user_query if user_query else 'Autonomous discovery'}\n"
+                f"【Entities in Subnetwork】:\n" + "\n".join(nodes_desc) + "\n\n"
+                f"【Direct Verified Interactions】:\n" + "\n".join(edges_desc) + "\n\n"
+                f"【Detected Autoregulation Loops】:\n" + ("\n".join(loops_desc) if loops_desc else "None (Linear cascade)") + "\n\n"
                 "【Output Requirement】:\n"
-                "Strictly return a single valid JSON object. All field values MUST be in English. No markdown outside the JSON:\n"
+                "Return strictly a single valid JSON object in English:\n"
                 "{\n"
-                "  \"title\": \"<Concise scientific pathway title under 20 words>\",\n"
-                "  \"main_causal_axis\": \"<Linear arrow flow, e.g. Trigger ➔ Mediator ➔ (Inhibit) Target ➔ Phenotype>\",\n"
-                "  \"executive_summary\": \"<3-5 concise sentences explaining the molecular cascade and biological significance>\",\n"
-                "  \"feedback_loop_explanation\": \"<Detailed analysis of self-regulation loops, or state linear cascade if none>\",\n"
-                "  \"cross_paper_insight\": \"<Analysis of how combined papers reveal novel insights, or state single-source consistency>\"\n"
+                "  \"title\": \"<Scholarly title in LaTeX, e.g. $\\\\text{AMPK-mTOR}$ Signaling Axis in Autophagy>\",\n"
+                "  \"summary\": \"<2-3 concise sentences explaining the cascade and feedback regulation if present>\"\n"
                 "}"
             )
         else:
             sys_prompt = (
-                "你是一位资深的系统生物学、信号传导网络与分子医学专家。你的任务是基于给定的局部知识子图，"
-                "对其进行深度因果建模，提炼出严谨的信号通路机制报告。特别注意阐明核心因果主轴、"
-                "自调节闭环（自抑制稳态机制 vs 自促进放大开关）以及跨文献综合提出的全新科学假说。"
+                "你是一位资深的系统生物学与分子医学专家。你将接收从权威知识图谱中严格诱导出的局部生物机制子网络。"
+                "你的任务是：\n"
+                "1. 给出高度专业、规范的学术命名，支持规范的 LaTeX 格式"
+                "（如：$\\text{CRL5}^{\\text{SOCS4}}$ 介导的泛素化降解途径与神经退行抗性、$\\text{AMPK-mTOR}$ 介导的自噬调控轴）；\n"
+                "2. 用 2~3 句话精炼阐明该通路的分子传导逻辑与生理/病理意义；"
+                "如果给出的数据中检测到了真实的自反馈调节闭环，请在此适度剖析其自稳态或自促进效应。\n"
+                "⚠️ 严格禁止无中生有或捏造不存在的关系，节点与关系必须以给定数据为准！"
             )
             user_prompt = (
-                f"【第 {pathway_idx} 条通路子网络数据】\n"
-                f"【学者探索意图/焦点】: {user_query if user_query else '全局自主发掘'}\n"
+                f"【第 {pathway_idx} 条通路已知机制数据】\n"
+                f"【学者关注焦点】: {user_query if user_query else '全局自主发现'}\n"
                 f"【子网络关键实体】:\n" + "\n".join(nodes_desc) + "\n\n"
-                f"【分子机制交互关系】:\n" + "\n".join(edges_desc) + "\n\n"
-                f"【算法捕获的自调节闭环回路】:\n" + ("\n".join(loops_desc) if loops_desc else "无闭环 (呈单向线性级联)") + "\n\n"
-                f"【跨文献证据分布】:\n" + ("\n".join(bridges_desc) if bridges_desc else "单篇文献内部通路") + "\n\n"
-                "【输出要求】:\n"
-                "请严格输出唯一的合法 JSON 对象，字段内容全部使用中文，严禁在 JSON 外输出额外 Markdown：\n"
+                f"【真实分子相互作用】:\n" + "\n".join(edges_desc) + "\n\n"
+                f"【算法硬性捕获的闭环回路】:\n" + ("\n".join(loops_desc) if loops_desc else "无闭环 (单向传导)") + "\n\n"
+                "【输出格式要求】:\n"
+                "请严格输出唯一的合法 JSON 对象，字段内容使用学术中文，严禁输出任何多余字符：\n"
                 "{\n"
-                "  \"title\": \"<精炼的学术通路标题，20字以内，如：AMPK-mTOR-ULK1 自噬调控轴与自抑回路>\",\n"
-                "  \"main_causal_axis\": \"<清晰的箭头流向主轴，如：二甲双胍 ➔ AMPK ➔ (抑制) mTOR ➔ ULK1 ➔ 细胞自噬>\",\n"
-                "  \"executive_summary\": \"<3~5句话精炼阐释该通路的分子传导逻辑与生理/病理效应>\",\n"
-                "  \"feedback_loop_explanation\": \"<详细剖析自抑制或自促进回路的调控生物学意义；若无回路则说明其单向传导特征>\",\n"
-                "  \"cross_paper_insight\": \"<深入阐述多篇文献拼接揭示的新机制或协同新假说；若单篇则说明证据一致性>\"\n"
+                "  \"title\": \"<学术命名，支持规范 LaTeX，如：$\\\\text{AMPK-mTOR}$ 轴介导的自噬应答通路>\",\n"
+                "  \"summary\": \"<2~3句话精练介绍通路机制；若有反馈循环适当融入动力学分析>\"\n"
                 "}"
             )
 
-        # 调用大模型
         if self.llm_agent:
             try:
                 raw_resp = self.llm_agent._ask_llm(sys_prompt, user_prompt)
                 parsed = self._parse_llm_json(raw_resp)
-                if parsed and isinstance(parsed, dict) and "title" in parsed:
+                if parsed and isinstance(parsed, dict) and "title" in parsed and "summary" in parsed:
                     return parsed
             except Exception as e:
                 print(f"⚠️ [PathwayDecompositionEngine] LLM 机制叙事调用异常: {e}")
 
-        # 兜底生成逻辑 (无 LLM 或 LLM 失败时的纯拓扑保底)
+        # 确定性拓扑降级保底 (无 LLM 或 LLM 故障时的稳定兜底)
         first_node = subgraph_nodes[0] if subgraph_nodes else "NodeA"
         last_node = subgraph_nodes[-1] if len(subgraph_nodes) > 1 else first_node
-        default_title = f"{first_node} ➔ {last_node} 信号调控轴" if not is_en else f"{first_node} to {last_node} Signaling Axis"
-        default_axis = " ➔ ".join(subgraph_nodes[:6])
+        default_title = f"{first_node} ➔ {last_node} 信号调控通路" if not is_en else f"{first_node} to {last_node} Signaling Pathway"
+
+        loop_text = ""
+        if feedback_loops:
+            l_types = "自抑制负反馈" if feedback_loops[0].get("is_self_inhibition") else "自促进正反馈"
+            loop_text = f" 经算法检测，该通路中包含由 {feedback_loops[0].get('cycle_str')} 构成的{l_types}回路，参与维持系统自稳态调节。" if not is_en else f" Features a verified feedback loop ({feedback_loops[0].get('cycle_str')}) for autoregulation."
+
         default_summary = (
-            f"本通路整合了 {len(subgraph_nodes)} 个关键节点与 {len(subgraph_relations)} 条机制连线，展现了以 {first_node} 为核心向 {last_node} 的信号级联流动。"
+            f"该通路由大图谱中已知实体与真实调控关系诱导构成，展现了以 {first_node} 为起点的分子信号传导级联。{loop_text}"
             if not is_en else
-            f"This pathway integrates {len(subgraph_nodes)} key nodes and {len(subgraph_relations)} interactions, delineating a cascade from {first_node} to {last_node}."
-        )
-        default_loops_exp = (
-            f"检测到 {len(feedback_loops)} 个自反馈调节闭环回路。" if feedback_loops else "本通路呈单向线性级联传导，未检测到闭合反馈回路。"
-            if not is_en else
-            f"Detected {len(feedback_loops)} feedback loops." if feedback_loops else "Unidirectional cascade without closed feedback loop."
-        )
-        default_cross_exp = (
-            f"跨越了 {cross_paper_info.get('paper_count', 1)} 篇文献进行机制综合。"
-            if not is_en else
-            f"Synthesizes evidence across {cross_paper_info.get('paper_count', 1)} literature sources."
+            f"Induced from verified interactions, delineating a molecular cascade initiating from {first_node}.{loop_text}"
         )
 
         return {
             "title": default_title,
-            "main_causal_axis": default_axis,
-            "executive_summary": default_summary,
-            "feedback_loop_explanation": default_loops_exp,
-            "cross_paper_insight": default_cross_exp
+            "summary": default_summary
         }
 
     def run_decomposition(self,
@@ -1389,23 +1481,23 @@ class PathwayDecompositionEngine:
             prog(1.0, "分析完成 (无有效通路)" if not is_en else "Completed (No relations)")
             return []
 
-        # 1. 种子节点打分与挑选
+        # 1. 种子节点多维打分与挑选
         prog(0.15, "正在计算多维节点重要性得分..." if not is_en else "Computing multi-criteria node importance scores...")
         seed_scores = self.score_candidate_seeds(entities, relations, user_query=user_query, max_seeds=18)
         seed_names = [s[0] for s in seed_scores]
-        log(f"🎯 成功挑选出 {len(seed_names)} 个核心候选种子实体: {', '.join(seed_names[:8])}..." if not is_en else f"🎯 Identified {len(seed_names)} candidate seed entities: {', '.join(seed_names[:8])}...")
+        log(f"🎯 成功挑选出 {len(seed_names)} 个核心候选种子实体: {', '.join(seed_names[:8])}..." if not is_en else f"🎯 Identified {len(seed_names)} candidate seeds: {', '.join(seed_names[:8])}...")
 
-        # 2. 自由组合与骨干子网诱导
-        prog(0.30, "正在自由组合聚类与提取骨干子网络..." if not is_en else "Clustering seeds and inducing backbone subgraphs...")
-        subgraphs = self.cluster_and_induce_subgraphs(relations, seed_names, max_pathways=max_pathways)
-        log(f"📦 成功聚类诱导出 {len(subgraphs)} 个高密度通路子网络模块" if not is_en else f"📦 Successfully induced {len(subgraphs)} dense pathway subnetwork modules")
+        # 2. 严格基于已知大图谱有向调控边诱导子图
+        prog(0.30, "正在沿有向调控级联诱导真实子图..." if not is_en else "Inducing directed subgraphs along verified cascades...")
+        subgraphs = self.cluster_and_induce_subgraphs(relations, seed_names, max_pathways=max_pathways, user_query=user_query)
+        log(f"📦 成功诱导出 {len(subgraphs)} 个高价值通路子网络模块" if not is_en else f"📦 Successfully induced {len(subgraphs)} pathway modules")
 
         if not subgraphs:
             log("⚠️ 未能提取出足够规模的连通子网络。" if not is_en else "⚠️ Unable to induce connected subgraphs.")
             prog(1.0, "分析完成" if not is_en else "Completed")
             return []
 
-        # 3. 逐一深入拆解各通路
+        # 3. 逐一深入建模各通路
         results = []
         total_sub = len(subgraphs)
 
@@ -1417,7 +1509,7 @@ class PathwayDecompositionEngine:
             step_base = 0.35 + (0.55 * (idx / total_sub))
             prog(step_base, f"正在深度建模第 {idx+1}/{total_sub} 条通路: 包含 {len(nodes)} 节点, {len(rels)} 连线..." if not is_en else f"Modeling pathway {idx+1}/{total_sub} ({len(nodes)} nodes, {len(rels)} edges)...")
 
-            # A. 闭环与反馈检测
+            # A. 严谨动力学自反馈检测
             loops = []
             if enable_loops:
                 loops = self.detect_feedback_loops(nodes, rels)
@@ -1426,15 +1518,15 @@ class PathwayDecompositionEngine:
                     pos_l = [l for l in loops if l["is_self_promotion"]]
                     log(f"  通路 {cid}: 捕获 {len(loops)} 个反馈闭环 (自抑制: {len(neg_l)}, 自促进: {len(pos_l)})" if not is_en else f"  Pathway {cid}: Captured {len(loops)} loops (Inhibition: {len(neg_l)}, Promotion: {len(pos_l)})")
 
-            # B. 跨文献跳跃桥接检测
-            bridges = {"is_cross_paper": False, "paper_sources": [], "pivot_nodes": [], "paper_count": 1}
+            # B. 跨文献合成通路识别与文献清洗
+            bridges = {"is_cross_paper": False, "paper_sources": [], "paper_count": 1}
             if enable_bridges:
                 bridges = self.detect_cross_paper_bridges(nodes, rels)
                 if bridges.get("is_cross_paper"):
-                    log(f"  通路 {cid}: 识别为跨文献融合通路 (跨越 {bridges.get('paper_count')} 篇文献, 桥接点: {len(bridges.get('pivot_nodes', []))} 个)" if not is_en else f"  Pathway {cid}: Identified cross-paper synthesis ({bridges.get('paper_count')} papers)")
+                    log(f"  通路 {cid}: 标记为跨文献通路 (涉及 {bridges.get('paper_count')} 篇真实文献)" if not is_en else f"  Pathway {cid}: Tagged cross-paper pathway ({bridges.get('paper_count')} papers)")
 
-            # C. 大模型机制叙事
-            prog(step_base + 0.1, f"正在调用大模型生成第 {idx+1} 条通路的因果机制报告..." if not is_en else f"Invoking LLM narrative for pathway {idx+1}...")
+            # C. 大模型极简学术命名与机制解读
+            prog(step_base + 0.1, f"正在调用大模型生成第 {idx+1} 条通路的学术命名与机制阐述..." if not is_en else f"Invoking LLM narrative for pathway {idx+1}...")
             narrative = self.synthesize_pathway_narrative(
                 pathway_idx=cid,
                 subgraph_nodes=nodes,
@@ -1456,7 +1548,6 @@ class PathwayDecompositionEngine:
                     html_abs_path = os.path.join(self.pathways_dir, fname)
                     html_rel_path = os.path.join("pathways", fname)
 
-                    # 提取子图涉及的完整实体字典信息
                     sub_ents = [e for e in entities if e.get("standard_name") in nodes]
                     vis = GraphVisualizer()
                     vis.generate_pathway_html(
@@ -1474,41 +1565,18 @@ class PathwayDecompositionEngine:
                 except Exception as e:
                     log(f"⚠️ 生成子图 HTML 遇到小异常: {e}")
 
-            # E. 组装证据溯源列表
-            evidence_list = []
-            for r in rels:
-                src = r.get("source")
-                tgt = r.get("target")
-                rel = r.get("relation", r.get("relation_type", "相关"))
-                edge_k = f"{src}|{tgt}|{rel}"
-                ann = self.relation_annotations.get(edge_k, {})
-                verb = ann.get("mechanism_verb", rel)
-                evidence_list.append({
-                    "source": src,
-                    "target": tgt,
-                    "verb": verb,
-                    "original_relation": rel,
-                    "evidence": r.get("evidence", r.get("reason", "无")),
-                    "doc_source": os.path.basename(str(r.get("doc_source", "未知文献")))
-                })
-
             pathway_obj = {
                 "id": f"pw_{cid}",
                 "cluster_id": cid,
                 "title": narrative.get("title", f"通路 {cid}" if not is_en else f"Pathway {cid}"),
-                "main_causal_axis": narrative.get("main_causal_axis", " ➔ ".join(nodes[:5])),
-                "executive_summary": narrative.get("executive_summary", ""),
-                "feedback_loop_explanation": narrative.get("feedback_loop_explanation", ""),
-                "cross_paper_insight": narrative.get("cross_paper_insight", ""),
+                "summary": narrative.get("summary", ""),
                 "nodes": nodes,
                 "relations": rels,
+                "has_feedback_loop": len(loops) > 0,
                 "feedback_loops": loops,
+                "is_cross_paper": bridges.get("is_cross_paper", False),
                 "cross_paper_bridges": bridges,
-                "evidence_list": evidence_list,
-                "html_file": html_rel_path,
-                "has_negative_loop": any(l.get("is_self_inhibition") for l in loops),
-                "has_positive_loop": any(l.get("is_self_promotion") for l in loops),
-                "is_cross_paper": bridges.get("is_cross_paper", False)
+                "html_file": html_rel_path
             }
             results.append(pathway_obj)
 

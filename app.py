@@ -1787,10 +1787,14 @@ UI_TEXT = {
     "wb_pw_chk_subgraphs": {"zh": "🎨 精简独立子图渲染 (生成轻量交互画布)", "en": "🎨 Mini-Subgraph Rendering (Generate lightweight interactive canvas)"},
     "wb_pw_slider_count": {"zh": "🔢 输出通路数量上限", "en": "🔢 Max Pathway Count"},
     "wb_pw_btn_start": {"zh": "🚀 开始信号通路拆解与建模", "en": "🚀 Run Pathway Decomposition & Modeling"},
+    "wb_pw_btn_rerun": {"zh": "🔄 重新拆解与生成通路", "en": "🔄 Re-generate Signaling Pathways"},
+    "wb_pw_btn_clear": {"zh": "🗑️ 清空通路结果", "en": "🗑️ Clear Results"},
+    "wb_pw_clear_done": {"zh": "已清空通路拆解结果与历史快照", "en": "Cleared pathway results and snapshots"},
     "wb_pw_status_start": {"zh": "正在启动信号通路拆解与因果建模流水线...", "en": "Starting pathway decomposition and causal modeling pipeline..."},
     "wb_pw_toast_done": {"zh": "🎉 信号通路拆解与建模完成！", "en": "🎉 Pathway decomposition and modeling completed!"},
     "wb_pw_no_pathways": {"zh": "未能在当前图谱中检测到有效通路，请先完善文献关系抽取。", "en": "No valid pathway subgraphs detected. Please upload papers or extract relations first."},
     "wb_pw_card_title": {"zh": "通路 {idx}：{title}", "en": "Pathway {idx}: {title}"},
+    "wb_pw_lbl_subgraph": {"zh": "查看/收起独立子图谱", "en": "View / Collapse Subgraph"},
     "wb_pw_lbl_axis": {"zh": "🚩 核心因果传导主轴", "en": "🚩 Core Causal Axis"},
     "wb_pw_lbl_summary": {"zh": "📝 机制精炼阐述", "en": "📝 Mechanistic Summary"},
     "wb_pw_lbl_loops": {"zh": "🔄 自调节反馈回路分析", "en": "🔄 Autoregulatory Feedback Loop Analysis"},
@@ -1798,14 +1802,16 @@ UI_TEXT = {
     "wb_pw_lbl_canvas": {"zh": "🎨 独立精简拓扑画布", "en": "🎨 Dedicated Mini-Topology Canvas"},
     "wb_pw_lbl_evidence": {"zh": "📚 步骤文献证据溯源 (展开查看各步原文依据)", "en": "📚 Step-by-Step Evidence Traceability"},
     "wb_pw_btn_dl_html": {"zh": "📥 导出本通路交互子图 (HTML)", "en": "📥 Export Pathway Canvas (HTML)"},
-    "wb_pw_btn_dl_json": {"zh": "📥 导出本通路报告 (JSON)", "en": "📥 Export Pathway Report (JSON)"},
+    "wb_pw_btn_dl_json": {"zh": "📥 导出本通路数据 (JSON)", "en": "📥 Export Pathway Data (JSON)"},
     "wb_pw_btn_dl_all_json": {"zh": "📦 导出全量通路数据包 (JSON)", "en": "📦 Export All Pathways Package (JSON)"},
+    "wb_pw_badge_loop": {"zh": "🔄 反馈循环", "en": "🔄 Feedback Loop"},
     "wb_pw_badge_pos_loop": {"zh": "🟢 自促进闭环", "en": "🟢 Self-Promotion Loop"},
     "wb_pw_badge_neg_loop": {"zh": "🔴 自抑制闭环", "en": "🔴 Self-Inhibition Loop"},
-    "wb_pw_badge_cross_paper": {"zh": "🌟 跨文献融合", "en": "🌟 Cross-Literature"},
+    "wb_pw_badge_cross_paper": {"zh": "🌟 跨文献通路", "en": "🌟 Cross-Paper Pathway"},
     "wb_pw_no_loops": {"zh": "本通路呈单向线性级联传导，未检测到闭合反馈回路。", "en": "Linear cascade; no closed feedback loop detected."},
     "wb_pw_single_source": {"zh": "本通路所有机制证据均源自单篇文献内部。", "en": "All mechanism evidence in this pathway originates within a single literature source."},
     "wb_pw_history_title": {"zh": "📂 已保存的历史通路拆解记录 (自动从工程目录加载)", "en": "📂 Saved Pathway Decomposition Records (Auto-loaded from project directory)"},
+    "wb_pw_snapshot_note": {"zh": "📂 已自动恢复保存的历史通路快照", "en": "📂 Restored saved pathway decomposition snapshot"},
 }
 
 
@@ -2159,6 +2165,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     from workbench_engine import OntologyManager, WorkbenchAnalysisEngine, PathwayDecompositionEngine
     from IO_SYS import GraphVisualizer
     from collections import Counter
+    import streamlit.components.v1 as components
 
     is_en = "en" in str(st.session_state.get("ui_language", "zh")).lower()
 
@@ -2664,6 +2671,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         except Exception as e:
             print(f"⚠️ [Workbench] 载入已有通路快照失败: {e}")
 
+    display_pathways = st.session_state.get("decomposed_pathways")
+    if display_pathways is None and saved_pathways_data:
+        display_pathways = saved_pathways_data.get("pathways", [])
+
     # 1. 引导输入与操作面板
     with st.container(border=True):
         st.markdown(f"**{t('wb_pw_input_label')}**")
@@ -2687,7 +2698,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         with c_sw4:
             pw_max_count = st.slider(t("wb_pw_slider_count"), min_value=1, max_value=5, value=3, key="wb_pw_slider_count")
 
-        btn_run_pathway = st.button(t("wb_pw_btn_start"), type="primary", key="wb_pw_btn_start", width="stretch")
+        btn_run_label = t("wb_pw_btn_rerun") if display_pathways else t("wb_pw_btn_start")
+        btn_run_pathway = st.button(btn_run_label, type="primary", key="wb_pw_btn_start", width="stretch")
 
     if btn_run_pathway:
         current_key = api_key.strip() if api_key else ""
@@ -2699,7 +2711,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             ontology=selected_preset,
             entity_annotations=ent_annots,
             relation_annotations=rel_annots,
-            project_dir=proj_dir
+            project_dir=proj_dir,
+            canonical_papers=st.session_state.get("analyzed_files", [])
         )
 
         pw_p_bar = st.progress(0.0)
@@ -2724,14 +2737,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         st.toast(t("wb_pw_toast_done"), icon="🎉")
         st.rerun()
 
-    # 2. 通路结果展示 (全宽可收纳折叠卡片)
-    display_pathways = st.session_state.get("decomposed_pathways")
-    if display_pathways is None and saved_pathways_data:
-        display_pathways = saved_pathways_data.get("pathways", [])
-
+    # 2. 通路结果展示 (学术极简排版 + 可收纳子图谱)
     if display_pathways:
         sec_header = f"已解构的核心信号通路清单 ({len(display_pathways)} 条)" if not is_en else f"Decomposed Signaling Pathways ({len(display_pathways)})"
-        col_hdr1, col_hdr2 = st.columns([3, 1])
+        col_hdr1, col_hdr2, col_hdr3 = st.columns([3, 1, 1])
         with col_hdr1:
             st.markdown(f"#### 📜 {sec_header}")
         with col_hdr2:
@@ -2744,101 +2753,77 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 key="dl_all_pathways_json",
                 width="stretch"
             )
+        with col_hdr3:
+            if st.button(t("wb_pw_btn_clear"), key="btn_clear_pathways_results", width="stretch"):
+                st.session_state.decomposed_pathways = None
+                if os.path.exists(pathways_dir):
+                    import shutil
+                    shutil.rmtree(pathways_dir, ignore_errors=True)
+                st.toast(t("wb_pw_clear_done"), icon="🗑️")
+                st.rerun()
 
         for idx, pw in enumerate(display_pathways):
             cid = pw.get("cluster_id", idx + 1)
             title = pw.get("title", f"通路 {cid}")
+            summary = pw.get("summary", pw.get("executive_summary", ""))
 
-            badges = []
-            if pw.get("has_negative_loop"):
-                badges.append(t("wb_pw_badge_neg_loop"))
-            elif pw.get("has_positive_loop"):
-                badges.append(t("wb_pw_badge_pos_loop"))
-            if pw.get("is_cross_paper"):
-                badges.append(t("wb_pw_badge_cross_paper"))
+            with st.container(border=True):
+                # 1. 标题 (学术命名，支持 LaTeX)
+                st.markdown(f"##### 🧬 {t('wb_pw_card_title').format(idx=cid, title=title)}")
 
-            badge_str = (" " + " ".join([f"`{b}`" for b in badges])) if badges else ""
-            expander_title = f"🧬 {t('wb_pw_card_title').format(idx=cid, title=title)}{badge_str}"
+                # 2. 通路机制简单介绍 (如果涉及反馈循环适当分析)
+                if summary:
+                    st.markdown(summary)
 
-            with st.expander(expander_title, expanded=(idx == 0)):
-                axis_txt = pw.get("main_causal_axis", "")
-                if axis_txt:
-                    st.markdown(f"**{t('wb_pw_lbl_axis')}**")
-                    st.info(f"👉 `{axis_txt}`")
+                # 3. 标记：反馈循环 / 跨文献通路 (只做标记，不做冗余分析)
+                badges = []
+                if pw.get("has_feedback_loop") or pw.get("feedback_loops"):
+                    badges.append(t("wb_pw_badge_loop"))
+                if pw.get("is_cross_paper"):
+                    badges.append(t("wb_pw_badge_cross_paper"))
+                if badges:
+                    st.markdown(" ".join([f"`{b}`" for b in badges]))
 
-                summary_txt = pw.get("executive_summary", "")
-                if summary_txt:
-                    st.markdown(f"**{t('wb_pw_lbl_summary')}**")
-                    st.write(summary_txt)
+                # 4. 可以收起的子图谱
+                nodes = pw.get("nodes", [])
+                rels = pw.get("relations", [])
+                sub_label = f"🎨 {t('wb_pw_lbl_subgraph')} ({len(nodes)} {t('lbl_nodes') if not is_en else 'Nodes'}, {len(rels)} {t('lbl_relations') if not is_en else 'Edges'})"
+                with st.expander(sub_label, expanded=False):
+                    html_rel = pw.get("html_file", "")
+                    html_abs = os.path.join(proj_dir, html_rel) if html_rel else ""
+                    pw_html_data = ""
+                    if html_abs and os.path.exists(html_abs):
+                        try:
+                            with open(html_abs, "r", encoding="utf-8") as hf:
+                                pw_html_data = hf.read()
+                        except Exception as e:
+                            st.caption(f"⚠️ 读取子图遇到异常: {e}")
 
-                st.markdown(f"**{t('wb_pw_lbl_loops')}**")
-                loops = pw.get("feedback_loops", [])
-                loop_exp = pw.get("feedback_loop_explanation", "")
-                if loops:
-                    for lp in loops:
-                        l_type_badge = t("wb_pw_badge_neg_loop") if lp.get("is_self_inhibition") else t("wb_pw_badge_pos_loop")
-                        st.markdown(f"- {l_type_badge} `{lp.get('cycle_str')}` *(负调控边数: {lp.get('neg_count')})*")
-                    if loop_exp:
-                        st.caption(f"💡 {loop_exp}")
-                else:
-                    st.caption(t("wb_pw_no_loops"))
-
-                st.markdown(f"**{t('wb_pw_lbl_bridges')}**")
-                bridges = pw.get("cross_paper_bridges", {})
-                bridge_exp = pw.get("cross_paper_insight", "")
-                if bridges.get("is_cross_paper"):
-                    papers = bridges.get("paper_sources", [])
-                    pivots = [p["node"] if isinstance(p, dict) else str(p) for p in bridges.get("pivot_nodes", [])]
-                    st.markdown(f"- 📄 " + (f"跨越文献 ({len(papers)}篇): " if not is_en else f"Crossed Literature ({len(papers)}): ") + ", ".join([f"`{p}`" for p in papers]))
-                    if pivots:
-                        st.markdown(f"- 🌟 " + ("桥接中枢分子: " if not is_en else "Bridge Pivot Entities: ") + ", ".join([f"`{p}`" for p in pivots]))
-                    if bridge_exp:
-                        st.caption(f"💡 {bridge_exp}")
-                else:
-                    st.caption(t("wb_pw_single_source"))
-
-                html_rel = pw.get("html_file", "")
-                html_abs = os.path.join(proj_dir, html_rel) if html_rel else ""
-                pw_html_data = ""
-                if html_abs and os.path.exists(html_abs):
-                    try:
-                        with open(html_abs, "r", encoding="utf-8") as hf:
-                            pw_html_data = hf.read()
-                    except Exception as e:
-                        st.caption(f"⚠️ 读取子图 HTML 遇到异常: {e}")
-
-                if pw_html_data:
-                    st.markdown(f"**{t('wb_pw_lbl_canvas')}**")
-                    components.html(pw_html_data, height=480, scrolling=True)
-
-                col_dl1, col_dl2 = st.columns([1, 1])
-                with col_dl1:
                     if pw_html_data:
+                        import streamlit.components.v1 as components
+                        components.html(pw_html_data, height=480, scrolling=False)
+
+                    col_dl1, col_dl2 = st.columns([1, 1])
+                    with col_dl1:
+                        if pw_html_data:
+                            st.download_button(
+                                t("wb_pw_btn_dl_html"),
+                                data=pw_html_data,
+                                file_name=f"Pathway_{cid}_{proj_id}.html",
+                                mime="text/html",
+                                key=f"dl_pw_html_{cid}",
+                                width="stretch"
+                            )
+                    with col_dl2:
+                        pw_single_json = json.dumps(pw, ensure_ascii=False, indent=2)
                         st.download_button(
-                            t("wb_pw_btn_dl_html"),
-                            data=pw_html_data,
-                            file_name=f"Pathway_{cid}_{proj_id}.html",
-                            mime="text/html",
-                            key=f"dl_pw_html_{cid}",
+                            t("wb_pw_btn_dl_json"),
+                            data=pw_single_json,
+                            file_name=f"Pathway_{cid}_{proj_id}.json",
+                            mime="application/json",
+                            key=f"dl_pw_json_{cid}",
                             width="stretch"
                         )
-                with col_dl2:
-                    pw_single_json = json.dumps(pw, ensure_ascii=False, indent=2)
-                    st.download_button(
-                        t("wb_pw_btn_dl_json"),
-                        data=pw_single_json,
-                        file_name=f"Pathway_{cid}_{proj_id}.json",
-                        mime="application/json",
-                        key=f"dl_pw_json_{cid}",
-                        width="stretch"
-                    )
-
-                evis = pw.get("evidence_list", [])
-                if evis:
-                    with st.expander(t("wb_pw_lbl_evidence"), expanded=False):
-                        for ev in evis:
-                            st.markdown(f"- **{ev.get('source')}** ➔ **{ev.get('target')}** (`{ev.get('verb')}`): {ev.get('evidence')}")
-                            st.caption(f"  📄 源自: {ev.get('doc_source')}")
 
     # 8. 底部返回按钮
     st.markdown("---")
