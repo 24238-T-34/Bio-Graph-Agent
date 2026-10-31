@@ -1690,6 +1690,9 @@ if not st.session_state.get("current_project_id"):
 
 def render_sidebar_history_docs():
     """在侧边栏持久化展示当前工程的历史分析文献列表与下载按钮 (无论处于哪个视图均稳定渲染)"""
+    append_mode = st.session_state.get("append_mode", True)
+    if not append_mode and st.session_state.get("current_view", "main") == "main":
+        return
     cur_files = st.session_state.get("analyzed_files", [])
     st.markdown("---")
     st.header(t("history_sidebar_title"))
@@ -1903,9 +1906,11 @@ with st.sidebar:
             st.markdown(t("contact_desc"))
             st.link_button(t("contact_github"), "https://github.com/24238-T-34/Bio-Graph-Agent", use_container_width=True)
             st.caption(t("contact_email"))
-        render_sidebar_history_docs()
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n...")
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nit's a bug\nif you see this")
+
+    # 📚 历史分析文献 (直接渲染在主侧边栏顶层，脱离设置弹窗，双视图均稳定渲染)
+    render_sidebar_history_docs()
 
 #    st.markdown("---")
 
