@@ -1068,7 +1068,7 @@ st.set_page_config(page_title="Bio-Graph Agent", page_icon="🧬", layout="wide"
 # ==========================================
 UI_TEXT = {
     # 全局 & 标题
-    "page_title": {"zh": "🧬 混元 Hy3 生物知识图谱自动生成引擎", "en": "🧬 Hy3 Bio-Knowledge Graph Generation Engine"},
+    "page_title": {"zh": "🧬 Bio-Graph Agent 生物知识图谱自动生成引擎", "en": "🧬 Bio-Graph Agent Biomedical Knowledge Graph Engine"},
     "btn_help": {"zh": "❓ 帮助与说明", "en": "❓ Help & Docs"},
 
     # 侧边栏

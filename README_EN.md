@@ -6,14 +6,14 @@
 
 # 🧬 Bio-Graph Agent
 
-**A Cross-Literature Incremental Biological Knowledge Graph Engine Powered by Tencent Hunyuan Hy3 (v2.0 Evolution)**
+**A Cross-Literature Incremental Biological Knowledge Graph & Multimodal Mechanism Discovery Engine (v2.0)**
 
-[![Tencent Hunyuan](https://img.shields.io/badge/Powered_by-Tencent_Hunyuan-blue.svg)](https://hunyuan.tencent.com/)
+[![Multi-LLM Powered](https://img.shields.io/badge/LLM_Engine-Multi--Model_Ecosystem-blue.svg)](#)
 [![Python 3.10](https://img.shields.io/badge/Python-3.10-green.svg)](https://www.python.org/)
 
 </div>
 
-This project focuses on addressing long-text structural extraction, top-tier multimodal mechanism pathway transcription, and scientific knowledge grounding in the biomedical domain. Leveraging the powerful long-text context understanding and rigorous reasoning capabilities of **Tencent Hunyuan Hy3**, we built a **Bio-Knowledge Graph LLM Agent** that automatically extracts information from literature (PDFs), performs dual-layer reflective quality audits, transcribes upfront pathway diagrams multimodally, aligns cross-literature semantics, and generates highly interactive dynamic network topology graphs.
+This project focuses on addressing long-text structural extraction, top-tier multimodal mechanism pathway transcription, and scientific knowledge grounding in the biomedical domain. Leveraging the long-text context understanding, multimodal vision transcription, and rigorous reasoning capabilities of modern Large Language Models (LLMs), we built a **Bio-Knowledge Graph LLM Agent** that automatically extracts information from literature (PDFs), performs dual-layer reflective quality audits, transcribes upfront pathway diagrams multimodally, aligns cross-literature semantics, and generates highly interactive dynamic network topology graphs.
 
 ---
 
@@ -102,9 +102,9 @@ In high-impact journals (Nature, Science, Cell), the densest regulatory conclusi
 
 ---
 
-## 🤖 The Core Role of Tencent Hunyuan Hy3 in the System
+## 🤖 The Core Role of the Multi-Agent System Across the Lifecycle
 
-Rather than using LLMs as mere "text summarizers," this system deeply exploits **Tencent Hunyuan Hy3's performance dividends**—its ultra-long context window, rigorous logical reasoning, and multimodal integration—deploying eight specialized agents across the graph lifecycle:
+Rather than using LLMs as mere "text summarizers," this system builds an autonomous multi-agent framework tailored for rigorous biomedical research across model ecosystems (supporting Gemini, DeepSeek, GLM, Qwen, Tencent Hunyuan, and local private Ollama). Eight specialized agents coordinate across the graph lifecycle:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -119,7 +119,7 @@ Rather than using LLMs as mere "text summarizers," this system deeply exploits *
 ```
 
 ### 1. Long-Context Ingestion Hub
-Leverages Hunyuan Hy3's massive context window to act as a "scientific speed-reader," extracting standardized biological entities and regulatory mechanisms from multi-page PDFs without losing inter-paragraph context.
+Leverages modern long-context windows to act as a "scientific speed-reader," extracting standardized biological entities and regulatory mechanisms from multi-page PDFs without losing inter-paragraph context.
 
 ### 2. Multimodal Figure Transcriber
 Collaborates with multimodal vision models to transcribe Graphical Abstracts and signaling pathway diagrams into structured biochemical cascade texts.
