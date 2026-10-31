@@ -6,15 +6,14 @@
 
 # 🧬 Bio-Graph Agent
 
-**Bio-Graph Agent: A Cross-Literature Incremental Biological Knowledge Graph Engine Powered by Tencent Hunyuan Hy3**
+**A Cross-Literature Incremental Biological Knowledge Graph Engine Powered by Tencent Hunyuan Hy3 (v2.0 Evolution)**
 
 [![Tencent Hunyuan](https://img.shields.io/badge/Powered_by-Tencent_Hunyuan-blue.svg)](https://hunyuan.tencent.com/)
 [![Python 3.10](https://img.shields.io/badge/Python-3.10-green.svg)](https://www.python.org/)
 
 </div>
 
-
-This project focuses on addressing long-text structural extraction and scientific knowledge grounding requirements in the biomedical domain. Leveraging the powerful long-text context understanding and rigorous reasoning capabilities of **Tencent Hunyuan Hy3**, we have built a **Bio-Knowledge Graph LLM Agent**. This system automatically extracts information from literature (PDFs), performs dual-layer reflective quality checks, aligns semantics across multiple documents, and ultimately generates highly interactive dynamic network topology graphs.
+This project focuses on addressing long-text structural extraction, top-tier multimodal mechanism pathway transcription, and scientific knowledge grounding in the biomedical domain. Leveraging the powerful long-text context understanding and rigorous reasoning capabilities of **Tencent Hunyuan Hy3**, we built a **Bio-Knowledge Graph LLM Agent** that automatically extracts information from literature (PDFs), performs dual-layer reflective quality audits, transcribes upfront pathway diagrams multimodally, aligns cross-literature semantics, and generates highly interactive dynamic network topology graphs.
 
 ---
 
@@ -22,143 +21,162 @@ This project focuses on addressing long-text structural extraction and scientifi
 
 A classic pain point in biomedical research is: **How do we find highly valuable novel research topics in a vast sea of literature?**
 
-In biology, it is common that "Molecule A regulates Protein B" and "Protein B regulates Biological Phenotype/Physiological System C" are isolated findings scattered across papers from different years and journals. However, **proving the regulatory cascade pathway "A mediates and affects C through the key node B" is often a highly scientifically valuable topic that can directly support a major research project or grant application.**
+In biology, it is common that "Molecule A regulates Protein B" and "Protein B regulates Biological Phenotype/Physiological System C" are isolated findings scattered across papers from different years and journals. However, **proving the regulatory cascade pathway "A mediates and influences C via B" is often a research topic of immense scientific value—one that can directly support a major grant proposal or breakthrough study.**
 
-Relying on manual reading to piece together these cross-literature cascade relationships is extremely inefficient and prone to omissions.
+Relying on manual reading to piece together such cross-literature cascade relationships is exceedingly slow and prone to oversight.
 
-**Bio-Graph Agent** was born precisely to overcome this pain point. It serves as an "intelligent topic selection strategist" for researchers:
-1. **Multi-Literature Input**: Automatically and efficiently parses long, complex academic papers.
-2. **Bridging Knowledge Islands**: Through AI semantic alignment, it connects and networks entities (molecules, proteins, physiological systems, etc.) and their potential relationships across different papers.
-3. **Intuitive Topological Rendering**: Automatically renders dynamic topological networks strictly adhering to professional biological regulatory logic, helping researchers spot potential `A ➔ B ➔ C` core regulatory pathways at a glance.
+**Bio-Graph Agent** was created precisely to conquer this challenge as an "intelligent scientific research counselor":
+1. **Multi-Paper Ingestion**: Rapidly and accurately parses complex, long academic papers, sniffing and multimodally transcribing Graphical Abstracts and core pathway figures upfront.
+2. **Bridging Knowledge Silos**: Through AI semantic alignment and online PubMed/PMID validation, entities (molecules, proteins, physiological systems) and their hidden relations across disparate papers are cross-linked into a unified network.
+3. **Intuitive Topological Rendering**: Automatically generates scientifically standardized dynamic regulatory topologies, enabling researchers to discover latent `A ➔ B ➔ C` cascade pathways at a single glance.
 
 ---
 
 ## 🎨 Topological Network Visual Specification
 
-This system strictly follows professional visual rendering specifications for biological regulatory network graphs to help researchers quickly capture the essence of signaling pathways:
-* **🟢 Green Line**: Represents **Positive Effect / Activation / Promotion**.
-* **🔴 Red Line**: Represents **Negative Effect / Inhibition / Suppression**, clear at a glance during topological interaction.
-* **⚪ Grey Line (Solid)**: Represents **General Association / Correlation (Interaction exists but direction is unspecified)**.
-* **🟣 Purple Line (Solid)**: Represents **Subordinate Containment / Component / Attribution Relationship**.
-* **⚠️ Grey Dashed Line (Shortcut Edge)**: When AI detects cross-level skip relationships (e.g., A->B->C is known, and A->C is found), it automatically downgrades the coarse A->C to a grey dashed shortcut edge, highlighting the main logical trunk.
-* **🔮 Node Dynamic Popularity (Degree)**: Node sizes automatically scale up based on their "connectivity (popularity)" in the cross-literature network. Hovering over a node reveals all its cross-literature aliases, evidence supporting the relationships, and precise literature source tracing.
+This system strictly follows biomedical regulatory network standards for visual rendering:
+* **🟢 Green Solid Line + Arrow**: Positive regulation / Activation / Promotion ($A \to B$).
+* **🔴 Red Solid Line + Arrow**: Negative regulation / Inhibition / Downregulation ($A \dashv B$).
+* **⚪ Gray Solid Line**: General correlation / Undirected association ($A \sim B$).
+* **⚠️ Gray Dashed Line (---)**: Mechanism shortcut edges (condensed macro pathways).
+* **🟣 Purple Solid Line**: Hierarchical containment / Subunit / Family membership ($A \subset B$).
+* **🔮 Dynamic Node Popularity**: Node radius scales dynamically with its degree centrality across papers. Hovering over any node reveals cross-literature aliases, supporting textual evidence, and exact literature provenance.
 
 ---
 
 ## 🌟 Core Features & Operational Guide
 
-1. **Flexible Environment & Model Settings (Sidebar)**
-   * **🌐 Flexible LLM Engine**: Supports cloud APIs like Tencent Cloud, OpenRouter, SiliconFlow, and natively supports Ollama for local offline execution, protecting highly sensitive medical data.
-   * **📚 Intelligent Search Sources**: Built-in dual engines: PubMed (Absolute authority in medicine) and Semantic Scholar (Comprehensive AI intelligent ultra-fast search).
+### ⚙️ I. Initial Environment & Retrieval Setup
+* 🌐 **Flexible LLM Engines**: Supports cloud APIs (Tencent Cloud, OpenRouter, SiliconFlow, etc.) and native **Ollama** offline execution for handling confidential biomedical data without internet access.
+* 📚 **Intelligent Retrieval Sources**: Built-in dual search engines for PubMed (authoritative biomedical literature) and Semantic Scholar (all-discipline AI-driven high-speed retrieval with automatic rate-limit fallback).
+* ⚡ **Multi-Threaded Concurrency (Concurrency Workers)**: Configurable thread pool (1-8 workers) driving parallel chunk extraction and concurrent pathway figure transcriptions, slashing parsing time by 5-10x.
+* 🛡️ **Relation Node Literature Grounding**: Automatically regex-verifies unregistered relation endpoints against the original paper text after chunk analysis. Real entities are recovered; hallucinated edges are strictly dropped.
+* 👁️ **Dedicated Multimodal Vision Models**: Mount dedicated vision models (such as Gemini 2.5 Flash-Lite, Gemini 3.8 Flash, or Qwen 2.5 VL 72B) to transcribe pathway figures with precision.
 
-2. **Knowledge Graph Construction (Dual Mode Start)**
-   * **💡 Zero-Basis Cold Start**: No local literature needed. Simply input your research direction in natural language (e.g., "The role of macrophage polarization in the tumor microenvironment"), and the AI will automatically generate search queries, scrape external literature, and directly build the first graph.
-   * **📄 Precise Local Literature Parsing**: Drag and drop a single PDF, supporting specific page parsing and an ultra-fast abstract mode. Enabling "🔗 Append Mode" ensures newly parsed literature won't overwrite the existing graph, but rather seamlessly integrate and grow with it indefinitely.
+### 📂 II. Knowledge Graph Construction (Dual Startup)
+* 💡 **Zero-Based Cold Start**: Have no papers on hand? Simply input your research direction in natural language (e.g., *"Role of macrophage polarization in tumor microenvironment"*). AI formulates professional queries, retrieves cutting-edge papers, and constructs your initial graph.
+* 📄 **Precise Local Literature Analysis**: Drag in a PDF, specify page ranges, or enable abstract-only mode. With "🔗 Append Mode" enabled, newly parsed literature integrates and grows continuously into the existing graph.
+* 📷 **Upfront Multimodal Vision Strategy**: Choose between `Off (Pure Text)`, `🎯 Keyword Match` (e.g., *Fig 4*, *pathway*), and `⚡ Extract All in Pages` to capture graphical abstracts and mechanism figures.
 
-3. **Visual Empowerment Engine & Professional Topology Standards**
-   * After graph generation, the system utilizes hardcore visual algorithms to pinpoint research targets amidst the complexity.
-   * **🔮 Node Radiance & Main Trunk Thickening**: Based on graph theory connectivity algorithms, nodes of core hub genes automatically enlarge; consensus edges repeatedly verified by multiple papers automatically thicken.
+### 🎨 III. Visual Empowerment Engine & Topological Standards
+* 👁️ **Mechanism Shortcuts**: Reveals express pathways bypassing intermediate nodes to view macro upstream-to-downstream regulatory outcomes.
+* 🧬 **Ontology Empowerment (Containment Feedback)**: Feed back weights of micro-entities to macro parent categories (e.g., Kinase Families), amplifying key signaling families.
+* 🔥 **Node Empowerment (Degree Centrality)**: Hub genes with dense molecular connections dynamically scale up in node size.
+* 🔗 **Edge Empowerment (Consensus Boldening)**: Regulatory edges validated by multiple papers and rich textual evidence chains are automatically bolded.
 
-4. **AI Intelligent Research Assistant**
-   * The 🤖 Ask AI panel on the right integrates four automated weapons:
-   * **🧹 Intelligent Pruning (Tree Washing)**: Automatically discovers and suggests merging synonyms, and establishing macro/micro containment hierarchies. Also supports intent-based node pruning (input research direction to wipe out off-topic organs or irrelevant molecules with one click).
-   * **🔍 Smart Expansion**: Select isolated nodes at the graph's edge, and AI automatically generates PubMed queries to scrape cutting-edge literature, enabling "unattended mode" to align and fuse them automatically into the current graph.
-   * **🔗 Intelligent Bridging**: Select any two seemingly unrelated nodes, call the algorithm with one click to find hidden conduction pathways between them, providing ultimate inspiration for writing grant proposals.
-   * **📖 In-depth Mechanism Interpretation**: Click any node or edge, and AI generates an in-depth biological deduction report combined with original text context.
+### 🤖 IV. AI Intelligent Research Assistant
+In the right-hand 🤖 **Ask AI** panel, four automated tools are integrated:
+* 🧹 **Smart Pruning (Tree Cleaning)**:
+  - **Topological Diagnosis**: Scans whole-graph logic to recommend synonymous node merges, hierarchical containment, and shortcut downgrading.
+  - **🧲 Symmetric Relation Folding**: Automatically merges bidirectional $A \leftrightarrow B$ correlation lines into a single undirected edge, summing popularity and preserving evidence chains without loss.
+  - **🔄 Mutual Containment Deadlock Resolution**: Detects and resolves reciprocal containment loops ($A \subset B$ and $B \subset A$).
+  - **🧪 Coarse Relation Purification**: Selectively consolidates or strips vague correlation lines without early information loss.
+  - **✂️ Intent-Based Node Cleaning (Intent Pruning)**: Enter your research focus to eliminate off-topic organs, drugs, or bystander molecules.
+* 🔍 **Smart Expansion**: Select core nodes; AI formulates advanced background queries to pull the latest PubMed papers and enqueues them for **Autopilot Continuous Assimilation**.
+* 🔗 **Smart Bridging**: Select any two seemingly unconnected molecules A and B; AI navigates the network to find hidden multi-step cascades or searches external literature to uncover unverified regulatory hypotheses.
+* 📖 **Ask AI (Micro-Mechanism Explanations)**: Click any node or edge on the canvas to pass its micro-context (raw extraction evidence and literature origin) to the LLM, producing an in-depth biological mechanism essay directly suitable for grant proposals.
 
-5. **Expert Manual Intervention (Data Management Center)**
-   * Possess "God-mode" privileges over the graph:
-   * **One-Click Clear**: Clean up isolated stray nodes or batch-replace literature source tags.
-   * **Node Surgery**: Rename, forcefully merge (renaming to an existing node triggers perfect edge transfer), or even forcefully split a generic node into two and reassign edges individually.
-   * **Edge Pruning**: Reverse upstream/downstream directions, modify association attributes, or manually establish hidden association bridges.
+### ✂️ V. Expert Manual Intervention (Data Management Center)
+Provides surgical precision over the graph:
+* **Global Cleanup**: Eliminate isolated orphan nodes or batch-rename messy literature source tags across all connected nodes and edges.
+* **Node Surgery**: Rename nodes, **Force Merge** (transfer all edges of Node A to Node B and remove A), or **Split Node** (reallocate edges to two newly split sub-nodes).
+* **Edge Operations**: Reverse upstream/downstream directions, switch relation categories, edit textual evidence, sever false-positive edges, or manually add newly confirmed experimental links.
 
-6. **Project Memory & Localization Management (.biokg)**
-   * **Safety Lock Mechanism**: Strict double-confirmation safeguards against accidental canvas clearing.
-   * **One-Click Export/Load**: Supports exporting the entire massive network, complete with historical evidence and modification logs, into a proprietary `.biokg` save file. Also supports seamless drag-and-drop loading at any time, facilitating research transfer and long-term accumulation.
+### 💾 VI. Project Workspaces & Central Memory Vault (Self-Healing Architecture)
+* 🗂️ **Project Isolation (`projects/<project_id>/`)**: Every research topic has an independent workspace directory storing its private `graph_state.json` and attached PDFs. Freely create blank projects, switch between historical topics, or permanently delete old topics to reclaim disk space.
+* 🏛️ **Central Memory Vault (`vault/`)**: All imported literature is registered in `literature_registry.json` via SHA-256 physical cryptographic hashes, preventing duplicate file storage across different projects.
+* 🌐 **Automatic Standard Literature Renaming & Online PMID Alignment**: One-click online alignment with PubMed/DOI. Cryptic or temporary PDF filenames are automatically reconstructed into academic standards (e.g., `PMID: 35123456 | Article_Title.pdf`), and all node/edge provenance tags are updated seamlessly.
+* 🩹 **Missing Literature Detection & Self-Healing Replenishment**: When moving projects across machines or relocating PDFs, the system automatically detects missing physical files, searches the Central Vault by file hash, and restores physical links with a single click.
+* 📷 **Multimodal Figure Source Exemption**: Nodes and edges originating from mechanism figures carry tags such as `[Figure: Page1_Fig1 (P.1)]` and are permanently tied to their parent paper, enjoying auto-healing exemption.
+* 💾 **Legacy Project Compatibility**: Seamless export and import of `.biokg` archive files.
 
-7. **Fine-Grained Micro-Context Mechanism Explanation**
-   * Breaks the pain point of traditional graphs: "Can only see the line, don't know why they connect."
-   * **Deep Interaction**: Click on any node or edge, and the system instantly extracts the extraction basis and original literature source (micro-context) for that part, calling the LLM to deduce and generate an extremely detailed biological mechanism interpretation report on the spot, yielding proposal-grade materials directly.
+### 📷 VII. Upfront Multimodal Vision Pathway Transcription & Spatial Clustering
+In high-impact journals (Nature, Science, Cell), the densest regulatory conclusions are concentrated in Graphical Abstracts and molecular pathway diagrams:
+* **Spatial Clustering Composite Algorithm (`_cluster_page_figures`)**: Automatically detects multi-layered and sliced raster layers in PDFs, merging overlapping fragments via disjoint-set clustering and rendering crisp 150-DPI composite images.
+* **Balanced Vector Diagram Detection**: Accommodates single-page pathway posters (`drawings >= 10`) and multi-page papers (requiring figure keywords and `drawings >= 25`), avoiding false positives on plain text pages while reliably preserving real vector pathways.
+* **Multi-Threaded Parallel Vision Transcription**: Concurrently transcribes candidate figures using dedicated multimodal models (Gemini 2.5/3.8 Flash, Qwen 2.5 VL 72B), injecting transcribed mechanism texts into the downstream extraction stream.
 
-8. **Industrial-Grade State Machine Management & i18n Foundation**
-   * **Exclusive Resarch Asset Accumulation)**: Supports one-click exporting of the massive dynamic network carrying huge evidence chains and expert modification logs into a privatized `.biokg` save file. Supports breakpoint loading and seamless rendering anytime.
-   * **Dynamic Internationalization Architecture**: Underying framework utilizes a standard i18n dynamic bilingual injection, combined with rigorous Streamlit state machine flow logic, achieving seamless hot-switching between Chinese and English for both the full interface and LLM output results.
+### ⚡ VIII. Chunk-Centric High-Purity Closed-Loop Pipeline & Multi-Threaded Concurrency
+* **Chunk-Centric Localized Pipeline**: Solves the severe hallucination problem caused by global dictionary contamination. Each chunk extracts local entities and derives relations strictly grounded in local context.
+* **High-Throughput Concurrency**: Built upon `concurrent.futures.ThreadPoolExecutor`, processing chunks and figures in parallel to achieve 5-10x parsing acceleration.
 
 ---
 
 ## 🤖 The Core Role of Tencent Hunyuan Hy3 in the System
 
-This system does not simply use the LLM as a "text summarizer," but rather **deeply exploits the performance dividends of the Tencent Hunyuan Hy3 open-source model**. Combining Hy3's outstanding long-context processing capabilities, rigorous logical reasoning precision, and native Agent tool-calling ecosystem, we have built six core agents covering the entire lifecycle of graph construction: **Pre-parsing - During Fusion - Post-generation**:
+Rather than using LLMs as mere "text summarizers," this system deeply exploits **Tencent Hunyuan Hy3's performance dividends**—its ultra-long context window, rigorous logical reasoning, and multimodal integration—deploying eight specialized agents across the graph lifecycle:
 
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                  🧠 Core LLM Agent Architecture                      │
-└──────────────────────────────────┬───────────────────────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          ▼                        ▼                        ▼
-【Phase 1: Fast Parsing & Netting】 【Phase 2: Alignment & Pruning】 【Phase 3: Expansion & Insights】
-  1. Long-Context Hub               3. Cross-Literature Judge        5. Expansion & Bridging Guide
-  2. Dual-Layer Quality Inspector   4. Topology Cleaner              6. Micro-Mechanism Explainer
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              🧠 LLM Agent Architecture Core                            │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+       ┌────────────────────────────┬───────┴────────────────────┬───────────────────────┐
+       ▼                            ▼                            ▼                       ▼
+【Phase 1: Ingestion & Vision】 【Phase 2: Audit & Alignment】 【Phase 3: Topology Pruning】 【Phase 4: Expansion & Vault】
+ 1. Long-Context Ingestion Hub   3. Dual-Layer Reflection Insp. 5. Topology Pruning Expert    7. Web Exploration & Bridging
+ 2. Multimodal Figure Transcrib. 4. Cross-Literature Align Judge 6. Symmetric & Loop Resolver  8. Vault Self-Healing Auditor
 ```
 
-### 1. Long-Context Understanding Hub
-* **Challenge**: Academic papers in the biomedical field are often dozens of pages long, containing massive professional terminology, chart narratives, and complex sentence structures, demanding extremely high long-text throughput and context recall (Needle in a Haystack) from the model.
-* **Hunyuan's Role**: The system utilizes Hunyuan Hy3's massive context window, allowing the LLM to act as a "scientific speed-reading expert." Without losing context, it efficiently and losslessly extracts standard biological entities (genes/proteins/phenotypes) and precise regulatory mechanisms from the entire PDF paper.
+### 1. Long-Context Ingestion Hub
+Leverages Hunyuan Hy3's massive context window to act as a "scientific speed-reader," extracting standardized biological entities and regulatory mechanisms from multi-page PDFs without losing inter-paragraph context.
 
-### 2. Dual-Layer Reflection Inspector
-* **Challenge**: Traditional single-pass LLM extraction is prone to academic hallucinations, falsely reporting or fabricating non-existent biological relationships, which is fatal in rigorous scientific research.
-* **Hunyuan's Role**: The system constructed a **"Preliminary Extraction - Reflective Confrontation"** dual-stage Agent based on Hunyuan Hy3. Hy3 plays two roles here:
-  - **Role A (Extractor)**: Extracts preliminary entities and edges based on the main text.
-  - **Role B (Auditor)**: Uses Hunyuan's extremely strong rigorous logic to re-examine the original text against the preliminary results, performing "original text confrontation." Only relationships with solid evidence in the original text are retained, utilizing Hunyuan's reflection capability to reduce the hallucination rate to an absolute minimum.
+### 2. Multimodal Figure Transcriber
+Collaborates with multimodal vision models to transcribe Graphical Abstracts and signaling pathway diagrams into structured biochemical cascade texts.
 
-### 3. Cross-Literature Semantic Alignment Judge
-* **Challenge**: After parsing multiple papers independently, synonyms (e.g., `p53` / `TP53` / `Tumor Protein 53`) cause graph fragmentation, forming massive knowledge islands.
-* **Hunyuan's Role**: In append mode, Hunyuan Hy3 takes on the heavy responsibility of **"Global Knowledge Fusion Judge."** It breaks through literal meanings to deeply understand the semantic layer of biological concepts. By cross-referencing ontology names and aliases lists extracted from different papers, Hunyuan accurately executes semantic-level fusion, weaving fragmented cross-literature edges perfectly into a single, massive signaling regulatory network.
+### 3. Dual-Layer Reflection Inspector
+Employs a two-stage "Initial Extraction - Reflection Audit" pipeline. The reflection auditor cross-examines the draft against original sentences, retaining only edges with incontrovertible evidence.
 
-### 4. Topology Cleaner (Intelligent Pruning)
-* **Challenge**: Post-generation networks often have complex topological redundancies, such as chaotic macro/micro containment relationships and broad conclusions spanning multiple levels (shortcut edges). Manually sorting out this cobweb-like structure is highly challenging. Furthermore, literature often extracts off-topic molecules or organs that the researcher doesn't care about.
-* **Hunyuan's Role**: Relying on Hunyuan Hy3's strong macro structural analysis and logical deduction capabilities, it reads through the global topological logic to automatically diagnose and suggest "downgrading mechanism shortcut edges" and establishing hierarchical containment relationships. It also supports "intent pruning" based on natural language, accurately understanding the user's research direction to instantly single out and wipe out all off-topic marginal branches.
+### 4. Cross-Literature Semantic Alignment Judge
+Overcomes surface lexical barriers. By comparing entity names and alias lists across papers, it executes semantic-level reconciliation (e.g., mapping `p53` and `TP53`), weaving isolated findings into a cohesive network.
 
-### 5. Web-Browsing Explorer (Expansion & Bridging Guide)
-* **Challenge**: Local literature databases always have boundaries. When isolated nodes appear in the graph, or when exploring potential conduction pathways between two seemingly unrelated molecules is needed, traditional methods require massive manual time spent on external databases for re-searching and reading.
-* **Hunyuan's Role**: Fully activates Hunyuan Hy3's native Tool Calling and planning capabilities. Selecting isolated nodes allows Hy3 to autonomously generate advanced search queries and call external APIs (like PubMed / Semantic Scholar) to scrape cutting-edge literature. In "unattended mode," it automatically parses new literature and seamlessly fuses knowledge back into the current graph; for any two unrelated nodes, it can actively seek hidden conduction bridges, achieving graph expansion beyond boundaries.
+### 5. Topology Pruning Expert
+Reads full-graph topological logic to recommend shortcut downgrades, hierarchical memberships, and intent-based pruning of off-topic branches.
 
-### 6. Micro-Mechanism Explainer
-* **Challenge**: Highly abstract graph edges (e.g., A ➔ B) often mask the complex and delicate biochemical reaction processes in the original text. When reviewing the macro graph, researchers struggle to instantly recall the detailed mechanism and experimental origin behind a specific edge.
-* **Hunyuan's Role**: Leveraging Hunyuan Hy3's strong Chinese/English long-text generation, polishing, and context understanding capabilities, the system allows users to click on any edge in the graph. Hy3 extracts the edge's specific micro-context and original text evidence on the spot to generate a logically rigorous and extremely detailed biological mechanism deduction report, providing direct material for grant writing.
+### 6. Symmetric & Hierarchy Loop Resolver
+Automatically merges bidirectional correlation redundancies ($A \leftrightarrow B$) into undirected bonds and resolves reciprocal containment deadlocks ($A \subset B$ and $B \subset A$).
+
+### 7. Web-Browsing Explorer (Expansion & Bridging Guide)
+Generates targeted PubMed queries to autonomously retrieve literature for isolated nodes, and charts multi-step bridging cascades between distant molecules.
+
+### 8. Literature Registry & Auto-Healing Auditor
+Tracks literature via SHA-256 physical cryptographic hashes, aligns papers with official PubMed PMIDs, and executes automated self-healing across devices.
 
 ---
 
 ## 🌟 Core Technical Highlights
 
-1. **Long-Text Level Entity and Relationship Structured Extraction**: Perfectly adapts to Hunyuan Hy3's ultra-long context window, capable of directly parsing complex biochemical/medical PDF literature of dozens of pages. It extracts high-quality structured JSON data including `Standard Name`, `Aliases`, `Relationship Type`, and `Original Text Evidence`.
-2. **Pioneering Dual-Layer Agent Reflection Mechanism**: The first-layer Agent captures the coarse-grained network, while the second-layer Agent acts as an "independent quality inspector," matching preliminary results against the original text one by one, eliminating all hallucinated entities without evidence, significantly improving the graph's rigor.
-3. **Intelligent Cross-Literature Entity Aligner (Fusion Hub)**: When **Append Mode** is active, the knowledge threads of multiple papers are dynamically networked. Calls the Hunyuan LLM as a judge and cross-references the aliases list inherent to entities to achieve high-precision semantic alignment. For example: automatically identifies and merges `p53` from paper A and `Tumor protein 53` / `TP53` from paper B into the same global super-node, perfectly splicing their literature source tags (e.g., `PaperA.pdf | PaperB.pdf`).
-4. **Dynamic Topological Rendering Independent of External Networks**: Built on Pyvis and extremely optimized for Streamlit embedded web rendering. Node size dynamically scales with "popularity (degree centrality)"; hover to view all cross-literature aliases, relationship evidence, and literature sources.
-5. **Intelligent Pruning & Intent Cleansing Based on LLM Deduction**: 
-   - *Topological Intelligent Pruning*: AI automatically reads the full-graph logic, identifying and suggesting merging omitted synonyms, establishing macro-containment hierarchies, and intelligently downgrading cross-level "broad conclusions" to grey dashed lines (mechanism shortcut edges) to highlight the main trunk.
-   - *Natural Language Intent Cleansing*: Supports plain text input of research focus (e.g., "I only care about lung cancer mechanisms"). The LLM becomes a strict reviewer, automatically picking out off-topic organs or side-branch molecules for one-click physical deletion, ensuring extreme graph purity.
-6. **Automated Expansion & Bridging Breaking Local Boundaries**: 
-   - *Unattended Expansion*: Select isolated nodes, and the system automatically generates professional search queries based on graph context, calls external APIs (e.g., PubMed) to scrape cutting-edge literature into a queue, and automatically completes the perfect fusion of new knowledge with the current graph.
-   - *Cross-Node Intelligent Bridging*: Specify any two completely unrelated nodes. Relying on graph theory algorithms and LLM external web mining, the system forcefully explores multi-step cascade conduction pathways between them, directly inspiring novel research topics.
-7. **Fine-Grained Micro-Context Mechanism Explanation**: Breaks the pain point of traditional graphs: "Can only see the line, don't know why they connect." Deep Interaction: Click on any node or edge, and the system instantly extracts the extraction basis and original literature source (micro-context) for that part, calling the LLM to deduce and generate an extremely detailed biological mechanism interpretation report on the spot, yielding proposal-grade materials directly.
-8. **Industrial-Grade State Machine Management & i18n Foundation**: 
-   - *Proprietary Research Asset Accumulation*: Supports one-click exporting of the massive dynamic network carrying huge evidence chains and expert modification logs into a privatized `.biokg` save file. Supports breakpoint loading and seamless rendering anytime.
-   - *Dynamic Internationalization Architecture*: Underlying framework utilizes a standard i18n dynamic bilingual injection, combined with rigorous Streamlit state machine flow logic, achieving seamless hot-switching between Chinese and English for both the full interface and LLM output results.
+1. **Long-Document Structured Extraction**: Ingests multi-page biomedical PDFs directly to produce structured JSON containing standard names, aliases, interaction types, and verbatim evidence.
+2. **First-of-its-Kind Agent Dual-Layer Reflection**: An independent quality auditor checks every extraction against the source text, discarding unsupported claims.
+3. **Cross-Literature Alignment & Automatic Online PMID Renaming**: Dynamically meshes multi-paper graphs and automatically renames literature files into standard `PMID: XXXXXXXX | Title.pdf` formats via PubMed/DOI.
+4. **Dynamic Topological Visualization**: Powered by Pyvis, featuring degree-centrality node scaling and consensus-weighted edge boldening without external network dependencies.
+5. **Intelligent Pruning, Symmetric Folding & Intent Cleaning**: Diagnoses graph topology, folds bidirectional correlation lines, resolves containment deadlocks, and strips off-topic nodes via natural language prompts.
+6. **Autonomous Expansion & Hidden Path Bridging**: Expands peripheral nodes in autopilot mode and mines multi-step cascade pathways between unlinked targets.
+7. **Micro-Context Biological Interpretation**: Select any node or edge to feed its evidence and citation provenance to the LLM, producing grant-ready mechanism reports.
+8. **Project Isolation & Central Memory Vault**: Workspace-level physical isolation with cross-project SHA-256 deduplication and one-click self-healing for missing files.
+9. **Chunk-Centric Localized Pipeline & Multi-Threading**: Independent chunk extraction eliminates global hallucination contamination while concurrency boosts throughput by 5-10x.
+10. **Spatial Clustering & Balanced Vector Pathway Extraction**: Disjoint-set clustering merges fragmented image slices into pristine mechanism figures, while balanced vector thresholds accommodate both posters and papers.
 
 ---
 
 ## 📂 Core Code Architecture
 
 ```text
-├── app.py           # Streamlit Frontend Interaction Dashboard (Includes cross-literature entity fusion surgery logic)
-├── back_logic.py     # System Main Dispatch Pipeline (BioGraphPipeline Incremental Accumulation Hub)
-├── LLM_SYS.py       # LLM Agent (Includes Preliminary, Reflection, and Cross-Literature Alias-Enhanced Alignment Agents)
-├── IO_SYS.py        # Infrastructure Layer (Includes PyMuPDF smart chunking and secure graph topology renderer)
-├── WebSearcher.py   # Web Literature Search Functionality
-├── requirements.txt # Project Dependencies
-└── .gitignore       # Git Commit Ignore Configuration
+├── app.py                      # Streamlit frontend UI (workspaces, project switching, visualization)
+├── back_logic.py               # Central execution pipeline (chunk-centric concurrency & vision workflow)
+├── LLM_SYS.py                  # LLM Agent core (reflection, symmetric pruning, alignment, transcription)
+├── IO_SYS.py                   # Infrastructure layer (PyMuPDF spatial clustering, vector rendering, Pyvis)
+├── WebSearcher.py              # Web retrieval module (PubMed / Semantic Scholar search & PMID lookup)
+├── projects/                   # Dedicated project workspaces
+│   └── <project_id>/
+│       ├── graph_state.json    # Project graph persistence state
+│       └── papers/             # Bound physical PDF files
+├── vault/                      # Central Memory Vault
+│   └── literature_registry.json # Global SHA-256 fingerprint & metadata registry
+├── requirements.txt            # Project dependencies
+├── run.sh                      # Linux / WSL startup script
+├── start.bat                   # Windows startup script
+└── README.md                   # Project documentation (Chinese)
 ```
 
 ---
@@ -166,6 +184,7 @@ This system does not simply use the LLM as a "text summarizer," but rather **dee
 ## 🚀 Quick Start
 
 ### 1. Clone Repository & Install Dependencies
+
 ```bash
 git clone https://github.com/24238-T-34/-Bio-Graph-Agent-Hy3-
 cd -Bio-Graph-Agent-Hy3-
@@ -174,33 +193,30 @@ pip install -r requirements.txt
 
 ### 2. Configure and Run Project
 
-**Method 1 (Linux/WSL)**
-```bash
-chmod +x run.sh
-./run.sh
-```
+* **Method 1 (Linux / WSL)**:
+  ```bash
+  chmod +x run.sh
+  ./run.sh
+  ```
+* **Method 2 (Windows)**:
+  Double-click `start.bat` (or `start_wsl.bat`).
+* **Method 3 (Standard Streamlit Command)**:
+  ```bash
+  streamlit run app.py
+  ```
 
-**Method 2 (Windows)**
-Click the batch file `start.bat` (Project paths might need manual adjustment if incorrect).
-
-**Method 3 (Direct Command)**
-```bash
-streamlit run app.py
-```
-
-After running, open the Streamlit interface in your browser. Enter your OpenRouter / Tencent Hunyuan API Key in the sidebar, and you can start uploading PDF literature to witness the automatic construction of dynamic biological macro-graphs!
+Open the Streamlit interface in your browser, enter your API Key in the sidebar (or run key-free using local Ollama), upload PDFs, and watch your dynamic biological knowledge graph emerge!
 
 ---
 
 ## 📅 Future Work
 
-* [x] **Secondary Correlation Filter & Intelligent Pruning**: Introduced a "regulatory pathway correlation secondary quality check" powered by LLMs, supporting intent-based pruning and one-click destruction of global isolated nodes. (✅ **Completed and merged into main branch in v1.0**)
-* [ ] **Multi-Attribute Topological Coloring**: Plan to automatically assign richer categorical colors based on node attributes (e.g., Genes, Diseases, Compounds, Phenotypes), making the macro-network more biologically intuitive at a glance.
-* [ ] **Concurrency & Asynchronous Processing**: Break the current performance bottleneck of single-threaded serial processing for long texts. We plan to introduce `asyncio` or thread pool mechanisms to enable high-concurrency API requests for PDF chunking and multi-literature matrices, expecting to boost parsing and graph-building speed by 5 to 10 times.
-* [ ] **Intelligent LLM Routing Engine (MoE)**: Build a synergistic architecture of small and large models. Delegate basic text cleaning and entity extraction to ultra-fast lightweight models, while routing complex tasks like multi-document semantic alignment, micro-context mechanism explanation, and smart bridging to deep reasoning models like Tencent Hunyuan Hy3, achieving the optimal balance between response speed and computational cost.
-* [ ] **Hypothesis & Writing Dual-Mode Workspace (Copilot)**: Evolve towards an "AI-driven Scientific Discovery Engine" by planning a Multi-page App architecture and introducing an independent AIGC writing cabin.
-  - **Autonomous Exploration**: Without manual specification, the system will autonomously identify "Structural Holes" and "Dangling Nodes" in the graph, triggering web search engines for scientific blind-box exploration.
-  - **Research Proposal Generation**: Based on high-potential cascade pathways mined from the graph, support one-click generation of research proposals or background drafts, complete with rigorous literature citations and rationales.
-**Industrial-Grade Verification & Human-in-the-Loop (HITL)**: Leveraging the high-concurrency architecture, introduce configurable "Parallel Self-Consistency Voting" to intercept low-confidence relationships on demand for secondary LLM arbitration. Build an "Expert Review Queue" in the sidebar to resolve cross-literature logical conflicts, achieving a secure, closed-loop workflow of "massive LLM screening + one-click expert arbitration."
-* [ ] **Multimodal Literature Parsing Architecture**: Break through text-only limitations by upgrading the PDF parser to a mixed image-text extraction engine. Integrate with Vision LLMs (via OpenRouter and Tencent Hunyuan) to tackle the precise extraction and logical fusion of highly valuable Biological Pathway Diagrams and Graphical Abstracts.
-* [ ] **Multi-Attribute Topological Coloring**: Plan to automatically assign richer categorical colors based on node attributes (e.g., Genes, Diseases, Compounds, Phenotypes), making the macro-network more biologically intuitive at a glance.
+* [x] **Secondary Correlation Filter & Pruning**: LLM-driven topology diagnostics, intent-based pruning, and orphan elimination. (✅ **v1.0 Completed & Merged**)
+* [x] **Multi-Threaded Concurrency & Parallel Pipeline**: Chunk-centric parallel extraction and concurrent pathway figure transcriptions, boosting throughput by 5-10x. (✅ **v2.0 Completed & Merged**)
+* [x] **Multimodal Pathway Figure Extraction**: Spatial clustering for composite figures, balanced vector diagram detection, and parallel vision transcription with Gemini/Qwen-VL. (✅ **v2.0 Completed & Merged**)
+* [x] **Project Isolation & Central Memory Vault**: Physical project isolation, global SHA-256 deduplication, automatic online PMID renaming, and physical self-healing. (✅ **v2.0 Completed & Merged**)
+* [x] **Symmetric Relation Folding & Containment Deadlock Resolution**: Bidirectional correlation consolidation and hierarchical loop resolution. (✅ **v2.0 Completed & Merged**)
+* [ ] **Multi-Attribute Topological Coloring**: Categorical coloring based on entity types (genes, diseases, compounds, phenotypes) for heightened biological intuition.
+* [ ] **LLM Dynamic Routing Engine / MoE**: Two-tier model routing directing routine text cleaning to high-speed models, while semantic alignment, reasoning, and vision tasks run on premier LLMs.
+* [ ] **Hypothesis & Writing Copilot**: Multi-page AIGC writing bay capable of autonomous structural hole exploration and one-click grant background draft generation.
+* [ ] **Edge Metadata & Biological Conditions**: Conditional constraints (cell lines, mutations, experimental parameters) attached to edges as hover tooltips, separating empirical facts from topological hypotheses.

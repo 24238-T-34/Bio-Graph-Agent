@@ -42,227 +42,148 @@ def show_help_dialog():
     📖 **Bio-Graph Agent Core Functionality Guide**
     Welcome to Bio-Graph Agent! A specialized LLM-powered scientific counselor crafted specifically for biomedical researchers.
 
-    🧬 **Graph Base Logic:**
-    This system is far more than a simple "summarization tool". It leverages Large Language Models to deeply read literature and extract structured **"Entities (Nodes)"** and **"Regulatory Relationships (Edges)"**. When analyzing multiple papers, the system automatically performs semantic alignment (e.g., merging "p53" from Paper A and "TP53" from Paper B into a single node), weaving isolated papers into a globally verifiable, dynamic knowledge network!
+    🧬 **Graph Base Logic & Academic Mission:**
+    This system is far more than a simple "summarization tool". It leverages Large Language Models to deeply read literature and extract structured **"Entities (Nodes)"** and **"Regulatory Relationships (Edges)"**. When analyzing multiple papers, the system automatically performs semantic alignment (e.g., merging "p53" from Paper A and "TP53" from Paper B into a single node), weaving isolated papers into a globally verifiable, dynamic knowledge network to uncover multi-step cascade pathways ($A \to B \to C$) for scientific grant proposals!
 
     ⚙️ **I. Initial Environment Setup (Sidebar "More Settings")**
-    Before use, please expand the ⚙️ **More Settings** panel in the left sidebar for basic configuration:
+    Before starting, expand the ⚙️ **More Settings** panel in the left sidebar for basic configuration:
 
-    🌐 **LLM Engine:** Select your API provider and input the key. It supports cloud-based models as well as offline privacy mode (simply select Ollama to handle highly classified data with the network disconnected, running key-free).
+    * 🌐 **LLM Engine:** Select your API provider (OpenRouter, Tencent Hunyuan, SiliconFlow, etc.) and enter the API Key. For offline privacy mode, select **Ollama** to process classified biomedical data key-free without an internet connection.
+    * 📚 **Smart Retrieval Source:** Choose PubMed (authoritative biomedical literature) or Semantic Scholar (all-discipline AI-driven high-speed retrieval with automatic rate-limit fallback).
+    * ⚡ **Concurrency Workers (Parallel Pipeline):** Set concurrent threads (1-8) to execute chunk analysis and multimodal pathway figure transcriptions in parallel, drastically reducing literature processing time.
+    * 🛡️ **Relation Node Literature Grounding:** When enabled, automatically regex-verifies unregistered relation endpoints against the original paper text. Real entities mentioned in the paper are recovered, while hallucinated edges are strictly dropped.
+    * 👁️ **Dedicated Vision Model:** Choose auto-follow main model, or specify dedicated high-performance multimodal models (such as Gemini 2.5 Flash-Lite, Gemini 3.8 Flash, or Qwen 2.5 VL 72B) with optional suffix overrides.
+    * 🎛️ **Interface Feature Toggles:** Enable the 📝 **Manual Editing Panel** and 🤖 **AI Intelligent Graph Tools** as needed.
 
-    📚 **Smart Retrieval Source:** Choose PubMed (absolute medical authority) or Semantic Scholar (all-discipline AI-driven high-speed retrieval with built-in anti-blocking fallback mechanisms).
-
-    🎛️ **Interface Feature Toggles:** Enable the 📝 **Manual Editing Panel** (for pruning) and 🤖 **AI Intelligent Graph Analysis** (for tree cleaning) as needed.
-
-    📂 **II. From Scratch: Building the Knowledge Graph (Left Control Panel)**
-    In the left "1. Literature Input & Configuration" panel, the system offers two distinct paths to get started:
+    📂 **II. Knowledge Graph Construction (Left Control Panel)**
+    In the left "1. Literature Input & Configuration" panel, the system offers two distinct paths to build graphs:
 
     **Option A: 💡 Zero-Based Cold Start**
-    Have no papers on hand? Not a problem at all!
-    Without uploading any files, simply tell the AI your research direction in the text box (e.g., *"Role of macrophage polarization in tumor microenvironment"*).
-    Click **"One-click Retrieve & Generate Initial Graph"**, and the AI will automatically generate a professional query, dive into the database to scrape the latest papers, verify relevance using a "sliding window," and instantly erect your first initial knowledge graph!
+    Have no papers on hand? Simply tell the AI your research direction in the text box (e.g., *"Role of macrophage polarization in tumor microenvironment"*). Click **"One-click Retrieve & Generate Initial Graph"**, and the AI will formulate professional PubMed queries, retrieve cutting-edge literature, verify relevance, and construct your initial graph!
 
     **Option B: 📄 Precise Local Literature Analysis**
-    If you already have PDF files:
-
-    * **Upload Literature:** Drag a single PDF into the upload zone (Note: Only one file can be parsed at a time, but you can use "Append Mode" to accumulate infinitely).
-    * **🎯 Define Parsing Range:** Pinpoint exactly via starting and ending pages (e.g., parsing only pages 3-5 which contain the core mechanism diagram), saving time and computational costs.
+    * **Upload Literature:** Drag a PDF into the upload zone.
+    * **🎯 Parsing Range:** Specify starting and ending pages (e.g., parsing pages 1-5 with key mechanism figures) to save token budgets and time.
     * **⚙️ Advanced Extraction Settings:**
-        * ⚡ **Abstract-Only Mode:** High-speed mode that intelligently targets abstract contents to analyze only core relationships within abstracts.
-        * 🔍 **Self-Reflection & Error Correction:** Lets the AI act as an independent quality inspector, double-checking and discarding "hallucinated" nodes lacking textual evidence to boost accuracy.
-        * 🔗 **Append Mode (The Core Soul):** When enabled, newly parsed literature will not overwrite the existing graph, but will blend and grow into it! Turning this off will clear the current graph and start from scratch.
-        * 🌐 **Entity Naming Convention:** Forces all graph nodes to be unified into pure Chinese or pure English, rejecting mixed bilingual naming.
-
-    Click **"🚀 Start Parsing & Generate Graph"**.
+        * ⚡ **Abstract-Only Mode:** High-speed regex extraction of abstract sections for rapid exploration.
+        * 🔍 **Self-Reflection & Error Correction:** The AI acts as an independent quality auditor, cross-examining initial extraction against the raw text to eliminate hallucinated nodes.
+        * 🔗 **Append Mode (Continuous Growth):** When enabled, new literature fuses and grows into the existing graph. Turning this off clears the canvas to start fresh.
+        * 🌐 **Entity Naming Convention:** Automatically standardizes graph nodes into pure Chinese, pure English, or keeps original phrasing.
+    * 📷 **Pathway & Mechanism Figure Strategy (Multimodal Vision):**
+        * 🚫 *Off (Pure Text):* Traditional text-only parsing.
+        * 🎯 *Keyword Match:* Targeted sniffing of a specific figure (e.g., `Fig 4`, `pathway`, `Figure 2`).
+        * ⚡ *Extract All in Pages:* Automatically runs **Spatial Clustering** to merge overlapping, sliced raster layers (such as multi-panel Graphical Abstracts and composite Figure subpanels) into pristine high-res composites, plus balanced vector diagram detection for posters and pathways. Transcriptions are generated in parallel and fused into downstream entity/relation modeling.
 
     🕸️ **III. Visual Empowerment Engine (Top Console of Main Interface)**
-    Once the graph is generated, utilize the four hardcore visual algorithms in the top console to instantly spot scientific targets from a tangled mess:
+    * 👁️ **Mechanism Shortcuts:** Reveal "express shortcuts" bypassing intermediate nodes to inspect macro upstream-to-downstream regulatory outcomes.
+    * 🧬 **Ontology Empowerment (Containment Feedback):** Feedback the weight of micro-entities (e.g., individual proteins) to macro parent categories (e.g., Kinase Family), making core pathways visually prominent.
+    * 🔥 **Node Empowerment (Degree Centrality):** Hub genes with higher connectivity dynamically scale up in node size.
+    * 🔗 **Edge Empowerment (Consensus Boldening):** Regulatory edges validated by multiple papers and rich textual evidence chains are automatically bolded.
 
-    * 👁️ **Mechanism Shortcuts:** When enabled, reveals "express paths" bypassing intermediate nodes, offering a macro view of the ultimate impact from upstream to downstream.
-    * 🧬 **Ontology Empowerment (Containment Feedback):** Feedback the weight of micro-entities (e.g., a specific protein) to their macro parent categories, making crucial "kinase families" or "signaling pathways" automatically grow larger in the graph.
-    * 🔥 **Node Empowerment (Degree Centrality):** Based on graph theory degree algorithms, "core hub genes" with more molecular interactions will become visually prominent through larger node sizes.
-    * 🔗 **Edge Empowerment (Mainstream Pathway Bolden):** Regulatory edges repeatedly mentioned across multiple papers with the solidest evidence chains will be automatically bolded, letting you pierce through to mainstream consensus at a glance.
+    🎨 **IV. Topological Visual Standards**
+    * 🟢 **Green Solid Line + Arrow:** Positive regulation / Activation / Promotion ($A \to B$).
+    * 🔴 **Red Solid Line + Arrow:** Negative regulation / Inhibition / Downregulation ($A \dashv B$).
+    * ⚪ **Gray Solid Line:** General correlation / Undirected association.
+    * ⚠️ **Gray Dashed Line (---):** Mechanism shortcuts (condensed macro pathways).
+    * 🟣 **Purple Solid Line:** Hierarchical containment / Subunit / Family membership.
 
-    The model automatically generates graphs with relationships, where node size represents popularity, and complex biological pathways are intelligently summarized. Each color, line style, and thickness holds distinct biological significance:
+    ✂️ **V. Expert Manual Intervention (Data Management Center)**
+    * 🧹 **Global Operations:** Scan and eliminate isolated orphan nodes; batch-rename messy literature source tags across all connected nodes and edges; manually add missing key proteins.
+    * 🎯 **Node Operations:** Rename nodes; **Force Merge** (transfer all edges of Node A to Node B and remove A); **Node Split** (reallocate edges to two newly split sub-nodes); dangerous permanent deletion.
+    * 🔗 **Relationship Operations:** Reverse edge upstream/downstream directions; switch relation categories; edit original textual evidence; sever false-positive edges or add newly confirmed experimental links.
 
-    * 🟢 **Green Solid Line + Arrow:** Represents Positive Regulation / Promotion / Activation. E.g., a cytokine stimulating the phosphorylation of a signaling pathway.
-    * 🔴 **Red Solid Line + Arrow:** Represents Negative Regulation / Inhibition / Down-regulation. E.g., a specific miRNA degrading target gene mRNA, or a drug inhibiting receptor activity.
-    * 🟣 **Purple Solid Line + Arrow:** Represents Containment / Belonging / Component relationship. E.g., a protein being a core subunit of a complex, or a receptor belonging to a superfamily.
-    * ⚪ **Grey Solid Line / No Arrow:** Represents General Association / Correlation / Interaction. Typically indicates co-mentioning in literature, showing interactions or synergy without a clarified positive/negative regulatory direction.
-    * ⚠️ **Grey Dashed Line (with [AI Flagged as Mechanism Shortcut] label):** This is a feature algorithm of our agent. When the AI detects a "cross-level skip" between two pathways (e.g., literature says A activates C, while the graph contains a refined A -> B -> C cascade), the system automatically flags the coarse A -> C edge as a mechanism shortcut, changing it to a grey dashed line to prevent coarse relations from interfering with your precise analysis of specific molecular cascades.
-    * 📐 **Line Thickness (Width):** The thicker the line, the higher the frequency of direct association mentioned or extracted from literature, serving as the "backbone" of the graph.
+    💾 **VI. Project Workspaces & Central Memory Vault (Self-Healing Architecture)**
+    * 🗂️ **Project Isolation (`projects/<project_id>/`):** Every research topic has an independent workspace directory, storing its private `graph_state.json` and attached PDFs. Freely create blank projects, switch between historical projects, or permanently delete old topics to reclaim disk space.
+    * 🏛️ **Central Memory Vault (`vault/`):** All imported literature is registered in `literature_registry.json` via SHA-256 physical cryptographic hashes, preventing duplicate file storage across different projects.
+    * 🌐 **Automatic Standard Literature Renaming & Online PMID Alignment:** One-click online alignment with PubMed/DOI. Cryptic or temporary PDF filenames are automatically reconstructed into academic standards (e.g., `PMID: 35123456 | Article_Title.pdf`), and all node/edge provenance tags are updated seamlessly.
+    * 🩹 **Missing Literature Detection & Self-Healing Replenishment:** When moving projects across machines or relocating PDFs, the system automatically detects missing physical files, searches the Central Vault by file hash, and restores physical links with a single click.
+    * 📷 **Multimodal Figure Source Exemption:** Nodes and edges originating from mechanism figures carry tags such as `[Figure: Page1_Fig1 (P.1)]` and are permanently tied to their parent paper, enjoying auto-healing exemption.
 
-    💾 **IV. Vault & Project Management (Bottom of Left Column)**
-    Scientific research requires long-term accumulation. Bio-Graph Agent comes equipped with a professional data persistence and project management module to ensure every single analysis is safely archived and seamlessly restored.
-
-    At the very bottom of the left sidebar, you can perform the following macro operations:
-
-    1.  ✨ **Create Blank Project**
-        * *Purpose:* Reset your current workbench with a single click when starting a brand-new research topic.
-        * *Safety Lock Mechanism:* Since this operation thoroughly clears graphs in memory and local caches, the system features a two-step misclick prevention panel. After clicking, you must click "🔴 Confirm Clear" again to actually destroy the data. It is highly recommended to export and archive your current achievements before doing this.
-    2.  📤 **Export Project (.biokg)**
-        * *Purpose:* Pack and download your painstakingly constructed graph (containing all nodes, edges, extraction evidence, and manual edits) to your local machine.
-        * *Format Description:* The exported file is in the system's proprietary `.biokg` format (underneath it's standard JSON). It is not only your personal research asset backup but can also be sent directly to peers or mentors, allowing them to load and review your graph on their own machines.
-    3.  📥 **Load Historical Project (.biokg / .json)**
-        * *Purpose:* Unlock the "Load Save" functionality of your research. Drag and drop a previously exported `.biokg` project file here to instantly restore your historical workspace.
-        * *Seamless Rendering Mechanism:* To prevent accidental overwriting of current progress, after dragging in the file, you must click "🚀 Confirm Loading Project" to execute the replacement. Upon successful loading, the system recomputes the topology in the background and instantly redraws the dynamic graph. Concurrently, the upload panel automatically hides and clears itself, returning a highly clean interface to you.
-
-    🎯 **Summary & Recommendations:**
-    *"Do research daily, export before logging off."* By utilizing Append Mode (to accumulate new literature) and the Vault (to save current progress), you can treat Bio-Graph Agent as a long-running external super-brain, gradually weaving dozens or hundreds of papers over months into a priceless network of diseases and molecular targets!
-
-    ✂️ **V. Expert Manual Intervention (Right Side "Graph Data Management Center")**
-    No matter how powerful an AI is, the professional judgment of human experts always holds the highest priority in rigorous scientific mapping. Toggle on 📝 **Enable Manual Editing Panel** in settings, and you will gain "God-mode permissions" over the graph on the right side.
-
-    The management center is divided into three major modules:
-
-    1.  ⚡ **Quick Features (Global Overview Management)**
-        * 🧹 *Clear Isolated Nodes:* Click to scan globally. Any node that neither points to others nor is pointed to by others will be wiped out instantly as an "isolated and helpless" junk node.
-        * 📝 *Batch Modify Literature/Source Names:* Found a messy name for a PDF in your graph? Select the old name here and type a new one (e.g., *Nature_2023_p53*), and the system will automatically substitute the source for all related nodes and edges, ensuring crisp traceability.
-        * ➕ *Manually Add Node:* If the AI missed a highly critical gene or protein, you can manually type its name, aliases, and source here to force it onto the canvas.
-    2.  🎯 **Node Operations (Surgical Strikes)**
-        Search and select a node of interest from the dropdown menu; the system offers four surgery-grade operations:
-        * ✏️ *Modify Info:* Rename the standard name of a node, or add/remove its aliases.
-        * 🧲 *Force Merge (Highly Useful):* If you find both "p53" and "TP53" on the graph which should be the same thing, select "p53" and choose to merge it into "TP53". The system will instantly transfer all edges belonging to "p53" over to "TP53", combine their aliases, and safely destroy the separate "p53" node.
-        * 🔀 *Node Split:* Break down a generic node (such as *Mutant & Wild-type p53*) into two independent new nodes. Crucially, the system lists every single edge connected to the original node, letting you assign each edge to new node A, new node B, copy it to both, or discard it entirely.
-        * 🗑️ *Dangerous Delete:* Completely destroy the node and uproot all regulatory edges connected to it.
-    3.  🔗 **Relationship Operations (Edge Pruning & Bridging)**
-        Select Source Node A and Target Node B from the dropdown menus respectively, and the system will fetch all bonds between them:
-        * ✏ *Manage Existing Edges:* Reverse direction if AI flipped the upstream/downstream; toggle the relationship type among standard vocabularies (positive, negative, correlation) and edit its textual evidence or source.
-        * 🚨 *Sever Edge:* For meaningless background intros or false positives extracted from literature, click delete to completely wipe that edge from the graph.
-        * ➕ *Add New Edge:* If the literature didn't mention it but you confirm A promotes B based on your background knowledge? Choose who points to whom, set the relation type, and manually build this hidden bridge.
-
-    🤖 **VI. AI Intelligent Graph Tools (Right Dedicated Panel)**
-    If the "Manual Editing Panel" is your scalpel, then the "AI Intelligent Graph Tools" act as your **"Super Think Tank"**. Select the corresponding AI module on the right panel to let the large model intervene deeply in graph cleaning, growth, and interpretation.
-
-    1.  🧹 **Intelligent Tree Cleaning (Pruning)**
-        When you import a massive volume of literature, the graph often becomes bloated and redundant. The tree cleaning module provides two powerful automated cleaning capabilities:
-        * 🔍 *Intelligent Topological Diagnosis:* Click "Start AI Intelligent Graph Diagnosis", and the large model will scan through the edge logic of the entire graph to generate an "Audit Checklist" suggesting to **Merge** synonymous nodes, **Establish Hierarchy** for family traits, or **Downgrade** broad shortcuts to dashed lines. Check the suggestions you approve of and click one-key execution to instantly complete reorganization!
-        * ✂ *Intent-Based Node Cleaning (Intent-Based Pruning):* Type your "core research direction" in plain vernacular into the text box. AI will act like a reviewer, checking nodes and neighbors one by one to compile a "Deviation Node Execution List" for you. Once confirmed, click "Execute", and these irrelevant nodes along with their implicated edges will be thoroughly eliminated from the canvas.
-    2.  🔍 **Intelligent Expansion (Smart Expansion)**
-        Break through boundaries of existing literature to let the graph "self-grow"! When you find an important branch in the graph that needs deep digging:
-        * 🎯 *Select Anchor Nodes & Retrieval Strategy:* Pick 1-3 core nodes in the graph and mount the search engine via Direct, Smart, or Background Search (the strongest, which reverse-engineers advanced queries based on known network relationships).
-        * 📑 *Filter and Enqueue:* The system pulls the latest literature from the web to generate a table; check the papers you find valuable to send them into the parsing queue.
-        * ⚙ *Automated Fusion Queue (Autopilot Mode):* Turn on the continuous auto-parsing switch and go grab a cup of coffee. The system will automatically line up, grab, and read each paper, perfectly aligning and welding newly extracted nodes with existing ones.
-    3.  🔗 **Intelligent Bridging (Bridging)**
-        The ultimate weapon to discover hidden scientific targets. When you are curious about the relationship between two molecules A and B in the graph:
-        * If indirect paths already exist, AI will instantly traverse the network, mapping out the multi-step conduction pathway of "how A ultimately impacts B through X and Y".
-        * If they are isolated islands with no direct contact, the system will automatically spawn a retrieval task, calling the external large model to forcefully mine whether a link between A and B has been verified in the latest cutting-edge papers, instantly sparking innovative inspiration for grant proposals!
-    4.  🤖 **Ask AI**
-        The graph's "pocket micro-narrator". When facing a labyrinthine graph and unsure what biochemical reaction a specific edge stands for, simply select that node or edge directly in the graph, and the system will feed its micro-context (including original extraction evidence and source attribution) to the large model to generate a detailed local mechanism interpretation report.
+    🤖 **VII. AI Intelligent Graph Tools (Right Dedicated Panel)**
+    * 1. 🧹 **Intelligent Tree Cleaning (Pruning):**
+        * 🔍 *Topological Diagnosis:* LLM scans whole-graph logic to recommend **Merge** (synonyms), **Hierarchy** (families), or **Downgrade** (shortcuts).
+        * 🧲 *Symmetric Relation Folding:* Automatically merges bidirectional $A \leftrightarrow B$ correlation lines into a single undirected edge, summing popularity and merging evidence chains without loss.
+        * 🔄 *Mutual Containment Deadlock Resolution:* Detects and resolves reciprocal containment loops ($A \subset B$ and $B \subset A$).
+        * 🧪 *Coarse Relation Purification (Selective Pruning):* Placed at the bottom of the checklist to let researchers decide whether to consolidate or strip vague correlation lines without early information loss.
+        * ✂️ *Intent-Based Node Cleaning (Intent Pruning):* Type your focus in plain language (e.g., *"Focus exclusively on tau proteostasis in neurons"*); AI identifies off-topic organs, compounds, or bystander molecules for one-click removal.
+    * 2. 🔍 **Intelligent Expansion (Smart Expansion):** Select 1-3 core nodes; AI formulates advanced background queries to pull the latest PubMed papers and enqueues them for **Autopilot Continuous Assimilation**.
+    * 3. 🔗 **Intelligent Bridging (Bridging):** Select any two seemingly unconnected molecules A and B; AI navigates the network to find hidden multi-step cascades or searches external literature to uncover unverified regulatory hypotheses.
+    * 4. 🤖 **Ask AI (Micro-Context Explanation):** Click any node or edge on the canvas to pass its micro-context (raw extraction evidence and literature origin) to the LLM, producing an in-depth biological mechanism essay directly suitable for grant proposals.
     """)
     else:
         st.markdown(""" 
     📖 **Bio-Graph Agent 核心功能操作指南**
     欢迎使用 Bio-Graph Agent！这是一款专为生物医学研究者打造的“大模型科研军师”。
 
-    🧬 **基础图谱逻辑 (Graph Base Logic)：**
-    本系统并非简单的“总结工具”，它会通过大语言模型深度阅读文献，抽取出结构化的“实体（节点）”与“调控关系（连线）”。当你分析多篇文献时，系统会自动进行实体语义对齐（例如将文献A中的 p53 和文献B中的 TP53 完美融合为同一个节点），从而将孤立的论文编织成一张具备交叉印证能力的全局动态知识网络！
+    🧬 **基础图谱逻辑与学术使命 (Graph Base Logic)：**
+    本系统并非简单的“文本总结工具”，而是通过大语言模型深度研读文献，抽取出结构化的“生物实体（节点）”与“调控关系（连线）”。当你导入多篇文献时，系统会自动进行跨文献实体语义对齐（例如将文献 A 中的 p53 和文献 B 中的 TP53 完美融合为同一个节点），将孤立论文编织成一张具备交叉印证能力的全局动态知识网络，帮助学者一目了然洞察潜在的 $A \to B \to C$ 级联通路，激发基金课题选题灵感！
 
-    ⚙️ **一、 初始环境搭建 (侧边栏「更多设置」)**
-    在使用前，请先展开左侧边栏的 ⚙️ **更多设置** 进行基础环境配置：
+    ⚙️ **一、 初始环境与高级设置 (侧边栏「更多设置」)**
+    在使用前，请展开左侧边栏的 ⚙️ **更多设置** 进行环境配置：
 
-    🌐 **大模型引擎：** 选择 API 提供商并输入密钥。支持云端大模型，也支持离线隐私模式（选择 Ollama 即可在拔掉网线的情况下处理极密数据，免密钥运行）。
-
-    📚 **智能检索源：** 选择 PubMed (医学绝对权威) 或 Semantic Scholar (全科 AI 智能极速检索，自带降级防封机制)。
-
-    🎛️ **界面功能开关：** 根据需要开启 📝 **手动编辑面板** (用于剪枝) 与 🤖 **AI 智能图谱分析** (用于洗树)。
+    * 🌐 **大模型引擎：** 选择 API 提供商（OpenRouter、腾讯混元、硅基流动等）并填入 Key；支持离线隐私模式（选择 **Ollama** 即可在断网环境下处理极密医学数据，免密运行）。
+    * 📚 **智能检索源：** 选择 PubMed (医学绝对权威) 或 Semantic Scholar (全科 AI 智能极速检索，自带智能降级防封机制)。
+    * ⚡ **并发线程数 (多切块与插图并行解析)：** 设置 1~8 并发线程，大幅压缩长篇文献切块抽取与机制图转译的等待耗时。
+    * 🛡️ **关系节点文献正则补漏 (Literature Grounding)：** 开启后，切块分析完成后若发现端点未在实体字典中登记，自动使用正则比对原文。若原文真实存在则回填为合法节点；若纯属大模型幻觉虚构，则坚决剔除虚假连线。
+    * 👁️ **专职视觉模型与后缀：** 支持自由跟随主模型，或指定独立的多模态视觉模型（如 Gemini 2.5 Flash-Lite、Gemini 3.8 Flash、千问 VL 72B），并支持后缀覆盖。
+    * 🎛️ **界面功能开关：** 根据需要开启 📝 **手动编辑面板** 与 🤖 **AI 智能图谱分析**。
 
     📂 **二、 从零到一：构建知识图谱 (左侧控制栏)**
-    在左侧 1. 文献输入与配置 面板，系统提供两种截然不同的起步方式：
+    在左侧「1. 文献输入与配置」面板，系统提供两种截然不同的起步方式：
 
     **方式 A：💡 零基础冷启动 (Cold Start)**
-    手头没有任何文献？完全没问题！
-    只要不在上方上传文件，你只需在输入框告诉 AI 你的研究方向（例如：“巨噬细胞极化在肿瘤微环境中的作用”）。
-    点击 “一键检索并生成初始图谱”，AI 将自动为你生成专业检索式，潜入数据库抓取最新文献，利用“滑动窗口”进行匹配度验证，并直接为你搭建出第一张初始知识图谱！
+    手头没有任何文献？只需在输入框用大白话输入研究方向（例如：“巨噬细胞极化在肿瘤微环境中的作用”）。点击“一键检索并生成初始图谱”，AI 将自动生成专业检索式，潜入数据库抓取最新文献并构建出第一张初始知识图谱！
 
     **方式 B：📄 本地文献精准解析**
-    如果你已经有了 PDF 文件：
-
-    * **上传文献：** 将单篇 PDF 拖入上传区（注意：每次仅支持解析一篇文献，但可以通过“追加模式”无限累加）。
-    * **🎯 划定解析范围：** 通过控制起始页与终点页精准定位（例如仅解析含有核心机制图的第 3-5 页），极大节省时间和计算成本。
+    * **上传文献：** 将单篇 PDF 拖入上传区。
+    * **🎯 划定解析范围：** 通过起始页与终点页精准定位（如仅解析含核心机制图的第 1-5 页），极大节省时间与计算开销。
     * **⚙️ 高级提取模式设置：**
-        * ⚡ **仅提取摘要模式：** 极速模式，智能匹配摘要内容，仅分析摘要中核心关系。
-        * 🔍 **自我反思纠错：** 让 AI 充当独立质检员，二次核对剔除没有原文证据的“幻觉”节点，提高准确率。
-        * 🔗 **追加模式 (核心灵魂)：** 开启后，新解析的文献不会覆盖现有图谱，而是与之融合生长！关闭此项将清空现有图谱从零开始。
-        * 🌐 **实体命名规范：** 强制将所有图谱节点统一为纯中文或纯英文，拒绝中英混杂。
-
-    点击 “🚀 开始解析 & 生成图谱”。
+        * ⚡ **仅提取摘要模式：** 极速模式，智能匹配摘要章节并提取核心脉络。
+        * 🔍 **自我反思纠错：** 启用独立质检员 Agent，二次比对剔除无原文依据的幻觉实体。
+        * 🔗 **追加模式 (核心灵魂)：** 开启后，新解析文献与现有图谱无缝融合生长！关闭此项将清空画布从零开始。
+        * 🌐 **实体命名规范：** 统一将节点翻译规范为纯中文、纯英文或保持文献原文。
+    * 📷 **机制图/通路图解析策略 (前置多模态视觉转译)：**
+        * 🚫 *关闭 (纯文本)：* 传统纯文本解析流。
+        * 🎯 *精准匹配 (输入图号)：* 依据关键词（如 `Fig 4`、`pathway`、`Figure 2`）定向狙击目标机制图。
+        * ⚡ *选定页全开 (提取全部插图)：* 启用 **空间邻近聚类合并算法**，自动将 PDF 内部重叠、分层的光栅切片（如 Graphical Abstract 及多子图复合 Figure）合并为完整高清机制图，结合均衡适度的矢量机制图检测，并发调用多模态大模型转译为分子拓扑机制文本并注入图谱生成流！
 
     🕸️ **三、 视觉赋权引擎 (主界面上方控制台)**
-    图谱生成后，利用上方控制台的四大硬核视觉算法，可瞬间在一团乱麻中找出科研靶点：
+    * 👁️ **机制捷径边：** 开启后展现跨越中间节点的“直达捷径”，宏观审视上游到下游的最终调控结果。
+    * 🧬 **本体赋权 (包含反馈)：** 将微观实体（如具体蛋白）权重回馈给宏观分类父级（如激酶家族），使关键通路家族在图中自动壮大。
+    * 🔥 **节点赋权 (连接度中心性)：** 基于图论度中心性算法，核心枢纽基因随分子连线增多自动放大。
+    * 🔗 **连线赋权 (主干通路加粗)：** 被多篇文献反复验证且证据链最坚实的共识连线自动加粗显示。
 
-    * 👁️ **机制捷径边：** 开启后，展现跨越中间节点的“直达捷径”，宏观审视上游到下游的最终影响。
-    * 🧬 **包含关系反哺 (Ontology Empower)：** 微观实体（如某特定蛋白）的权重反哺给其宏观父类，让重要的“激酶家族”或“信号通路”在图中自动变大。
-    * 🔥 **节点辐射度 (Node Empower)：** 基于图论连接度算法，与其他分子交互越多的“核心枢纽基因”，其节点体积会越显眼。
-    * 🔗 **主干通路加粗 (Edge Empower)：** 被多篇文献反复提及、证据链最坚固的调控连线会自动加粗，一眼看穿主流共识。
+    🎨 **四、 拓扑网络可视化视觉规范**
+    * 🟢 **绿色实线 + 箭头：** 正作用 / 促进 / 激活 ($A \to B$)。
+    * 🔴 **红色实线 + 箭头：** 负作用 / 抑制 / 下调 ($A \dashv B$)。
+    * ⚪ **灰色实线：** 一般关联 / 相互作用但方向未明。
+    * ⚠️ **灰色虚线 (---)：** 机制捷径边（跨级宏观粗放结论）。
+    * 🟣 **紫色实线：** 包含 / 归属 / 亚基组成关系。
 
-    模型会自动生成带关系的图谱，节点大小代表热度，而复杂的生物学通路进行了智能化归纳，每种颜色、线型和粗细都代表着特定的生物学意义：
+    ✂️ **五、 专家手动干预 (数据管理中心)**
+    * 🧹 **全局操作：** 一键清理游离孤岛节点；批量修改文献来源标签（如统一替换为 *Nature_2026_Tau*）；手动增补关键分子节点。
+    * 🎯 **节点手术：** 节点重命名；**强制合并**（将节点 A 的所有连线转移给节点 B 并销毁 A）；**节点拆分**（将宽泛节点拆解为两个新节点并重新分配连线）；彻底危险删除。
+    * 🔗 **关系操作：** 逆转上下游方向；切换作用类型；编辑原文文本证据；彻底斩断错误连线或手动搭建已知新桥梁。
 
-    * 🟢 **绿色实线 + 箭头：** 代表 正作用 / 促进 / 激活 (Activation/Up-regulation)。例如：细胞因子刺激了某一信号通路的磷酸化。
-    * 🔴 **红色实线 + 箭头：** 代表 负作用 / 抑制 / 下调 (Inhibition/Down-regulation)。例如：某种 miRNA 降解了靶基因的 mRNA，或某药物抑制了受体活性。
-    * 🟣 **紫色实线 + 箭头：** 代表 包含 / 归属 / 组成关系 (Containment/Component)。例如：某个蛋白质属于某一复合物的核心亚基，或者某个受体属于某个超家族。
-    * ⚪ **灰色实线 / 无箭头：** 代表 一般关联 / 相关性 (Correlation/Interaction)。通常表示两者在文献中被共同提及，存在相互作用或协同现象，但尚未明确正负调控方向。
-    * ⚠️ **灰色虚线 (带有 [AI 判定为机制捷径] 标签)：** 这是本智能体的特色算法。当 AI 检测到两条通路之间存在“跨级跳跃”时（例如文献中提到 A 激活了 C，但同时图中又存在 A -> B -> C 的细腻通路），系统会自动将粗放的 A -> C 标记为机制捷径（Shortcut），并将其变为灰色虚线，避免粗放关系干扰您对具体分子级联反应（Cascade）的精确分析。
-    * 📐 **连线粗细 (Width)：** 线越粗，代表两节点间的直接关联在文献中被提及或抽取的频次越高，属于图谱中的“主干骨架”。
+    💾 **六、 专属课题工程库与 Memory Vault 集中文献自愈库**
+    * 🗂️ **专属课题工程隔离 (`projects/<project_id>/`)：** 每个研究课题享有独立的工作区目录，持久化保存各自的 `graph_state.json` 与专属文献文件。支持随时一键新建空白工程、快速切换历史课题，或彻底删除旧工程释放磁盘空间。
+    * 🏛️ **Memory Vault 集中式文献库与 SHA-256 注册表：** 所有导入文献由集中库 `vault/` 通过 SHA-256 物理哈希指纹统一归档于 `literature_registry.json`，不同课题引用同一篇论文时自动复用，杜绝磁盘冗余。
+    * 🌐 **文献自动规范重命名与在线权威 PMID 对齐：** 一键联网检索 PubMed/DOI，将随机或哈希命名的 PDF 文件自动重构为学术标准命名（如 `PMID: 35123456 | Article_Title.pdf`），并无缝同步所有实体与关系的溯源标签。
+    * 🩹 **缺失文献探测与智能自愈回填：** 跨设备迁移工程或不小心移动文件后，系统能够自动探测缺失的文献原件，基于 SHA-256 物理扫描并在 Central Vault 中一键找回并回填绑定。
+    * 📷 **机制图学术溯源豁免：** 来自插图转译的证据标有 `[Figure: Page1_Fig1 (P.1)]` 标签，深度锚定原文且在文献自愈排查中享有自动豁免，不会被误判为缺失论文。
 
-    💾 **四、 记忆库与工程管理 (左栏底部)**
-    科研工作往往需要长期积累，Bio-Graph Agent 为此配备了专业的数据持久化与工程管理模块，确保你的每一次分析都能被安全存档与无缝恢复。
-
-    在页面左侧边栏的最下方，你可以进行以下大盘操作：
-
-    1.  ✨ **新建空白工程**
-        * *作用：* 当你准备开启一个全新的研究课题时，一键重置当前工作台。
-        * *安全锁机制：* 由于此操作会彻底清空内存中的图谱与本地缓存，系统设计了二次防误触确认面板。点击后，你需要再次点击“🔴 确定清空”才会真正销毁数据。建议在执行此操作前，先将当前成果导出存档。
-    2.  📤 **导出工程 (.biokg)**
-        * *作用：* 将当前辛勤搭建出的整张图谱（包含所有节点、连线、提取证据以及你的手动修改记录）打包下载到本地。
-        * *格式说明：* 导出的文件为系统专属的 `.biokg` 格式（底层为标准 JSON）。它不仅是你个人的科研资产备份，还可以直接发送给你的同行或导师，让他们在自己的电脑上载入并继续审阅你的图谱。
-    3.  📥 **载入历史工程 (.biokg / .json)**
-        * *作用：* 打通科研的“读档”功能。将之前导出的 `.biokg` 工程文件拖拽至此，即可瞬间恢复历史工作状态。
-        * *无缝渲染机制：* 为防止误覆盖当前进度，拖入文件后需要点击“🚀 确认载入该工程”才会真正执行替换。载入成功后，系统会在后台重新计算拓扑结构，并瞬间重绘出动态图谱。同时，上传面板会自动隐身清空，还你一个极度清爽的界面。
-
-    🎯 **总结建议：**
-    *“每天搞科研，下班先导出”*。利用好追加模式（累加新文献）与记忆库（存档当前进度），你可以将 Bio-Graph Agent 作为一个长期运行的超级大脑，在几个月的时间里，慢慢将几十上百篇文献，编织成一张价值连城的疾病与分子靶点网络！
-
-    ✂️ **五、 专家手动干预 (右侧 "图谱数据管理中心")**
-    无论 AI 多么强大，在严谨的科研图谱中，人类专家的专业判断永远拥有最高优先级。开启 📝 **开启手动编辑面板**，你将在右侧获得图谱的“上帝权限”。
-
-    管理中心分为三大模块：
-
-    1.  ⚡ **快捷功能 (全局大盘管理)**
-        * 🧹 *一键清除孤立节点：* 点击后，系统会全盘扫描。只要某个节点既没有指向别人的线，也没有被别人指的线，就会被当做“孤立无援”的废弃节点一键清空。
-        * 📝 *批量修改文献/来源名：* 发现图谱中某篇 PDF 的名字太乱？在这里选中旧名字，输入新名字（如 *Nature_2023_p53*），系统会自动替换所有相关节点 and 连线的出处来源，确保溯源清晰。
-        * ➕ *手动添加节点：* 如果 AI 漏掉了一个极其核心的基因或蛋白，你可以在此手动输入其名称、别名和来源，直接将它强制加入画布。
-    2.  🎯 **节点操作 (精确打击)**
-        在下拉菜单中搜索并选中你关心的某个节点，系统提供四种手术级别的操作：
-        * ✏️ *修改信息：* 重命名节点的标准名称，或增减它的别名。
-        * 🧲 *强制合并 (极其好用)：* 如果你发现图中有 p53 和 TP53 两个节点应该是一个东西。选中 p53，选择合并到 TP53。系统会瞬间将 p53 身上的所有连线转移给 TP53，并将两者的别名合并，最后销毁 p53。
-        * 🔀 *节点拆分：* 将一个笼统的节点（如 *突变型与野生型p53*）硬拆成两个独立的新节点。最绝的是，系统会列出原来节点身上的每一条连线，让你逐一分配这条线是给新节点A、给新节点B、复制给两者，还是直接丢弃。
-        * 🗑️ *危险删除：* 彻底销毁该节点，并连带拔除所有与它有关的调控连线。
-    3.  🔗 **关系操作 (连线修剪与搭桥)**
-        在下拉菜单中分别选定图上的 起点节点 A 和 终点节点 B，系统会帮你找出它们之间的所有羁绊：
-        * ✏ *管理已有连线：* 逆转方向（如果发现 AI 把上游和下游搞反了，可以一键反转箭头方向）；修改性质（将关联类型在标准词汇中切换，并可修改其原文证据和来源）。
-        * 🚨 *斩断连线：* 对于文献中提取出的毫无意义的背景介绍或假阳性，点击删除，该连线会彻底从图谱中抹除。
-        * ➕ *新增一条连线：* 文献中没提到但你凭借背景知识确认 A 促进了 B？直接选择由谁指向谁、定好关系类型，手动建立这座隐秘的桥梁。
-
-    🤖 **六、 AI 智能图谱工具 (右侧专属面板)**
-    如果说“手动编辑面板”是你的手术刀，那么 AI 智能图谱工具 就是你的“超级智囊团”。在右侧面板选择对应的 AI 模块，你可以让大模型深度介入图谱的清洗、生长与解读。
-
-    1.  🧹 **智能洗树 (Pruning)**
-        当你导入了大量文献，图谱往往会变得庞杂且存在冗余。洗树模块提供两种强大的自动化清洗能力：
-        * 🔍 *拓扑结构智能诊断：* 点击“开始 AI 智能诊断图谱”，大模型将通读全图谱的连线逻辑，并生成一份“审查清单”建议去 **Merge** 同义节点、**Hierarchy** 建立家族层级、或 **Downgrade** 宽泛捷径为虚线。在清单中勾选你认可的建议，点击一键执行，图谱将瞬间完成重组与权重叠加！
-        * ✂ *意图节点清洗 (Intent-Based Pruning)：* 在文本框内用大白话输入你的“核心研究方向”。AI 会像审稿人一样，逐一排查图谱中的节点及邻居，为你罗列出一份“偏题节点处决名单”。确认无误后点击“处决”，这些无关节点及牵连的连线将被彻底从画布上抹杀。
-    2.  🔍 **智能拓展 (Smart Expansion)**
-        突破现有文献的边界，让图谱“自我生长”！当你发现图谱有个重要的分支需要深挖时：
-        * 🎯 *选定锚点与检索策略：* 选择图谱中 1-3 个核心节点，并挂载检索引擎（支持直接搜索、智能扩展搜索、以及基于当前网络已知关系的最高级背景搜索）。
-        * 📑 *筛选入库：* 系统会拉取外网最新文献并生成表格，勾选你认为有价值的文献，将其送入“解析队列”。
-        * ⚙ *自动化融合队列 (无人值守模式)：* 开启连续自动解析开关。系统会自动排队抓取、阅读每一篇文献，并将新提取的节点与图谱现有节点进行“完美对齐与熔接”，回来时，你的图谱已经长成了一棵参天大树！
-    3.  🔗 **智能桥接 (Bridging)**
-        寻找潜藏科研靶点的终极利器。当你在图谱中对 A 和 B 两个分子的关系感到好奇时：
-        * 如果图中已有间接路径：AI 会瞬间遍历网络，为你梳理出“A 是如何通过 X 和 Y 最终影响 B”的多步传导路径，并生成连贯的机制报告。
-        * 如果是孤岛或无直接联系：系统判定它们断链后，会自动生成检索任务，呼叫外网大模型去强行挖掘 A 与 B 之间在最新前沿文献中是否已被证实存在关联，直接为你寻找基金申报的创新灵感！
-    4.  🤖 **问 AI**
-        图谱的“随身微观解说员”。当你面对错综复杂的图谱，不知道某条连线究竟代表什么生化反应时，直接在图谱中选中该“节点”或“连线”，系统会将这部分的微上下文（包括原文提取依据、文献来源出处）喂给大模型。AI 将为你生成一篇极其详实的“局部机制解读报告”。
+    🤖 **七、 AI 智能图谱分析 (右侧专属面板)**
+    * 1. 🧹 **智能洗树 (Pruning)：**
+        * 🔍 *拓扑结构智能诊断：* 大模型通读全图连线逻辑，生成清单建议 **Merge** 同义词、**Hierarchy** 建立分类层级、**Downgrade** 宽泛捷径。
+        * 🧲 *对称关系无向折叠：* 自动将 $A \leftrightarrow B$ 的相互相关关系折叠为单条无向连线，热度与证据无损合并累加。
+        * 🔄 *循环包含死锁化解：* 自动排查双向包含死锁（$A$ 包含 $B$ 且 $B$ 包含 $A$），智能纠偏层次从属关系。
+        * 🧪 *粗糙关系高阶提纯 (选配清洗)：* 默认置于审查清单最下方，供学者自主选择是否合并或剔除粗糙的宽泛“相关”连线，防止信息过早丢失。
+        * ✂️ *意图节点清洗 (Intent-Based Pruning)：* 输入研究焦点（如“我只关注神经元 tau 蛋白稳态”），AI 将作为严苛审稿人，自动揪出偏题的器官、药物或无关分子，一键物理抹除。
+    * 2. 🔍 **智能拓展 (Smart Expansion)：** 选定 1~3 个核心锚点，结合图谱已知背景自动反向生成高级检索式，从 PubMed 抓取最新文献送入队列，开启**无人值守自动化融合模式**，让图谱自我生长！
+    * 3. 🔗 **智能桥接 (Bridging)：** 选中任意两个看似无关的分子 A 和 B，AI 自动遍历寻找隐秘的多步传导路径，或呼叫外网 API 强行探勘未被注意的调控桥梁，直接启发全新基金标书构思！
+    * 4. 🤖 **问 AI (微观机制解读报告)：** 点击画布上任意节点或连线，提取其微上下文（原文提取证据与文献来源），大模型现场推演并生成详实的生物学机制解读报告，直出标书素材！
     """)
+
 
 def load_config():
     """在应用初次加载时，读取本地配置并注入到 session_state 中"""
@@ -1244,9 +1165,9 @@ UI_TEXT = {
     "toggle_reflection": {"zh": "🔍 启用自我反思纠错", "en": "🔍 Enable Self-Reflection Check"},
     "toggle_append_mode": {"zh": "🔗 追加模式 (叠加到现有图谱)", "en": "🔗 Append Mode (Merge to Existing Graph)"},
     "toggle_relation_grounding": {"zh": "🛡️ 关系节点文献正则补漏 (自动落实漏检实体)", "en": "🛡️ Relation Node Literature Grounding (Recover Missed Entities)"},
-    "toggle_relation_grounding_help": {"zh": "切块分析完成后，若发现关系端点未在实体字典中登记，自动使用正则比对原文。若原文确实存在该实体则自动回填落实为真实节点，若完全不存在则剔除虚构关系。", "en": "After chunk analysis, regex-verify unregistered relation endpoints against the paper text. Grounded endpoints are rescued into the entity vault; ungrounded ones are pruned."},
+    "toggle_relation_grounding_help": {"zh": "切块分析完成后，若发现关系端点未在实体字典中登记，自动使用正则比对原文。若原文确实存在该实体则自动回填落实为真实节点，若完全不存在则坚决剔除虚构关系。", "en": "After chunk analysis, regex-verify unregistered relation endpoints against original paper text. Real entities are recovered; hallucinated edges are strictly dropped."},
     "slider_concurrency": {"zh": "⚡ 并发线程数 (多切块并行解析)", "en": "⚡ Concurrency Workers (Parallel Chunks)"},
-    "slider_concurrency_help": {"zh": "多线程并行抽取切块，可大幅压缩文献解析耗时。若遇到频繁 API 限流报错可调小此数值。", "en": "Extract chunks concurrently to speed up parsing. Reduce this if you hit API rate limits."},
+    "slider_concurrency_help": {"zh": "多线程并行抽取切块并并发转译机制插图，可成倍压缩文献解析耗时。若遇到频繁 API 限流报错可调小此数值。", "en": "Extract chunks and transcribe pathway figures concurrently to drastically reduce parsing time. Reduce this if you hit API rate limits."},
     "entity_lang_title": {"zh": "#### 🌐 实体命名规范", "en": "#### 🌐 Entity Naming Convention"},
     "entity_lang_label": {"zh": "强制统一图谱主节点（实体）的输出语言：", "en": "Force unify output language of main graph nodes (entities):"},
     "entity_lang_opt_original": {"zh": "关闭 (保持原文语言)", "en": "Off (Keep Original Language)"},
@@ -1313,10 +1234,10 @@ UI_TEXT = {
     "missing_docs_section_title": {"zh": "🛠️ 缺失文献快捷补全", "en": "🛠️ Missing Literature Replenishment"},
     "err_load_project": {"zh": "解析工程文件失败，请检查文件格式是否正确。报错信息: {e}", "en": "Failed to parse project file. Check format. Error: {e}"},
     "project_name_label": {"zh": "🏷️ 项目课题名称", "en": "🏷️ Project Topic Name"},
-    "project_name_help": {"zh": "当前研究课题名称，导出与归档目录均将以此命名", "en": "Current topic name; used for export filename and project folder"},
+    "project_name_help": {"zh": "当前研究课题名称，导出、归档目录与 Central Vault 文献库均将以此锚定", "en": "Current topic name; used for export filename, project folder, and Central Vault literature synchronization."},
     "archive_mgr_title": {"zh": "🗄️ 磁盘空间与工程归档管理", "en": "🗄️ Disk Space & Project Archive Management"},
     "btn_clean_orphans": {"zh": "🧹 清理当前工程孤儿文献", "en": "🧹 Clean Orphaned Literature"},
-    "help_clean_orphans": {"zh": "清除当前工程文献库中没有任何实体或关系引用的无用文献", "en": "Remove unused papers in current project that have no node/edge references"},
+    "help_clean_orphans": {"zh": "清除当前工程文献库中没有任何实体或关系引用的无用文献（自动识别并保护插图 [Figure: ...] 关联文献）。", "en": "Remove unused papers in current project with no node/edge references (automatically recognizes and protects figure [Figure: ...] citations)."},
     "toast_orphans_cleaned": {"zh": "✅ 已安全清理 {count} 篇孤儿文献！", "en": "✅ Safely cleaned {count} orphaned papers!"},
     "toast_no_orphans": {"zh": "✨ 当前工程文献均有图谱引用，无孤儿文献。", "en": "✨ All papers are referenced by graph nodes, no orphans."},
     "orphan_found_count": {"zh": "发现 {count} 篇无引用文献", "en": "Found {count} unreferenced papers"},
@@ -1472,8 +1393,7 @@ UI_TEXT = {
     "ai_nav_ask": {"zh": "🤖 问 AI", "en": "🤖 Ask AI"},
 
     # 🧹 智能洗树 (Pruning) 模块
-    "pruning_info": {"zh": "💡 拓扑清洗：基于大模型的上下文理解，自动发现并处理图谱中的同义词冗余、宏观与微观层级关系、以及机制捷径边。",
-                     "en": "💡 Topology Pruning: Based on LLM's context understanding, automatically handle synonym redundancy, macro/micro hierarchies, and mechanism shortcut edges."},
+    "pruning_info": {"zh": "💡 拓扑清洗：基于大模型上下文与图论算法，自动处理同义词冗余、层级从属、机制捷径边降级、对称关系双向折叠与循环包含死锁化解。", "en": "💡 Topology Pruning: Leverages LLM reasoning and graph theory to resolve synonym redundancies, hierarchical containment, shortcut downgrading, symmetric relation folding, and mutual containment cycles."},
     "pruning_desc": {"zh": "点击下方按钮，将当前图谱的拓扑结构与文献证据发送给大模型进行诊断。",
                      "en": "Click the button below to send the current graph topology and evidence to LLM for diagnosis."},
     "btn_start_pruning": {"zh": "🚀 开始 AI 智能诊断图谱", "en": "🚀 Start AI Smart Graph Diagnosis"},
