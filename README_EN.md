@@ -100,6 +100,18 @@ In high-impact journals (Nature, Science, Cell), the densest regulatory conclusi
 * **Chunk-Centric Localized Pipeline**: Solves the severe hallucination problem caused by global dictionary contamination. Each chunk extracts local entities and derives relations strictly grounded in local context.
 * **High-Throughput Concurrency**: Built upon `concurrent.futures.ThreadPoolExecutor`, processing chunks and figures in parallel to achieve 5-10x parsing acceleration.
 
+### 📊 IX. Graph Analysis Workbench & 4-Tier Escalation State Machine
+* **Dedicated Second-Stage Scientific Workbench**: Decoupled from the primary builder canvas with smooth bidirectional navigation, dedicated to granular entity taxonomy classification and deep mechanism verb distillation (e.g. catalytic phosphorylation, competitive binding, transcriptional activation).
+* **4-Tier Escalation State Machine**:
+  - **Round 0 (0-Token Rule Pre-Filter)**: Leverages INN pharmaceutical suffixes, kinase/enzyme patterns, non-coding RNA naming conventions, and canonical gene databases for sub-millisecond classification without spending any LLM tokens.
+  - **Round 1 (Topological Micro-Context Reasoning)**: Gathers node aliases, connected triples, and local edge evidence for compact, high-precision prompting. Ambiguous cases output `Uncertain`.
+  - **Round 2 (Targeted In-Paper Regex Re-fetch)**: Only unresolved candidates trigger fast regex scanning over full PDF texts to retrieve focused sentences, bypassing expensive whole-paper reads.
+  - **Round 3 (Biomedical World Knowledge Fallback)**: Engages global domain knowledge for final adjudication of stubborn concepts.
+* **Authoritative Ontology Presets & Custom Schemas**: Pre-packaged with NIH BioRED universal standard (6+1 entity categories, 6 relation mechanisms), molecular signaling cascades, pharmacology & drug targets, and tumor microenvironment (TME) immunology, plus one-click custom JSON schema imports.
+* **Sparse Dynamic Metrics Dashboard**: Exclusively renders categories with `count > 0` and provides expandable accordion drill-downs listing all member nodes, sub-types, round tags, and reasoning traces.
+* **Scholar Manual Override Console (Human-in-the-Loop)**: Allows researchers to interactively reclassify entities or modify mechanism verbs with instant cache update and visual re-rendering.
+* **Scientific Multi-Shape Categorical Topology & Collapsible Legend**: Maps entity types to distinctive geometric shapes (dot, diamond, triangle, square, hexagon, star, ellipse) and colors, featuring an embedded, semi-transparent, collapsible legend overlay.
+
 ---
 
 ## 🤖 The Core Role of the Multi-Agent System Across the Lifecycle
@@ -142,6 +154,9 @@ Generates targeted PubMed queries to autonomously retrieve literature for isolat
 ### 8. Literature Registry & Auto-Healing Auditor
 Tracks literature via SHA-256 physical cryptographic hashes, aligns papers with official PubMed PMIDs, and executes automated self-healing across devices.
 
+### 9. Ontology & Mechanism Escalation Architect
+Orchestrates the 4-tier escalation state machine across zero-token rule filters, micro-context reasoning, in-paper sentence re-fetching, and domain knowledge fallbacks to elevate coarse graphs into fine-grained scientific mechanism networks.
+
 ---
 
 ## 🌟 Core Technical Highlights
@@ -156,16 +171,19 @@ Tracks literature via SHA-256 physical cryptographic hashes, aligns papers with 
 8. **Project Isolation & Central Memory Vault**: Workspace-level physical isolation with cross-project SHA-256 deduplication and one-click self-healing for missing files.
 9. **Chunk-Centric Localized Pipeline & Multi-Threading**: Independent chunk extraction eliminates global hallucination contamination while concurrency boosts throughput by 5-10x.
 10. **Spatial Clustering & Balanced Vector Pathway Extraction**: Disjoint-set clustering merges fragmented image slices into pristine mechanism figures, while balanced vector thresholds accommodate both posters and papers.
+11. **Graph Analysis Workbench & 4-Tier Escalation State Machine**: Features zero-token pre-filtering, topological micro-context reasoning, targeted in-paper regex re-fetch, sparse dynamic dashboards, and expert manual override consoles.
 
 ---
 
 ## 📂 Core Code Architecture
 
 ```text
-├── app.py                      # Streamlit frontend UI (workspaces, project switching, visualization)
+├── app.py                      # Streamlit frontend UI (workspaces, project switching, analysis workbench)
 ├── back_logic.py               # Central execution pipeline (chunk-centric concurrency & vision workflow)
+├── workbench_engine.py         # Graph Analysis Workbench engine (rule pre-filters, ontology management, 4-tier escalation)
+├── ontology_presets/           # Authoritative biomedical ontology presets (NIH BioRED, signaling, pharmacology, TME)
 ├── LLM_SYS.py                  # LLM Agent core (reflection, symmetric pruning, alignment, transcription)
-├── IO_SYS.py                   # Infrastructure layer (PyMuPDF spatial clustering, vector rendering, Pyvis)
+├── IO_SYS.py                   # Infrastructure layer (PyMuPDF spatial clustering, vector rendering, workbench Pyvis visualizer)
 ├── WebSearcher.py              # Web retrieval module (PubMed / Semantic Scholar search & PMID lookup)
 ├── projects/                   # Dedicated project workspaces
 │   └── <project_id>/

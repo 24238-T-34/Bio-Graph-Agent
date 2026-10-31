@@ -1,0 +1,101 @@
+{
+  "id": "universal_biored",
+  "name": "BioRED 权威通用标准 (NIH/NLM 基准)",
+  "description": "基于美国国立卫生研究院 BioRED 国际标准的通用生物医学实体与关系分类体系，适用于绝大多数生物医学研究场景。",
+  "entity_categories": {
+    "Gene_Protein": {
+      "label": "基因 / 蛋白质 / RNA",
+      "en_label": "Gene / Protein / RNA",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "icon": "🧬",
+      "description": "编码或非编码核酸、功能性蛋白质、酶、亚基及受体蛋白"
+    },
+    "Chemical_Drug": {
+      "label": "化学小分子 / 药物 / 代谢物",
+      "en_label": "Chemical / Drug / Metabolite",
+      "color": "#f59e0b",
+      "shape": "diamond",
+      "icon": "💊",
+      "description": "外源化合物、合成药物先导物、内源代谢物、无机离子与生化试剂"
+    },
+    "Disease_Phenotype": {
+      "label": "疾病 / 病理表型",
+      "en_label": "Disease / Phenotype",
+      "color": "#ef4444",
+      "shape": "triangle",
+      "icon": "🩺",
+      "description": "临床疾病、病理状态、异常生理指征或组织病变"
+    },
+    "Cell_Tissue": {
+      "label": "细胞 / 细胞系 / 组织解剖",
+      "en_label": "Cell / Cell Line / Tissue",
+      "color": "#10b981",
+      "shape": "square",
+      "icon": "🔬",
+      "description": "细胞亚群、模式细胞系、组织器官解剖学部位"
+    },
+    "Biological_Process": {
+      "label": "生物学过程 / 信号通路",
+      "en_label": "Biological Process / Pathway",
+      "color": "#8b5cf6",
+      "shape": "hexagon",
+      "icon": "🔄",
+      "description": "信号传导通路、生理功能反应、级联生化反应过程"
+    },
+    "Sequence_Variant": {
+      "label": "突变位点 / 基因变异",
+      "en_label": "Sequence Variant",
+      "color": "#ec4899",
+      "shape": "star",
+      "icon": "⚡",
+      "description": "点突变、单核苷酸多态性(SNP)、插入缺失或染色体变异"
+    },
+    "Uncertain": {
+      "label": "无法判断 / 未定",
+      "en_label": "Uncertain / Unclassified",
+      "color": "#9ca3af",
+      "shape": "ellipse",
+      "icon": "❓",
+      "description": "文献证据不足或上下文含糊、无法明确归类的概念"
+    }
+  },
+  "relation_categories": {
+    "Positive_Regulation": {
+      "label": "正向调控 / 激活 / 促进",
+      "en_label": "Positive Regulation / Activation",
+      "color": "#22c55e",
+      "icon": "🟢"
+    },
+    "Negative_Regulation": {
+      "label": "负向调控 / 抑制 / 降解",
+      "en_label": "Negative Regulation / Inhibition",
+      "color": "#ef4444",
+      "icon": "🔴"
+    },
+    "Physical_Binding": {
+      "label": "物理结合 / 复合物组装",
+      "en_label": "Physical Binding / Assembly",
+      "color": "#3b82f6",
+      "icon": "🔗"
+    },
+    "Catalysis_Conversion": {
+      "label": "催化 / 生化转化",
+      "en_label": "Catalysis / Conversion",
+      "color": "#f59e0b",
+      "icon": "⚙️"
+    },
+    "Association_Correlation": {
+      "label": "一般关联 / 相互作用",
+      "en_label": "Association / Correlation",
+      "color": "#9ca3af",
+      "icon": "⚪"
+    },
+    "Hierarchy_Component": {
+      "label": "从属组成 / 亚基归属",
+      "en_label": "Hierarchy / Subunit",
+      "color": "#a855f7",
+      "icon": "🟣"
+    }
+  }
+}

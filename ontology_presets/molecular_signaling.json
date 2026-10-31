@@ -1,0 +1,107 @@
+{
+  "id": "molecular_signaling",
+  "name": "分子信号传导与级联反应预设",
+  "description": "专注于细胞内分子信号网络、激酶级联、翻译后修饰与转录调控的细粒度实体与机制分类体系。",
+  "entity_categories": {
+    "Kinase_Phosphatase": {
+      "label": "激酶 / 磷酸酶",
+      "en_label": "Kinase / Phosphatase",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "icon": "⚡",
+      "description": "催化磷酸化或去磷酸化级联反应的关键酶蛋白"
+    },
+    "Transcription_Factor": {
+      "label": "转录因子 / 核受体",
+      "en_label": "Transcription Factor / Nuclear Receptor",
+      "color": "#8b5cf6",
+      "shape": "diamond",
+      "icon": "🧬",
+      "description": "特异性结合DNA并调控基因转录的因子或辅因子"
+    },
+    "Receptor_Adapter": {
+      "label": "受体 / 接头蛋白",
+      "en_label": "Receptor / Adapter Protein",
+      "color": "#06b6d4",
+      "shape": "square",
+      "icon": "📡",
+      "description": "膜受体、胞质受体及传递信号的支架接头蛋白"
+    },
+    "Second_Messenger_Ion": {
+      "label": "第二信使 / 离子 / 代谢分子",
+      "en_label": "Second Messenger / Ion / Metabolite",
+      "color": "#f59e0b",
+      "shape": "triangle",
+      "icon": "🧪",
+      "description": "cAMP, IP3, DAG, Ca2+及信号级联中的小分子信使"
+    },
+    "Effector_Target_Gene": {
+      "label": "下游效应蛋白 / 靶基因",
+      "en_label": "Downstream Effector / Target Gene",
+      "color": "#10b981",
+      "shape": "hexagon",
+      "icon": "🎯",
+      "description": "通路末端效应蛋白、细胞骨架组件或激活转录的靶基因"
+    },
+    "Pathway_Module": {
+      "label": "通路模块 / 生理过程",
+      "en_label": "Pathway Module / Process",
+      "color": "#ec4899",
+      "shape": "star",
+      "icon": "🔄",
+      "description": "如MAPK通路、PI3K/AKT级联、凋亡进程或自噬流"
+    },
+    "Uncertain": {
+      "label": "无法判断 / 未定",
+      "en_label": "Uncertain / Unclassified",
+      "color": "#9ca3af",
+      "shape": "ellipse",
+      "icon": "❓",
+      "description": "文献证据不足或上下文含糊、无法明确归类的分子实体"
+    }
+  },
+  "relation_categories": {
+    "Phosphorylation": {
+      "label": "磷酸化 / 激活修饰",
+      "en_label": "Phosphorylation / Modification",
+      "color": "#22c55e",
+      "icon": "🟢"
+    },
+    "Dephosphorylation": {
+      "label": "去磷酸化 / 失活",
+      "en_label": "Dephosphorylation / Inactivation",
+      "color": "#ef4444",
+      "icon": "🔴"
+    },
+    "Ubiquitination_Degradation": {
+      "label": "泛素化 / 靶向降解",
+      "en_label": "Ubiquitination / Degradation",
+      "color": "#ea580c",
+      "icon": "🗑️"
+    },
+    "Transcriptional_Activation": {
+      "label": "转录激活 / 诱导表达",
+      "en_label": "Transcriptional Activation / Induction",
+      "color": "#3b82f6",
+      "icon": "📈"
+    },
+    "Complex_Assembly": {
+      "label": "复合物组装 / 招募结合",
+      "en_label": "Complex Assembly / Recruitment",
+      "color": "#8b5cf6",
+      "icon": "🔗"
+    },
+    "Translocation": {
+      "label": "核转位 / 亚细胞迁移",
+      "en_label": "Nuclear Translocation / Trafficking",
+      "color": "#06b6d4",
+      "icon": "🚚"
+    },
+    "Allosteric_Regulation": {
+      "label": "变构调节 / 反馈回路",
+      "en_label": "Allosteric Regulation / Feedback",
+      "color": "#a855f7",
+      "icon": "🔄"
+    }
+  }
+}

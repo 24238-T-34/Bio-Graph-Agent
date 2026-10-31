@@ -1,0 +1,101 @@
+{
+  "id": "immunology_tme",
+  "name": "肿瘤免疫与微环境预设",
+  "description": "专注于免疫细胞亚群、肿瘤免疫微环境(TME)、免疫检查点受体配体与细胞因子通信网络的分类体系。",
+  "entity_categories": {
+    "Immune_Cell_Subset": {
+      "label": "免疫细胞亚群",
+      "en_label": "Immune Cell Subset",
+      "color": "#10b981",
+      "shape": "square",
+      "icon": "🛡️",
+      "description": "CD8+ T细胞、Treg调节性T细胞、NK细胞、巨噬细胞(M1/M2)、树突细胞(DC)等"
+    },
+    "Tumor_Stroma_Cell": {
+      "label": "肿瘤细胞 / 基质细胞",
+      "en_label": "Tumor / Stroma Cell",
+      "color": "#ef4444",
+      "shape": "triangle",
+      "icon": "🧫",
+      "description": "恶性肿瘤克隆细胞、癌症相关成纤维细胞(CAF)、内皮细胞"
+    },
+    "Immune_Checkpoint": {
+      "label": "免疫检查点受体 / 配体",
+      "en_label": "Immune Checkpoint Molecule",
+      "color": "#8b5cf6",
+      "shape": "diamond",
+      "icon": "🛑",
+      "description": "PD-1, PD-L1, CTLA-4, LAG-3, TIM-3, TIGIT, CD47等"
+    },
+    "Cytokine_Chemokine": {
+      "label": "细胞因子 / 趋化因子",
+      "en_label": "Cytokine / Chemokine",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "icon": "📨",
+      "description": "IFN-γ, TNF-α, TGF-β, IL-2, IL-6, IL-10, CXCL9/10等游离分子"
+    },
+    "Metabolic_Soluble_Factor": {
+      "label": "微环境代谢物 / 胞外成分",
+      "en_label": "Metabolite / ECM Component",
+      "color": "#f59e0b",
+      "shape": "hexagon",
+      "icon": "🧪",
+      "description": "乳酸、腺苷、色氨酸代谢产物(Kynurenine)、胶原蛋白、胞外基质"
+    },
+    "Immune_Phenotype_Pathway": {
+      "label": "免疫表型 / 效应反应",
+      "en_label": "Immune Phenotype / Process",
+      "color": "#ec4899",
+      "shape": "star",
+      "icon": "🔥",
+      "description": "T细胞耗竭(Exhaustion)、免疫抑制、抗原呈递、穿孔素杀伤、炎症浸润"
+    },
+    "Uncertain": {
+      "label": "无法判断 / 未定",
+      "en_label": "Uncertain / Unclassified",
+      "color": "#9ca3af",
+      "shape": "ellipse",
+      "icon": "❓",
+      "description": "文献证据不足或上下文含糊、无法明确归类的免疫分子或概念"
+    }
+  },
+  "relation_categories": {
+    "Immune_Suppression": {
+      "label": "免疫抑制 / 耗竭诱导",
+      "en_label": "Immune Suppression / Exhaustion",
+      "color": "#ef4444",
+      "icon": "🛑"
+    },
+    "Immune_Activation_Cytotoxicity": {
+      "label": "免疫激活 / 细胞毒杀伤",
+      "en_label": "Immune Activation / Cytotoxicity",
+      "color": "#22c55e",
+      "icon": "⚔️"
+    },
+    "Ligand_Receptor_Binding": {
+      "label": "受体-配体特异性结合",
+      "en_label": "Receptor-Ligand Binding",
+      "color": "#3b82f6",
+      "icon": "🔗"
+    },
+    "Recruitment_Chemotaxis": {
+      "label": "细胞招募 / 趋化迁移",
+      "en_label": "Recruitment / Chemotaxis",
+      "color": "#06b6d4",
+      "icon": "🧲"
+    },
+    "Cytokine_Secretory_Induction": {
+      "label": "诱导分泌 / 细胞因子释放",
+      "en_label": "Secretory Induction / Release",
+      "color": "#8b5cf6",
+      "icon": "📤"
+    },
+    "Phenotype_Polarization": {
+      "label": "表型转化 / 极化分化",
+      "en_label": "Polarization / Differentiation",
+      "color": "#ea580c",
+      "icon": "🔄"
+    }
+  }
+}

@@ -504,6 +504,296 @@ class GraphVisualizer:
         net.save_graph(output_file)
         print(f"✨ [GraphVisualizer] 拓扑图已成功保存至: {output_file}")
 
+    def generate_workbench_html(self, global_entities, global_relations,
+                                entity_annotations=None, relation_annotations=None,
+                                ontology=None, output_file="bio_knowledge_workbench.html",
+                                output_lang="zh"):
+        """
+        绘制图谱分析工作台的科学层级拓扑图：
+        - 节点按实体分类呈现不同几何形态 (dot, diamond, triangle, square, hexagon, star, ellipse) 与主题色彩
+        - 关系连线显示深层机制谓词动词标签 (如 催化磷酸化, 竞争性结合, 转录激活) 与机制色彩
+        - 包含丰富科学元数据的悬停卡片 (分类、细分子类、功能标签、推导轮次、置信度、AI推断依据)
+        - 自动在页面右上角嵌入半透明、可折叠的本体图例控制板
+        """
+        print(f"🎨 [GraphVisualizer] 正在绘制分析工作台科学网络拓扑图...")
+        from pyvis.network import Network
+        from collections import Counter
+        import os
+        import json
+
+        is_en = "en" in str(output_lang).lower()
+        entity_annotations = entity_annotations or {}
+        relation_annotations = relation_annotations or {}
+
+        # 默认本体兜底
+        if not ontology:
+            try:
+                from workbench_engine import OntologyManager
+                ontology = OntologyManager().get_preset("universal_biored") or {}
+            except Exception:
+                ontology = {}
+
+        ent_cat_defs = ontology.get("entity_categories", {})
+        rel_cat_defs = ontology.get("relation_categories", {})
+
+        net = Network(
+            height="750px",
+            width="100%",
+            bgcolor=self.bgcolor,
+            font_color=self.font_color,
+            directed=True,
+            cdn_resources="remote"
+        )
+        net.force_atlas_2based()
+
+        # 1. 实体基本信息映射
+        entity_info_map = {}
+        for ent in global_entities:
+            std_name = ent.get("standard_name", "未知实体")
+            entity_info_map[std_name] = {
+                "aliases": ent.get("aliases", []),
+                "doc_source": ent.get("doc_source", "未知文献")
+            }
+
+        # 2. 统计节点热度
+        base_heat = Counter()
+        for item in global_relations:
+            weight = item.get("weight", 1)
+            src = item.get("source")
+            tgt = item.get("target")
+            if src:
+                base_heat[src] += weight
+            if tgt:
+                base_heat[tgt] += weight
+
+        # 记录出现过的类别以动态构建图例
+        present_entity_cats = set()
+        present_relation_cats = set()
+
+        # 3. 绘制带有几何形态与颜色的实体节点
+        for std_name, info in entity_info_map.items():
+            heat_val = base_heat[std_name]
+            annot = entity_annotations.get(std_name, {})
+            primary_type = annot.get("primary_type", "Uncertain")
+            sub_type = annot.get("sub_type", "")
+            tags = annot.get("tags", [])
+            confidence = annot.get("confidence", 0.0)
+            reasoning = annot.get("reasoning", "")
+            round_info = annot.get("round", "")
+            status = annot.get("status", "uncertain")
+
+            present_entity_cats.add(primary_type)
+
+            cat_def = ent_cat_defs.get(primary_type, {})
+            node_shape = cat_def.get("shape", "ellipse" if primary_type == "Uncertain" else "dot")
+            node_color = cat_def.get("color", "#9ca3af" if primary_type == "Uncertain" else "#4da6ff")
+            cat_label = (cat_def.get("en_label", primary_type) if is_en else cat_def.get("label", primary_type)) or primary_type
+            cat_icon = cat_def.get("icon", "🧬")
+
+            # 构建科学元数据悬停卡片
+            lbl_type = "Category" if is_en else "实体分类"
+            lbl_subtype = "Sub-type / Function" if is_en else "细分子类/功能"
+            lbl_status = "Analysis Status" if is_en else "分析状态"
+            lbl_conf = "Confidence" if is_en else "置信度"
+            lbl_reason = "Reasoning" if is_en else "推断依据"
+            lbl_aliases = "Aliases" if is_en else "别名"
+            lbl_source = "Source" if is_en else "文献来源"
+            lbl_heat = "Centrality Heat" if is_en else "拓扑热度"
+
+            status_str = f"Round {round_info}" if round_info != "manual" else ("Manual Override" if is_en else "专家人工调换")
+            if status == "uncertain" and primary_type == "Uncertain":
+                status_str += " (" + ("Pending / Uncertain" if is_en else "待定 / 无法判断") + ")"
+
+            title_lines = [
+                f"{cat_icon} {std_name}",
+                f"🏷️ {lbl_type}: {cat_label}",
+            ]
+            if sub_type:
+                title_lines.append(f"🔬 {lbl_subtype}: {sub_type}")
+            if tags:
+                title_lines.append(f"🔖 Tags: {', '.join(tags)}")
+            title_lines.append(f"🎯 {lbl_status}: {status_str} ({lbl_conf}: {int(confidence * 100)}%)")
+            if reasoning:
+                title_lines.append(f"💡 {lbl_reason}: {reasoning}")
+            if info["aliases"]:
+                title_lines.append(f"📚 {lbl_aliases}: {', '.join(info['aliases'])}")
+            title_lines.append(f"📄 {lbl_source}: {info['doc_source']}")
+            title_lines.append(f"🔥 {lbl_heat}: {heat_val:.1f}")
+
+            node_title = "\n".join(title_lines)
+            node_size = 20 + heat_val * 2.5
+
+            net.add_node(
+                std_name,
+                label=std_name,
+                title=node_title,
+                color=node_color,
+                shape=node_shape,
+                size=node_size
+            )
+
+        # 4. 绘制连线并标注深层机制谓词动词
+        for item in global_relations:
+            source = item.get("source")
+            target = item.get("target")
+            if not source or not target or source == target:
+                continue
+
+            rel_type = item.get("relation", "相关")
+            evidence = item.get("evidence", "无")
+            doc_source = item.get("doc_source", "未知文献")
+            rel_weight = item.get("weight", 1)
+
+            # 探测幻觉节点
+            for node in [source, target]:
+                if node not in entity_info_map:
+                    net.add_node(node, label=node, color="#ff9999", shape="ellipse", size=20,
+                                 title=f"⚠️ 模型幻觉节点\n📄 来源: {doc_source}")
+                    entity_info_map[node] = {"aliases": [], "doc_source": doc_source}
+
+            edge_key = f"{source}|{target}|{rel_type}"
+            annot = relation_annotations.get(edge_key, {})
+
+            mech_cat = annot.get("mechanism_category")
+            mech_verb = annot.get("mechanism_verb")
+            mech_conf = annot.get("confidence", 0.0)
+            mech_reason = annot.get("reasoning", "")
+            mech_round = annot.get("round", "")
+
+            if mech_cat:
+                present_relation_cats.add(mech_cat)
+
+            rel_def = rel_cat_defs.get(mech_cat, {}) if mech_cat else {}
+            edge_color = rel_def.get("color", "#aaaaaa")
+            rel_cat_lbl = (rel_def.get("en_label", mech_cat) if is_en else rel_def.get("label", mech_cat)) or rel_type
+            rel_icon = rel_def.get("icon", "🔗")
+
+            display_width = 1.5 + (rel_weight * 0.6)
+            edge_label = mech_verb if mech_verb else rel_type
+
+            # 构建连线科学悬停说明
+            lbl_edge_mech = "Mechanism" if is_en else "深层机制"
+            lbl_orig_rel = "Original Relation" if is_en else "原抽取关系"
+            lbl_edge_evi = "Evidence" if is_en else "文献原文证据"
+            lbl_conf_txt = "Confidence" if is_en else "置信度"
+            lbl_reason_txt = "Reasoning" if is_en else "依据"
+
+            edge_title_lines = [
+                f"{rel_icon} {lbl_edge_mech}: {rel_cat_lbl} ({edge_label})",
+                f"🔍 {lbl_orig_rel}: {rel_type}"
+            ]
+            if mech_reason:
+                edge_title_lines.append(f"💡 {lbl_reason_txt}: {mech_reason}")
+            if mech_conf > 0:
+                edge_title_lines.append(f"🎯 {lbl_conf_txt}: {int(mech_conf * 100)}% (Round {mech_round})")
+            edge_title_lines.append(f"📝 {lbl_edge_evi}: {evidence}")
+            edge_title_lines.append(f"📄 {lbl_source}: {doc_source}")
+
+            edge_title = "\n".join(edge_title_lines)
+
+            # 区分虚线/实线与箭头
+            is_dashed = (rel_type not in ["正作用", "负作用", "包含"]) and (not mech_cat or mech_cat == "Association_Correlation")
+            arrows_val = "to"
+
+            net.add_edge(
+                source,
+                target,
+                label=edge_label,
+                title=edge_title,
+                color=edge_color,
+                arrows=arrows_val,
+                width=display_width,
+                dashes=is_dashed,
+                font={"color": "#d1d5db", "size": 11, "align": "middle", "strokeWidth": 2, "strokeColor": "#111827"}
+            )
+
+        net.save_graph(output_file)
+
+        # 5. 注入半透明、响应式、可折叠的本体图例控制面板
+        try:
+            with open(output_file, "r", encoding="utf-8") as f:
+                html_content = f.read()
+
+            legend_title = "🧬 Ontology Legend" if is_en else "🧬 本体分类图例"
+            entity_sec_title = "Entity Types" if is_en else "实体分类 (形态 & 色彩)"
+            rel_sec_title = "Relation Mechanisms" if is_en else "深层机制 (连线色彩)"
+            toggle_tip = "Click to collapse / expand" if is_en else "点击折叠/展开"
+
+            # 动态生成实体图例项目
+            ent_legend_items = []
+            for cat_id, cat_info in ent_cat_defs.items():
+                if cat_id in present_entity_cats or not present_entity_cats:
+                    lbl = cat_info.get("en_label", cat_id) if is_en else cat_info.get("label", cat_id)
+                    color = cat_info.get("color", "#9ca3af")
+                    shape = cat_info.get("shape", "dot")
+                    icon = cat_info.get("icon", "•")
+                    shape_symbol = "●" if shape == "dot" else ("◆" if shape == "diamond" else ("▲" if shape == "triangle" else ("■" if shape == "square" else ("⬡" if shape == "hexagon" else ("★" if shape == "star" else "⬭")))))
+                    ent_legend_items.append(f"""
+                    <div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+                        <span style="color:{color};font-size:14px;width:16px;text-align:center;">{shape_symbol}</span>
+                        <span style="font-size:12px;color:#e5e7eb;">{icon} {lbl}</span>
+                    </div>
+                    """)
+
+            # 动态生成关系图例项目
+            rel_legend_items = []
+            for cat_id, rel_info in rel_cat_defs.items():
+                if cat_id in present_relation_cats or not present_relation_cats:
+                    lbl = rel_info.get("en_label", cat_id) if is_en else rel_info.get("label", cat_id)
+                    color = rel_info.get("color", "#9ca3af")
+                    icon = rel_info.get("icon", "—")
+                    rel_legend_items.append(f"""
+                    <div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+                        <span style="background:{color};width:16px;height:3px;display:inline-block;border-radius:2px;"></span>
+                        <span style="font-size:12px;color:#e5e7eb;">{icon} {lbl}</span>
+                    </div>
+                    """)
+
+            legend_html = f"""
+            <!-- 🧬 图谱分析工作台悬浮动态图例 -->
+            <div id="workbench-legend-panel" style="position:fixed;top:16px;right:16px;background:rgba(17,24,39,0.88);backdrop-filter:blur(8px);border:1px solid rgba(75,85,99,0.6);border-radius:10px;padding:12px 16px;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,0.5);z-index:9999;max-width:280px;user-select:none;">
+                <div id="legend-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:13px;border-bottom:1px solid rgba(75,85,99,0.5);padding-bottom:6px;margin-bottom:8px;" title="{toggle_tip}">
+                    <span>{legend_title}</span>
+                    <span id="legend-toggle-btn" style="font-size:11px;color:#9ca3af;background:rgba(55,65,81,0.6);padding:2px 6px;border-radius:4px;">折叠 ➖</span>
+                </div>
+                <div id="legend-body" style="transition:all 0.2s ease;">
+                    <div style="font-weight:600;color:#9ca3af;font-size:11px;text-transform:uppercase;margin:4px 0;">{entity_sec_title}</div>
+                    {''.join(ent_legend_items)}
+                    <div style="font-weight:600;color:#9ca3af;font-size:11px;text-transform:uppercase;margin:8px 0 4px 0;">{rel_sec_title}</div>
+                    {''.join(rel_legend_items)}
+                </div>
+            </div>
+            <script>
+                (function() {{
+                    var panel = document.getElementById('workbench-legend-panel');
+                    var header = document.getElementById('legend-header');
+                    var body = document.getElementById('legend-body');
+                    var btn = document.getElementById('legend-toggle-btn');
+                    var collapsed = false;
+                    header.onclick = function() {{
+                        collapsed = !collapsed;
+                        if (collapsed) {{
+                            body.style.display = 'none';
+                            btn.innerText = '展开 ➕';
+                        }} else {{
+                            body.style.display = 'block';
+                            btn.innerText = '折叠 ➖';
+                        }}
+                    }};
+                }})();
+            </script>
+            """
+
+            if "</body>" in html_content:
+                html_content = html_content.replace("</body>", f"{legend_html}\n</body>")
+                with open(output_file, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+        except Exception as e:
+            print(f"⚠️ [GraphVisualizer] 注入图例组件遇到小异常: {e}")
+
+        print(f"✨ [GraphVisualizer] 工作台科学拓扑图已成功保存至: {output_file}")
+
+
 
 # =====================================================================
 # 3. 文献学术标题提取与安全命名工具集
