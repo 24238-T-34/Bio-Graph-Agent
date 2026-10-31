@@ -687,6 +687,35 @@ def compute_source_identity_hash(source_str: str) -> str:
     return f"virtual:{hashlib.md5(clean_tag.encode('utf-8')).hexdigest()[:12]}"
 
 
+FIGURE_TAG_PATTERN = re.compile(
+    r'\s*\[(?:Figure|Fig|Visual Figure|图片|插图|机制图|VectorFig)[^\]]*\]',
+    flags=re.IGNORECASE
+)
+
+
+def is_figure_doc_source(source_str: str) -> bool:
+    """判定出处是否带有插图/机制图的子图来源标记"""
+    if not source_str:
+        return False
+    return bool(FIGURE_TAG_PATTERN.search(str(source_str)))
+
+
+def extract_parent_doc_source(source_str: str) -> str:
+    """
+    从带有插图、机制图或切块标注的出处字符串中，提取所属的母体文献标识。
+    例如:
+      'PIIS0092867425014874 [Figure: Page1_Fig1 (P.1)]' -> 'PIIS0092867425014874'
+      'Cell_2025.pdf [Fig: 1]' -> 'Cell_2025.pdf'
+      'PMID: 39218274 [Figure: VectorFig]' -> 'PMID: 39218274'
+      '[Figure: Page1_Fig1]' -> '' (纯虚拟图片标记，无母体)
+    """
+    if not source_str:
+        return ""
+    s = str(source_str).strip()
+    parent = FIGURE_TAG_PATTERN.sub('', s).strip()
+    return parent
+
+
 def get_clean_display_title(name: str) -> str:
     """获取纯净的前端展示标题（严格剥离末尾的 .pdf 后缀）"""
     if not name:
@@ -930,6 +959,13 @@ def resolve_paper_identity(project_dir_or_id: str, query_ref: str, registry: Opt
             if disk_hash and disk_hash in papers:
                 return papers[disk_hash]
 
+    # 7. 若带有插图机制图子图标记（如 [Figure: ...]），自动提取母体文献并解析
+    parent_ref = extract_parent_doc_source(ref_clean)
+    if parent_ref and parent_ref != ref_clean:
+        parent_ident = resolve_paper_identity(project_dir_or_id, parent_ref, registry=registry)
+        if parent_ident:
+            return parent_ident
+
     return None
 
 
@@ -965,12 +1001,16 @@ def canonicalize_project_papers(project_dir_or_id: str, paper_list: List[str]) -
             if not p or p in virtual_ignore_tags:
                 continue
 
+            parent_p = extract_parent_doc_source(p)
+            if not parent_p or parent_p in virtual_ignore_tags:
+                continue
+
             ident = resolve_paper_identity(project_dir_or_id, p, registry=registry)
             if ident:
                 ident_key = ident.get("doc_hash") or ident.get("display_name")
-                canon_disp = ident.get("display_name") or get_clean_display_title(p)
+                canon_disp = ident.get("display_name") or get_clean_display_title(parent_p)
             else:
-                canon_disp = get_clean_display_title(p)
+                canon_disp = get_clean_display_title(parent_p)
                 ident_key = canon_disp
 
             if ident_key not in seen_identities and canon_disp not in seen_identities:

@@ -493,6 +493,7 @@ class BioGraphPipeline:
         # 全局图谱存储（增量更新的基础）
         self.global_entities = []  # 存储格式：[{"standard_name": "...", "aliases": [...]}]
         self.global_relations = []  # 存储格式：[{"source": "...", "target": "...", "relation": "...", "evidence": "..."}]
+        self.last_figure_transcriptions = {}
 
     def _merge_entities(self, new_entities):
         """将新抽取的实体，合并到全局实体库中（去重并合并别名）"""
@@ -694,6 +695,7 @@ class BioGraphPipeline:
         # ---------------------------------------------------------
         vision_chunks = []
         vision_chunk_sources = []
+        self.last_figure_transcriptions = {}
         if vision_strategy and vision_strategy != "off":
             print(f"👁️ [Pipeline] 启动机制图前置视觉转译 (策略: {vision_strategy}, 关键词: '{vision_keyword}')...")
             msg_vision_init = (
@@ -739,7 +741,15 @@ class BioGraphPipeline:
                             f"分子调控机制与级联拓扑:\n{text_transcription}"
                         )
                         vision_chunks.append(v_chunk)
-                        vision_chunk_sources.append(f"{source_name} [Figure: {fig_label} (P.{fig_page})]")
+                        fig_tag = f"{source_name} [Figure: {fig_label} (P.{fig_page})]"
+                        vision_chunk_sources.append(fig_tag)
+                        self.last_figure_transcriptions[fig_tag] = {
+                            "source_name": source_name,
+                            "figure_label": fig_label,
+                            "page": fig_page,
+                            "caption": fig_caption,
+                            "transcription": text_transcription
+                        }
             else:
                 if vision_strategy == "match" and vision_keyword:
                     print(f"ℹ️ [Pipeline] 未在选定页码中匹配到关键词 '{vision_keyword}' 的关联插图。")

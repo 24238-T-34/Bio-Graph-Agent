@@ -16,7 +16,8 @@ from IO_SYS import (
     get_clean_display_title, get_physical_pdf_filename,
     load_project_paper_registry, save_project_paper_registry,
     register_or_update_paper, resolve_paper_identity,
-    canonicalize_project_papers
+    canonicalize_project_papers,
+    extract_parent_doc_source, is_figure_doc_source
 )
 import streamlit.components.v1 as components
 import gc
@@ -422,6 +423,9 @@ def find_project_paper(fname: str, proj_id: str = None) -> Optional[str]:
     """在当前工程及所有本地工程的 papers/ 目录中查找文献，支持哈希、纯净展示名、物理名与别名多级检索及自动自愈拷贝"""
     if not fname:
         return None
+    fname = extract_parent_doc_source(fname)
+    if not fname:
+        return None
     pid = proj_id if proj_id else get_current_project_id()
     cur_papers_dir = get_project_papers_dir_by_id(pid)
 
@@ -498,6 +502,8 @@ def is_pmid_or_virtual_source(source: str) -> bool:
     }
     if s in virtual_tags:
         return True
+    if not extract_parent_doc_source(s):
+        return True
     return False
 
 
@@ -517,7 +523,7 @@ def get_expected_papers_for_project(proj_id: str, data: Optional[dict] = None) -
 
     # 1. 来自 analyzed_files 列表
     for f in data.get("analyzed_files", []):
-        f_clean = str(f).strip()
+        f_clean = extract_parent_doc_source(str(f).strip())
         if f_clean and not is_pmid_or_virtual_source(f_clean):
             expected_files.add(f_clean)
 
@@ -526,7 +532,7 @@ def get_expected_papers_for_project(proj_id: str, data: Optional[dict] = None) -
         ds = item.get("doc_source", "")
         if ds:
             for part in str(ds).split("|"):
-                part_clean = part.strip()
+                part_clean = extract_parent_doc_source(part.strip())
                 if part_clean and not is_pmid_or_virtual_source(part_clean):
                     if "." in part_clean or part_clean in expected_files:
                         expected_files.add(part_clean)
@@ -962,7 +968,8 @@ def save_local_vault():
         "entities": st.session_state.get("master_entities", []),
         "relations": st.session_state.get("master_relations", []),
         "analyzed_files": st.session_state.get("analyzed_files", []),
-        "paper_registry": registry
+        "paper_registry": registry,
+        "figure_transcriptions": st.session_state.get("figure_transcriptions", {})
     }
     # 1. 原地归档到当前工程专属目录 projects/{project_id}/project.biokg（唯一真实数据源）
     try:
@@ -1051,6 +1058,7 @@ def switch_to_project(proj_id: str) -> bool:
         st.session_state.current_project_name = pname
         st.session_state.master_entities = data.get("entities", [])
         st.session_state.master_relations = data.get("relations", [])
+        st.session_state.figure_transcriptions = data.get("figure_transcriptions", {})
         loaded_files = data.get("analyzed_files", [])
 
         # 检查专属 papers 目录中已有文献并补充
@@ -1186,6 +1194,7 @@ UI_TEXT = {
     # 2. 模型选项
     "model_gemini_2_5_flash_lite": {"zh": "Gemini 2.5 Flash-Lite (谷歌极致低价版)", "en": "Gemini 2.5 Flash-Lite (Ultra Low Cost)"},
     "model_qwen_2_5_72b": {"zh": "Qwen 2.5 72B (千问学术双语旗舰版)", "en": "Qwen 2.5 72B (Bilingual Flagship)"},
+    "model_qwen_3_8_27b": {"zh": "Qwen 3.8 27B (千问学术双语旗舰版)", "en": "Qwen 3.8 27B (Bilingual Flagship)"},
     "model_hy4_preview": {"zh": "Hunyuan 4 Preview (混元4预览版)", "en": "Hunyuan 4 Preview (Cost-effective)"},
     "model_hy3_preview": {"zh": "Hunyuan 3 Preview (预览版 - 高性价比)", "en": "Hunyuan 3 Preview (Cost-effective)"},
     "model_hy3": {"zh": "Hunyuan 3 (正式版 - 最强推理)", "en": "Hunyuan 3 (Official - Max Reasoning)"},
@@ -1193,6 +1202,8 @@ UI_TEXT = {
     "model_glm_5_3": {"zh": "GLM 5.3 (智谱大模型)", "en": "GLM 5.3 (Zhipu AI)"},
     "model_glm_5_3_f": {"zh": "GLM 5.3 flash(智谱大模型)", "en": "GLM 5.3 flash(Zhipu AI)"},
     "model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash (谷歌高性价比极速版)", "en": "Gemini 3.8 Flash"},
+    "model_gemini_3_5_flash_lite": {"zh": "Gemini 3.5 Flash-Lite (谷歌性价比)", "en": "Gemini 3.5 Flash-Lite "},
+
 
 
     # 3. 数据库选项
@@ -1781,11 +1792,12 @@ with st.sidebar:
         else:
             # 对于云端源，使用你极其优雅的字典映射
             model_options = {
-                t("model_gemini_2_5_flash_lite"): "google/gemini-2.5-flash-lite",
                 t("model_qwen_2_5_72b"): "qwen/qwen-2.5-72b-instruct",
+                t("model_qwen_3_8_27b"): "qwen/qwen-3.8-27b",
                 t("model_deepseek_4_1_flash"): "deepseek/deepseek-v4.1-flash",
                 t("model_gemini_3_8_flash"): "google/gemini-3.8-flash",
-                t("model_glm_5_3"): "z-ai/glm-5.3",
+                t("model_gemini_3_5_flash_lite"): "google/gemini-3.5-flash-lite",
+                t("model_gemini_2_5_flash_lite"): "google/gemini-2.5-flash-lite",
                 t("model_glm_5_3_f"): "z-ai/glm-5.3-flash",
                 t("model_hy4_preview"): "tencent/hy4-preview",
                 t("model_hy3_preview"): "tencent/hy3-preview",
@@ -2353,6 +2365,7 @@ with right_col:
 
                 st.session_state.master_entities = loaded_data.get("entities", [])
                 st.session_state.master_relations = loaded_data.get("relations", [])
+                st.session_state.figure_transcriptions = loaded_data.get("figure_transcriptions", {})
                 loaded_files = loaded_data.get("analyzed_files", [])
 
                 # 文件夹对齐与老文献挂载/合并 (严禁同目录自拷贝克隆旧文件)
@@ -2621,6 +2634,9 @@ if uploaded_file and start_button:
                     vision_model=resolved_vision_model_id if 'resolved_vision_model_id' in locals() else None,
                     enable_relation_grounding=enable_relation_grounding
                 )
+                if hasattr(pipeline, "last_figure_transcriptions") and pipeline.last_figure_transcriptions:
+                    cur_trans = st.session_state.setdefault("figure_transcriptions", {})
+                    cur_trans.update(pipeline.last_figure_transcriptions)
 
             # 🟢 阶段二：独立的融合转圈 (上一个转圈已经销毁)
             if append_mode and len(st.session_state.master_entities) > 0:
