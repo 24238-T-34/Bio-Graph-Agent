@@ -1423,6 +1423,7 @@ class PathwayDecompositionEngine:
                 raw_resp = self.llm_agent._ask_llm(sys_prompt, user_prompt)
                 parsed = self._parse_llm_json(raw_resp)
                 if parsed and isinstance(parsed, dict) and "title" in parsed and "summary" in parsed:
+                    parsed["is_fallback"] = False
                     return parsed
             except Exception as e:
                 print(f"⚠️ [PathwayDecompositionEngine] LLM 机制叙事调用异常: {e}")
@@ -1445,7 +1446,8 @@ class PathwayDecompositionEngine:
 
         return {
             "title": default_title,
-            "summary": default_summary
+            "summary": default_summary,
+            "is_fallback": True
         }
 
     def run_decomposition(self,
@@ -1576,7 +1578,8 @@ class PathwayDecompositionEngine:
                 "feedback_loops": loops,
                 "is_cross_paper": bridges.get("is_cross_paper", False),
                 "cross_paper_bridges": bridges,
-                "html_file": html_rel_path
+                "html_file": html_rel_path,
+                "is_fallback": narrative.get("is_fallback", False)
             }
             results.append(pathway_obj)
 

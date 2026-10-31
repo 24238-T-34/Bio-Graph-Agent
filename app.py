@@ -1812,6 +1812,7 @@ UI_TEXT = {
     "wb_pw_single_source": {"zh": "本通路所有机制证据均源自单篇文献内部。", "en": "All mechanism evidence in this pathway originates within a single literature source."},
     "wb_pw_history_title": {"zh": "📂 已保存的历史通路拆解记录 (自动从工程目录加载)", "en": "📂 Saved Pathway Decomposition Records (Auto-loaded from project directory)"},
     "wb_pw_snapshot_note": {"zh": "📂 已自动恢复保存的历史通路快照", "en": "📂 Restored saved pathway decomposition snapshot"},
+    "wb_pw_fallback_warn": {"zh": "大模型调用未成功，当前采用拓扑保底命名与阐述", "en": "LLM call was unsuccessful; using topological fallback naming."},
 }
 
 
@@ -2703,8 +2704,13 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
     if btn_run_pathway:
         current_key = api_key.strip() if api_key else ""
+        is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+        if not current_key and not is_local:
+            st.error(t("err_missing_api_key"))
+            st.stop()
+
         from LLM_SYS import BioBrainAgent
-        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url) if current_key else None
+        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
 
         pw_engine = PathwayDecompositionEngine(
             llm_agent=llm_agent,
@@ -2774,6 +2780,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 # 2. 通路机制简单介绍 (如果涉及反馈循环适当分析)
                 if summary:
                     st.markdown(summary)
+
+                if pw.get("is_fallback"):
+                    st.caption(f"⚠️ {t('wb_pw_fallback_warn')}")
 
                 # 3. 标记：反馈循环 / 跨文献通路 (只做标记，不做冗余分析)
                 badges = []
