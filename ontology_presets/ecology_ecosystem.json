@@ -1,0 +1,159 @@
+{
+  "id": "ecology_ecosystem",
+  "name": "生态学与生态系统科学预设",
+  "en_name": "Ecology & Ecosystem Science",
+  "description": "涵盖个体、种群、群落、生态系统至生物圈多尺度生态学，聚焦物种相互作用、营养级能量流动、生物地球化学循环、环境理化驱动与生态干扰。",
+  "en_description": "Multi-scale ecological ontology spanning organism, population, community, ecosystem, and biosphere, focusing on trophic energy flows, biogeochemical cycling, abiotic drivers, and disturbances.",
+  "entity_categories": {
+    "Organism_Taxon": {
+      "name": "物种 / 种群 / 生物分类单元",
+      "en_name": "Organism / Taxon / Population",
+      "label": "物种 / 种群 / 生物分类单元",
+      "en_label": "Organism / Taxon / Population",
+      "description": "生态系统中的植物、动物、微生物、浮游生物及各营养级功能群或特定生物分类单元",
+      "en_description": "Organisms, populations, functional guilds, and biological taxa across trophic levels.",
+      "patterns": [
+        ".*(?:species|population|taxon|taxa|fauna|flora|microbiota|plankton|benthos|herbivore|carnivore|omnivore|detritivore|producer|consumer|decomposer)$",
+        ".*(?:物种|种群|分类群|生物区系|植物相|动物相|浮游生物|浮游动物|浮游植物|底栖生物|大型底栖动物|植食动物|肉食动物|杂食动物|碎屑食者|生产者|消费者|分解者|微生态|微生物群|菌群|节肢动物|昆虫|鸟类|鱼类|哺乳动物|啮齿动物)$",
+        "^(?:predator|prey|host|parasite|symbiont|competitor|invader|alien species|keystone species|foundation species|flagship species|endemic species|native species)$",
+        "^(?:捕食者|猎物|宿主|寄生者|共生体|竞争者|入侵种|关键种|建群种|旗舰种|特有种|本土种)$"
+      ]
+    },
+    "Abiotic_Factor": {
+      "name": "非生物环境因子 / 理化参数",
+      "en_name": "Abiotic Factor / Physicochemical Parameter",
+      "label": "非生物环境因子 / 理化参数",
+      "en_label": "Abiotic Factor / Physicochemical Parameter",
+      "description": "温度、降水、光照、湿度、pH、盐度、溶解氧、气候及土壤物理质地等无机环境驱动要素",
+      "en_description": "Physical and chemical abiotic environmental drivers including climate, moisture, irradiance, and soil properties.",
+      "patterns": [
+        ".*(?:temperature|precipitation|humidity|salinity|irradiance|turbidity|conductivity|depth|elevation|altitude)$",
+        ".*(?:温度|气温|水温|降水|降雨量|湿度|盐度|光照强度|光周期|浑浊度|电导率|水深|海拔|酸碱度|ph值)$",
+        "^(?:ph|do|dissolved oxygen|bod|cod|par|photosynthetically active radiation|uv-b|soil moisture|soil texture|nitrogen deposition|drought|flood|hypoxia|anoxia)$",
+        "^(?:溶解氧|生物需氧量|化学需氧量|光合有效辐射|土壤含水量|土壤孔隙度|土壤质地|氮沉降|干旱|洪涝|低氧|缺氧)$"
+      ]
+    },
+    "Nutrient_Biogeochemical": {
+      "name": "营养盐 / 碳氮磷循环分子 / 污染物",
+      "en_name": "Nutrient / Biogeochemical Cycling Molecule / Pollutant",
+      "label": "营养盐 / 碳氮磷循环分子 / 污染物",
+      "en_label": "Nutrient / Biogeochemical Cycling Molecule / Pollutant",
+      "description": "碳、氮、磷、硫生物地球化学循环分子、无机养分、温室气体、活性离子与生态环境污染物",
+      "en_description": "Biogeochemical cycling molecules (C, N, P, S), inorganic nutrients, greenhouse gases, and chemical pollutants.",
+      "patterns": [
+        ".*(?:nutrient|fertilizer|greenhouse gas|pollutant|heavy metal|microplastic)$",
+        ".*(?:营养盐|养分|肥料|温室气体|污染物|重金属|微塑料|有机碎屑)$",
+        "^(?:co2|ch4|n2o|nh4\\+|no3-|no2-|po43-|h2s|so42-|doc|don|dop|pom|som|soc|soil organic carbon|total nitrogen|total phosphorus)$",
+        "^(?:二氧化碳|甲烷|氧化亚氮|氨氮|硝酸盐|亚硝酸盐|磷酸盐|硫化氢|硫酸盐|溶解性有机碳|溶解性有机氮|土壤有机碳|总氮|总磷)$"
+      ]
+    },
+    "Habitat_Ecosystem": {
+      "name": "生境 / 生态系统 / 景观斑块",
+      "en_name": "Habitat / Ecosystem / Landscape Patch",
+      "label": "生境 / 生态系统 / 景观斑块",
+      "en_label": "Habitat / Ecosystem / Landscape Patch",
+      "description": "森林、湿地、草原、海洋、淡水、农田等生态系统类型及微生境、廊道与景观场域",
+      "en_description": "Biomes, ecosystems, habitats, landscapes, riparian corridors, and ecological patches.",
+      "patterns": [
+        ".*(?:ecosystem|biome|habitat|landscape|wetland|estuary|watershed|catchment|riparian|corridor|ecotone)$",
+        ".*(?:生态系统|生物群系|生境|栖息地|景观|湿地|河口|流域|集水区|河岸带|生态廊道|群落交错区|生态过渡带|森林|草原|荒漠|苔原|农田|珊瑚礁)$",
+        "^(?:forest|grassland|desert|tundra|ocean|marine|freshwater|lake|river|stream|peatland|mangrove|coral reef|intertidal zone)$"
+      ]
+    },
+    "Ecological_Process": {
+      "name": "生态过程 / 能量流动 / 演替动态",
+      "en_name": "Ecological Process / Energy Flow / Succession",
+      "label": "生态过程 / 能量流动 / 演替动态",
+      "en_label": "Ecological Process / Energy Flow / Succession",
+      "description": "初级/次级生产力、生物量积累、光合固碳、呼吸释放、群落演替、分解矿化及生物富集过程",
+      "en_description": "Primary/secondary production, biomass accumulation, carbon flux, succession, decomposition, and biomagnification.",
+      "patterns": [
+        ".*(?:succession|photosynthesis|respiration|flux|sequestration|mineralization|decomposition|eutrophication|bioaccumulation|biomagnification)$",
+        ".*(?:演替|光合作用|呼吸作用|能量流动|碳汇|碳固定|矿化作用|分解作用|富营养化|生物富集|生物放大|生态恢复|生态退化)$",
+        "^(?:primary production|secondary production|nep|gpp|npp|net ecosystem exchange|biomass accumulation|nutrient cycling|litter decomposition)$",
+        "^(?:初级生产力|次级生产力|净初级生产量|总初级生产量|生态系统净交换量|生物量积累|养分循环|凋落物分解)$"
+      ]
+    },
+    "Disturbance_Stress": {
+      "name": "生态干扰 / 环境胁迫 / 人类活动",
+      "en_name": "Disturbance / Environmental Stress / Anthropogenic Impact",
+      "label": "生态干扰 / 环境胁迫 / 人类活动",
+      "en_label": "Disturbance / Environmental Stress / Anthropogenic Impact",
+      "description": "火灾、病虫害、外来物种入侵、土地利用变化、生境破碎化、过度捕捞及全球气候变暖等干扰",
+      "en_description": "Wildfires, pest outbreaks, biological invasions, land-use change, fragmentation, and climate warming disturbances.",
+      "patterns": [
+        ".*(?:disturbance|stress|degradation|deforestation|wildfire|overfishing|acidification|fragmentation)$",
+        ".*(?:生态干扰|环境胁迫|退化|毁林|森林火灾|过度捕捞|水体富营养化|海洋酸化|生境破碎化|土地利用变化|过度放牧|盗猎)$",
+        "^(?:climate change|global warming|heat wave|habitat loss|urbanization|biological invasion|pest outbreak|oil spill)$",
+        "^(?:气候变化|全球变暖|热浪|生境丧失|城市化|生物入侵|病虫害暴发|漏油事故)$"
+      ]
+    },
+    "Uncertain": {
+      "name": "待定 / 无法判断",
+      "en_name": "Pending / Uncertain",
+      "label": "待定 / 无法判断",
+      "en_label": "Pending / Uncertain",
+      "description": "证据不充分或未命中的生态学概念与实体",
+      "en_description": "Ecological entities with ambiguous context or pending escalation analysis.",
+      "patterns": []
+    }
+  },
+  "relation_categories": {
+    "Trophic_Feeding": {
+      "name": "营养摄食 / 捕食 / 寄生",
+      "en_name": "Trophic Feeding / Predation / Parasitism",
+      "label": "营养摄食 / 捕食 / 寄生",
+      "en_label": "Trophic Feeding / Predation / Parasitism",
+      "description": "捕食、植食、寄生及腐生等食物网能量摄取与下行营养级控制关系",
+      "en_description": "Trophic interactions including predation, herbivory, parasitism, and food web energy consumption."
+    },
+    "Mutualism_Symbiosis": {
+      "name": "互利共生 / 互惠促进",
+      "en_name": "Mutualism / Symbiosis / Facilitation",
+      "label": "互利共生 / 互惠促进",
+      "en_label": "Mutualism / Symbiosis / Facilitation",
+      "description": "传粉、种子传播、菌根共生、根瘤固氮及珊瑚清洁共生等双向互惠促进关系",
+      "en_description": "Mutualistic and symbiotic facilitation including pollination, mycorrhizae, and nitrogen fixation."
+    },
+    "Competition_Exclusion": {
+      "name": "资源竞争 / 竞争排斥 / 他感抑制",
+      "en_name": "Resource Competition / Allelopathy",
+      "label": "资源竞争 / 竞争排斥 / 他感抑制",
+      "en_label": "Resource Competition / Allelopathy",
+      "description": "对光照、水肥、食物或领地等有限资源的种内/种间对抗竞争及植物化感相克",
+      "en_description": "Intra/interspecific resource competition, ecological competitive exclusion, and allelopathic suppression."
+    },
+    "Environmental_Drive": {
+      "name": "环境驱动 / 胁迫耐受",
+      "en_name": "Environmental Forcing / Abiotic Driver",
+      "label": "环境驱动 / 胁迫耐受",
+      "en_label": "Environmental Forcing / Abiotic Driver",
+      "description": "非生物物理化学因子对生物个体生长、死亡、种群丰度及地理分布的调控",
+      "en_description": "Abiotic physicochemical factors driving growth, mortality, abundance, or geographical distribution."
+    },
+    "Biogeochemical_Flux": {
+      "name": "物质循环 / 养分通量 / 转化释放",
+      "en_name": "Biogeochemical Flux / Transformation",
+      "label": "物质循环 / 养分通量 / 转化释放",
+      "en_label": "Biogeochemical Flux / Transformation",
+      "description": "养分吸收固定、有机质矿化分解、温室气体排放及生物地球化学元素沉积转化",
+      "en_description": "Nutrient uptake, decomposition mineralization, greenhouse gas emission, and elemental transformation."
+    },
+    "Ecological_Facilitation": {
+      "name": "生态工程营造 / 级联调控",
+      "en_name": "Ecosystem Engineering / Cascade Regulation",
+      "label": "生态工程营造 / 级联调控",
+      "en_label": "Ecosystem Engineering / Cascade Regulation",
+      "description": "关键种或生态工程师改造物理生境（如海狸筑坝），或营养级联自上而下/自下而上的间接调控",
+      "en_description": "Physical habitat modification by ecosystem engineers and indirect top-down or bottom-up trophic cascades."
+    },
+    "Spatial_Containment": {
+      "name": "生境空间包含 / 群落归属",
+      "en_name": "Spatial Containment / Habitat Membership",
+      "label": "生境空间包含 / 群落归属",
+      "en_label": "Spatial Containment / Habitat Membership",
+      "description": "物种归属于特定生物群落、微生境隶属于特定生态系统或景观斑块",
+      "en_description": "Hierarchical spatial containment, community co-occurrence, and landscape patch membership."
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "id": "ethology_behavior",
+  "name": "动物行为学与行为神经科学预设",
+  "en_name": "Ethology & Behavioral Biology",
+  "description": "专注于本能定型动作与习得行为、社会通讯与优势层级、求偶交配、觅食防御、认知学习以及神经内分泌驱动机制。",
+  "en_description": "Comprehensive ethological ontology covering innate motor displays, learned behaviors, social communication, courtship, foraging, learning, and neuroendocrine drivers.",
+  "entity_categories": {
+    "Behavior_Pattern": {
+      "name": "行为模式 / 动作表型 / 行为谱项",
+      "en_name": "Behavior Pattern / Motor Display",
+      "label": "行为模式 / 动作表型 / 行为谱项",
+      "en_label": "Behavior Pattern / Motor Display",
+      "description": "定型动作模式 (FAP)、觅食、求偶舞蹈、进攻、逃避、梳理、巡视、育幼等行为动作与表型",
+      "en_description": "Fixed action patterns (FAPs), foraging, courtship dances, aggression, flight, grooming, and parental care behaviors.",
+      "patterns": [
+        ".*(?:behavior|behaviour|display|grooming|foraging|courtship|copulation|parenting|vocalization|aggression|nesting|locomotion)$",
+        ".*(?:行为|动作|展示|修饰|梳理|觅食|求偶|交配|育幼|鸣叫|发声|攻击|筑巢|迁移|漫游|休眠)$",
+        "^(?:fixed action pattern|fap|mating dance|tail wagging|head bobbing|fleeing|freezing|threat display|submission|alarm call|social play)$",
+        "^(?:定型动作模式|求偶舞蹈|摆尾|点头展示|逃跑|僵直不动|假死|威吓姿态|屈服姿态|报警鸣叫|社交游戏)$"
+      ]
+    },
+    "Stimulus_Releaser": {
+      "name": "环境刺激 / 释放元 / 信号线索",
+      "en_name": "Stimulus / Sign Releaser / Cue",
+      "label": "环境刺激 / 释放元 / 信号线索",
+      "en_label": "Stimulus / Sign Releaser / Cue",
+      "description": "引发本能或习得反应的关键符号刺激、释放元、性信息素、报警鸣声、视觉斑块及环境线索",
+      "en_description": "Sign stimuli, releasers, sexual/alarm pheromones, auditory alarms, visual patches, and environmental cues.",
+      "patterns": [
+        ".*(?:stimulus|releaser|pheromone|cue|signal|odorant|scent)$",
+        ".*(?:刺激|释放元|符号刺激|信息素|费洛蒙|线索|信号|气味标记|鸣声标记)$",
+        "^(?:sign stimulus|supernormal stimulus|alarm pheromone|sex pheromone|trail pheromone|visual cue|auditory cue|tactile cue|chemical marker)$",
+        "^(?:关键刺激|超常刺激|报警信息素|性信息素|示踪信息素|视觉线索|听觉线索|触觉线索|化学标记)$"
+      ]
+    },
+    "Neuroendocrine_Driver": {
+      "name": "神经内分泌驱动 / 脑区回路 / 激素递质",
+      "en_name": "Neuroendocrine Driver / Brain Circuit / Hormone",
+      "label": "神经内分泌驱动 / 脑区回路 / 激素递质",
+      "en_label": "Neuroendocrine Driver / Brain Circuit / Hormone",
+      "description": "驱动特定行为动机与情绪的脑区核团、神经回路、神经肽、神经递质（多巴胺、五羟色胺）及循环激素（睾酮、催产素、皮质酮）",
+      "en_description": "Neural circuits, brain nuclei, neurotransmitters (dopamine, serotonin), neuropeptides, and hormones (oxytocin, testosterone, corticosterone).",
+      "patterns": [
+        ".*(?:corticosterone|cortisol|testosterone|estrogen|oxytocin|vasopressin|prolactin|dopamine|serotonin|neuropeptide)$",
+        ".*(?:皮质酮|皮质醇|睾酮|雌二醇|催产素|加压素|催乳素|多巴胺|五羟色胺|血清素|神经肽|神经回路|脑区|核团)$",
+        "^(?:amygdala|hypothalamus|hippocampus|vta|nucleus accumbens|prefrontal cortex|pvn|bnst|da|5-ht|gaba|glutamate|ach|crf|crh|npy|octopamine)$",
+        "^(?:杏仁核|下丘脑|海马|腹侧被盖区|伏隔核|前额叶皮层|室旁核|终纹床核|多巴胺|五羟色胺|催产素|章鱼胺)$"
+      ]
+    },
+    "Social_Structure_Role": {
+      "name": "社会结构 / 群体层级 / 个体品级",
+      "en_name": "Social Structure / Hierarchy / Caste",
+      "label": "社会结构 / 群体层级 / 个体品级",
+      "en_label": "Social Structure / Hierarchy / Caste",
+      "description": "优势等级（首领α/从属β）、领地占有者、工蚁/兵蚁/蜂王品级、婚配体制（一夫一妻/一夫多妻）及社群网络",
+      "en_description": "Dominance hierarchies (alpha/beta), territorial owners, social castes (worker/queen), and mating systems.",
+      "patterns": [
+        ".*(?:hierarchy|dominance|subordinate|caste|monogamy|polygamy|polyandry|eusociality|territory)$",
+        ".*(?:社会层级|优势等级|首领|从属者|品级|一夫一妻制|一夫多妻制|一妻多夫制|真社会性|领地|领域|群落规模)$",
+        "^(?:alpha male|alpha female|dominant|subordinate|breeder|helper|worker|soldier|queen|scout|floater|harem)$",
+        "^(?:首领雄性|首领雌性|优势个体|从属个体|繁殖者|帮手|工蚁|兵蚁|蜂后|侦察兵|游荡个体|后宫)$"
+      ]
+    },
+    "Cognitive_Learning_State": {
+      "name": "认知状态 / 学习记忆 / 动机情绪",
+      "en_name": "Cognitive State / Learning & Memory / Motivation",
+      "label": "认知状态 / 学习记忆 / 动机情绪",
+      "en_label": "Cognitive State / Learning & Memory / Motivation",
+      "description": "经典与操作性条件反射、亲子印记、空间认知地图、恐惧记忆、奖赏预期、饥渴求取及焦虑应激状态",
+      "en_description": "Classical/operant conditioning, imprinting, cognitive maps, fear memory, reward expectation, and affective states.",
+      "patterns": [
+        ".*(?:learning|memory|conditioning|imprinting|habituation|sensitization|motivation|anxiety|stress)$",
+        ".*(?:学习|记忆|条件反射|印记|习惯化|敏感化|动机|焦虑|恐惧|应激|空间认知|认知地图)$",
+        "^(?:classical conditioning|operant conditioning|filial imprinting|spatial learning|habituation|sensitization|associative learning|working memory|fear conditioning|reward expectation)$",
+        "^(?:经典条件反射|操作条件反射|亲子印记|空间学习|习惯化|敏感化|联想学习|工作记忆|恐惧条件化|奖赏预期)$"
+      ]
+    },
+    "Adaptive_Tradeoff": {
+      "name": "适应性权衡 / 进化收益 / 适合度",
+      "en_name": "Adaptive Tradeoff / Evolutionary Fitness",
+      "label": "适应性权衡 / 进化收益 / 适合度",
+      "en_label": "Adaptive Tradeoff / Evolutionary Fitness",
+      "description": "最优觅食理论、捕食风险回避、亲代抚育投资、性选择成本、汉密尔顿法则亲缘选择及广义适合度",
+      "en_description": "Optimal foraging trade-offs, predation risk, parental investment, sexual selection costs, and inclusive fitness.",
+      "patterns": [
+        ".*(?:tradeoff|trade-off|fitness|investment|sexual selection|kin selection|optimal foraging)$",
+        ".*(?:权衡|适应度|亲代投资|性选择|亲缘选择|最优觅食|博弈论|进化稳定策略)$",
+        "^(?:optimal foraging theory|oft|predation risk|parental investment|hamiltons rule|inclusive fitness|evolutionary stable strategy|ess|giving up density|gud)$",
+        "^(?:最优觅食理论|捕食风险|亲代投资|汉密尔顿法则|广义适合度|进化稳定策略|放弃密度)$"
+      ]
+    },
+    "Uncertain": {
+      "name": "待定 / 无法判断",
+      "en_name": "Pending / Uncertain",
+      "label": "待定 / 无法判断",
+      "en_label": "Pending / Uncertain",
+      "description": "证据不充分或未命中的行为学概念与实体",
+      "en_description": "Ethological entities with ambiguous context or pending escalation analysis.",
+      "patterns": []
+    }
+  },
+  "relation_categories": {
+    "Stimulus_Elicitation": {
+      "name": "刺激释放 / 行为触发",
+      "en_name": "Stimulus Elicitation / Triggering",
+      "label": "刺激释放 / 行为触发",
+      "en_label": "Stimulus Elicitation / Triggering",
+      "description": "外界关键符号刺激或释放元直接触发本能动作模式或反射行为",
+      "en_description": "Sign stimulus or environmental releaser directly triggering innate or instinctive behavioral displays."
+    },
+    "Neuroendocrine_Modulation": {
+      "name": "神经内分泌调控 / 动机激活",
+      "en_name": "Neuroendocrine Modulation / Motivation Priming",
+      "label": "神经内分泌调控 / 动机激活",
+      "en_label": "Neuroendocrine Modulation / Motivation Priming",
+      "description": "激素、神经肽或神经递质对特定行为动机、侵略性、母性或焦虑水平的生理调节",
+      "en_description": "Hormones, neuropeptides, or brain circuits modulating behavioral thresholds, motivation, and emotional arousal."
+    },
+    "Social_Communication": {
+      "name": "社群沟通 / 信号交互 / 威吓屈服",
+      "en_name": "Social Communication / Agonistic Interaction",
+      "label": "社群沟通 / 信号交互 / 威吓屈服",
+      "en_label": "Social Communication / Agonistic Interaction",
+      "description": "个体间通过鸣叫、舞蹈、气味标记或肢体姿态传递信息、威吓竞争者或表达臣服",
+      "en_description": "Inter-individual communication via vocalization, display, scent marking, or agonistic threat and submission."
+    },
+    "Reinforcement_Learning": {
+      "name": "奖赏强化 / 惩罚消退 / 条件反射建立",
+      "en_name": "Reinforcement Learning / Conditioning",
+      "label": "奖赏强化 / 惩罚消退 / 条件反射建立",
+      "en_label": "Reinforcement Learning / Conditioning",
+      "description": "奖赏反馈正强化行为反应，或厌恶刺激惩罚导致行为反应消退抑制",
+      "en_description": "Positive reward reinforcing behavioral occurrence, or aversive stimulus inducing extinction and avoidance."
+    },
+    "Behavioral_Tradeoff": {
+      "name": "行为权衡 / 相互拮抗 / 互斥分配",
+      "en_name": "Behavioral Trade-off / Antagonistic Allocation",
+      "label": "行为权衡 / 相互拮抗 / 互斥分配",
+      "en_label": "Behavioral Trade-off / Antagonistic Allocation",
+      "description": "警惕警戒与进食觅食、求偶炫耀与防捕食风险、自身生存与亲代投资之间的互斥权衡",
+      "en_description": "Mutual behavioral exclusion and resource allocation trade-offs (e.g., vigilance vs foraging, mating vs predation risk)."
+    },
+    "Reproductive_Selection": {
+      "name": "求偶选择 / 配对交配 / 亲代抚育",
+      "en_name": "Courtship Selection / Mating / Parental Care",
+      "label": "求偶选择 / 配对交配 / 亲代抚育",
+      "en_label": "Courtship Selection / Mating / Parental Care",
+      "description": "雌性择偶偏好、雄性竞争炫耀、交配繁殖行为以及对子代的孵化喂养亲代投资",
+      "en_description": "Mate choice preference, male display competition, copulation, and offspring parental investment."
+    },
+    "Hierarchical_Dominance": {
+      "name": "优势支配 / 从属从属 / 社群组成",
+      "en_name": "Dominance Hierarchy / Subordination",
+      "label": "优势支配 / 从属从属 / 社群组成",
+      "en_label": "Dominance Hierarchy / Subordination",
+      "description": "群体内部基于等级序位的攻击支配与屈从关系，或蜂群/蚁群品级社会分工组成",
+      "en_description": "Dominance hierarchy establishment, subordinate submission, or division of labor within social groups."
+    }
+  }
+}
