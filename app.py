@@ -109,6 +109,23 @@ def show_help_dialog():
     * 2. 🔍 **Intelligent Expansion (Smart Expansion):** Select 1-3 core nodes; AI formulates advanced background queries to pull the latest PubMed papers and enqueues them for **Autopilot Continuous Assimilation**.
     * 3. 🔗 **Intelligent Bridging (Bridging):** Select any two seemingly unconnected molecules A and B; AI navigates the network to find hidden multi-step cascades or searches external literature to uncover unverified regulatory hypotheses.
     * 4. 🤖 **Ask AI (Micro-Context Explanation):** Click any node or edge on the canvas to pass its micro-context (raw extraction evidence and literature origin) to the LLM, producing an in-depth biological mechanism essay directly suitable for grant proposals.
+
+    📊 **VIII. Graph Analysis Workbench & Three-Tier Classification (Function 1)**
+    Click `📊 Go to Graph Analysis Workbench ➔` at the bottom of the canvas to enter the deep curation studio:
+    * **Three-Tier Escalation:** Tier 1 (0-Token Rule Pre-Filter for INN drug stems, enzyme `-ase`, ncRNA) ➔ Tier 2 (Micro-context local reasoning & targeted in-paper regex retrieval) ➔ Tier 3 (Biomedical world knowledge fallback & scholar manual override console).
+    * **6 Built-in Schemas:** NIH BioRED, molecular signaling, pharmacology targets, tumor microenvironment, ecosystem science, and ethology presets with hot-loading custom `.json` rules.
+
+    🔬 **IX. Signaling Pathway & Autoregulatory Circuit Decomposition (Function 2)**
+    Located in the second section of the Workbench, this module distills cohesive local signaling pathways and causal circuits from complex macro networks:
+    * **Workflow:** Set focus prompt (optional) & target count (1-10) ➔ click `⚡ Start Pathway & Circuit Decomposition` ➔ view biochemical title, summary, feedback loop diagnostics (Johnson/Tarjan algorithms), and interactive DAG/Force canvases.
+    * **Export Options:** Standalone interactive HTML, JSON, or `🧬 Export as Project (.biokg)` for independent autopilot follow-up.
+
+    💡 **X. Hypothesis Deduction & Scientific Discovery Copilot (Function 3)**
+    Located in the third section of the Workbench, this module elevates the system from knowledge extraction to autonomous scientific discovery:
+    * **Message Passing & 3-4 Node Micro-Circuits:** Transcends two-node heuristics to detect multi-hop feedback, cascades, and bridges.
+    * **6 Exploration Modes:** Auto Portfolio (2 shortcuts + 1 bridge + 1 loop + 1 cascade), Detour Shortcut ($A \to B \to C$), Cluster Bridge, Feedback Homeostasis, Peripheral Growth, and Intent-Driven Exploration.
+    * **Literature Referee & Deep Expansion:** Concurrently queries PubMed / Semantic Scholar to classify hypotheses (Known Fact, Novel Gap, Cascade Pathway, Inconclusive), with one-click 8-10 paper deep literature expansion & re-adjudication.
+    * **Adoption & Master Graph Ingestion:** One-click merge to master graph via automated smart bridging pipeline, or export as standalone `.biokg` sub-project.
     """)
     else:
         st.markdown(""" 
@@ -182,6 +199,23 @@ def show_help_dialog():
     * 2. 🔍 **智能拓展 (Smart Expansion)：** 选定 1~3 个核心锚点，结合图谱已知背景自动反向生成高级检索式，从 PubMed 抓取最新文献送入队列，开启**无人值守自动化融合模式**，让图谱自我生长！
     * 3. 🔗 **智能桥接 (Bridging)：** 选中任意两个看似无关的分子 A 和 B，AI 自动遍历寻找隐秘的多步传导路径，或呼叫外网 API 强行探勘未被注意的调控桥梁，直接启发全新基金标书构思！
     * 4. 🤖 **问 AI (微观机制解读报告)：** 点击画布上任意节点或连线，提取其微上下文（原文提取证据与文献来源），大模型现场推演并生成详实的生物学机制解读报告，直出标书素材！
+
+    📊 **八、 图谱分析工作台与三层本体机制分类 (功能一)**
+    在主画布底部点击「📊 前往图谱分析工作台 ➔」即可一键切换至二级深度研判工作台：
+    * **三层分类升级架构：** Tier 1 (0-Token 规则预分流，INN 药名词缀/酶学/ncRNA 毫秒级命中) ➔ Tier 2 (微上下文局部推理与原篇文献正则精准回溯) ➔ Tier 3 (通用生物常识兜底与学者人工调换控制台)。
+    * **6 大内置权威本体预设：** 内置 NIH BioRED 通用基准、信号转导、药理靶点、肿瘤微环境、生态系统科学、动物行为学等预设，支持一键打开规则文件夹热加载自定义 `.json` 规则。
+
+    🔬 **九、 信号通路与自调控回路图论拆解研判 (功能二)**
+    位于工作台第二大板块，利用图论拓扑算法与大模型科研焦点引导，将复杂宏观大网精炼拆解为多条条理清晰、因果明确的信号通路：
+    * **操作流程：** 设定学术焦点指导（可选）与通路数量 ➔ 点击「⚡ 开始拆解信号通路与调控网络」➔ 查看生化通路标题、机制叙述摘要、自调控反馈环诊断（Johnson/Tarjan 算法）与交互画布。
+    * **导出与二次分析：** 支持导出独立交互 HTML、结构化 JSON，以及「🧬 降级导出为工程 (.biokg)」作为独立小课题重新加载开展无人值守拓展。
+
+    💡 **十、 智能假说推演与科研探勘引擎 (功能三)**
+    位于工作台第三大板块，是系统从“知识读取”向“前沿假说自主发现”蜕变的核心引擎：
+    * **图消息传递与 3-4 节点微回路发现：** 突破两节点直连局限，多步消息传递流精准捕获中介调节、多步级联与自稳态控制微回路。
+    * **6 大科研探勘模式：** 自动组合 (Auto Portfolio：2捷径+1瓶颈+1稳态+1级联)、局部捷径绕道 ($A \to B \to C$)、跨簇功能桥接、负反馈稳态闭环、前沿级联外展、科学意图导向探勘。
+    * **在线文献裁判与深度扩读：** 联网检索 PubMed / Semantic Scholar 智能输出四级研判（已知事实、创新空白、级联通路、证据不足），支持针对空白/争议卡片一键并发检索 8~10 篇全文深度扩读与二次仲裁。
+    * **假说采纳与无缝主图合并：** 点击一键采纳触发智能桥接扩增流水线，自动将新推演的中介节点与关系合并入主图谱并同步缓存；支持独立导出为 `.biokg` 课题工程。
     """)
 
 
@@ -1167,7 +1201,6 @@ def load_local_vault():
             st.session_state.current_project_name = pname
             if "project_name_input_widget" not in st.session_state:
                 st.session_state["project_name_input_widget"] = pname
-
             entities = data.get("entities", [])
             # 仅在会话未初始化实体时（冷启动或浏览器真 F5 刷新）恢复图谱
             if entities and not st.session_state.get("master_entities"):
@@ -1185,13 +1218,9 @@ def load_local_vault():
                 st.session_state.html_data = ""
         except Exception as e:
             print(f"专属工程记忆库自动加载失败: {e}")
-
-
 def clear_local_vault():
     """兼容旧接口：当前工程已完全交由 projects/ 目录管理，无根目录临时文件需清理"""
     pass
-
-
 # ==========================================
 # 页面全局配置
 # ==========================================
@@ -1203,7 +1232,6 @@ UI_TEXT = {
     # 全局 & 标题
     "page_title": {"zh": "🧬 Bio-Graph Agent 生物知识图谱自动生成引擎", "en": "🧬 Bio-Graph Agent Biomedical Knowledge Graph Engine"},
     "btn_help": {"zh": "❓ 帮助与说明", "en": "❓ Help & Docs"},
-
     # 侧边栏
     "sidebar_title": {"zh": "## 🧬 Bio-Graph Agent", "en": "## 🧬 Bio-Graph Agent"},
     "sidebar_api_placeholder_local": {"zh": "Ollama 免密运行，可留空", "en": "Ollama local mode, can be empty"},
@@ -1244,7 +1272,6 @@ UI_TEXT = {
     "api_siliconflow": {"zh": "硅基流动 (国内极速)", "en": "SiliconFlow (Fast CN)"},
     "api_ollama": {"zh": "Ollama (本地断网运行)", "en": "Ollama (Local Offline)"},
     "api_custom": {"zh": "自定义 (Custom)", "en": "Custom URL"},
-
     # 2. 模型选项
     "model_gemini_2_5_flash_lite": {"zh": "Gemini 2.5 Flash-Lite (谷歌极致低价版)", "en": "Gemini 2.5 Flash-Lite (Ultra Low Cost)"},
     "model_qwen_2_5_72b": {"zh": "Qwen 2.5 72B (千问学术双语旗舰版)", "en": "Qwen 2.5 72B (Bilingual Flagship)"},
@@ -1257,9 +1284,6 @@ UI_TEXT = {
     "model_glm_5_3_f": {"zh": "GLM 5.3 flash(智谱大模型)", "en": "GLM 5.3 flash(Zhipu AI)"},
     "model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash (谷歌高性价比极速版)", "en": "Gemini 3.8 Flash"},
     "model_gemini_3_5_flash_lite": {"zh": "Gemini 3.5 Flash-Lite (谷歌性价比)", "en": "Gemini 3.5 Flash-Lite "},
-
-
-
     # 3. 数据库选项
     "db_pubmed": {"zh": "PubMed (生物医学权威)", "en": "PubMed (Biomedical Auth)"},
     "db_semanticscholar": {"zh": "Semantic Scholar (全科AI智能)", "en": "Semantic Scholar (AI Smart Search)"},
@@ -1268,7 +1292,6 @@ UI_TEXT = {
     "col1_title": {"zh": "📂 1. 文献输入与配置", "en": "📂 1. Document Input & Config"},
     "upload_pdf": {"zh": "上传生物学文献 (PDF)", "en": "Upload Biological Document (PDF)"},
     "pdf_read_success": {"zh": "📄 成功读取 PDF 文件，总计 **{pages}** 页。", "en": "📄 Successfully loaded PDF, **{pages}** pages in total."},
-
     # 零基础冷启动区
     "cold_start_title": {"zh": "### 💡 没有文献？对 AI 说说你要研究什么吧", "en": "### 💡 No PDF? Tell AI what you want to study"},
     "cold_start_caption": {"zh": "只需输入一句话，AI 将自动检索、分批验证并为你搭建初始知识网络。", "en": "Just type a sentence, AI will automatically search, verify, and build your initial knowledge network."},
@@ -1291,7 +1314,6 @@ UI_TEXT = {
     "msg_graph_done": {"zh": "✨ 初始图谱构建完成！", "en": "✨ Initial graph construction completed!"},
     "toast_start_success": {"zh": "✅ 一键起步成功！", "en": "✅ One-click start successful!"},
     "err_all_validation_fail": {"zh": "❌ 检索到的 {count} 篇候选文献全部未能通过相关性验证。可能是研究方向过于前沿或关键词歧义，请尝试修改研究意图后重试！", "en": "❌ All {count} candidate papers failed relevance validation. Your topic might be too cutting-edge or ambiguous. Please revise and try again!"},
-
     # 提取模式设置区
     "extract_settings_title": {"zh": "⚙️ 2. 提取模式设置", "en": "⚙️ 2. Extraction Mode Settings"},
     "toggle_summary_only": {"zh": "⚡ 仅提取摘要模式 (速度极快)", "en": "⚡ Summary Only Mode (Extremely Fast)"},
@@ -1306,7 +1328,6 @@ UI_TEXT = {
     "entity_lang_opt_original": {"zh": "关闭 (保持原文语言)", "en": "Off (Keep Original Language)"},
     "entity_lang_opt_zh": {"zh": "中文 (强制翻译为中文)", "en": "Chinese (Force Translate to Chinese)"},
     "entity_lang_opt_en": {"zh": "English (强制翻译为英文)", "en": "English (Force Translate to English)"},
-
     # 机制图视觉解析策略
     "vision_strategy_title": {"zh": "📷 机制图/通路图解析策略", "en": "📷 Pathway Figure Strategy"},
     "vision_strategy_opt_off": {"zh": "🚫 关闭 (纯文本)", "en": "🚫 Off (Text Only)"},
@@ -1323,22 +1344,18 @@ UI_TEXT = {
     "vision_model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash (高智商旗舰)", "en": "Gemini 3.8 Flash (Flagship)"},
     "vision_model_qwen_2_5_vl_72b": {"zh": "Qwen 2.5 VL 72B (千问视觉旗舰)", "en": "Qwen 2.5 VL 72B (Vision Flagship)"},
     "vision_model_custom": {"zh": "自定义视觉模型...", "en": "Custom Vision Model..."},
-
     # 追加模式提示
     "append_info_ready": {"zh": "📦 记忆库就绪：当前已有 {count} 个节点。新知识将与之融合！", "en": "📦 Memory Bank Ready: Currently {count} nodes. New knowledge will be merged!"},
     "append_warn_off": {"zh": "⚠️ 注意：关闭追加模式，将会【清空】现有图谱，从零开始！历史文献也会清空", "en": "⚠️ Warning: Disabling Append Mode will [CLEAR] the existing graph and start from scratch! History will be cleared too."},
-
     # 解析范围设置区
     "parse_range_title": {"zh": "#### 🎯 设定解析范围", "en": "#### 🎯 Set Parsing Range"},
     "start_page": {"zh": "起始页码", "en": "Start Page"},
     "end_page": {"zh": "结束页码", "en": "End Page"},
     "warn_summary_range": {"zh": "💡 提示：摘要通常在文献前两页。为了保证极速提取，建议缩小页码范围！", "en": "💡 Tip: Abstracts are usually in the first two pages. To ensure speed, suggest narrowing the page range!"},
     "btn_start_parsing": {"zh": "🚀 开始解析 & 生成图谱", "en": "🚀 Start Parsing & Generate Graph"},
-
     # 历史文献侧边栏
     "history_sidebar_title": {"zh": "📚 历史分析文献", "en": "📚 Analyzed History Papers"},
     "history_no_docs": {"zh": "暂无已分析的文献", "en": "No analyzed papers yet"},
-
     # 右侧边界预览区
     "preview_col_title": {"zh": "👀 3. 边界预览", "en": "👀 3. Boundary Preview"},
     "preview_expander": {"zh": "🔍 点击查看选定范围的起止页 (用于确认边界)", "en": "🔍 Click to view start/end pages of selected range (Confirm boundaries)"},
@@ -1347,7 +1364,6 @@ UI_TEXT = {
     "preview_render_fail": {"zh": "渲染失败: {e}", "en": "Render Failed: {e}"},
     "preview_same_page": {"zh": "起止页相同，无需重复展示。", "en": "Start and end pages are the same. No need to show again."},
     "preview_no_pdf": {"zh": "👈 请先在左侧上传 PDF 文献以激活边界预览。", "en": "👈 Please upload a PDF document on the left to activate preview."},
-
     # 记忆库与工程管理区
     "memory_mgr_title": {"zh": "💾 记忆库与工程管理", "en": "💾 Memory Bank & Project Management"},
     "btn_new_project": {"zh": "✨ 新建空白工程", "en": "✨ New Blank Project"},
@@ -1406,7 +1422,6 @@ UI_TEXT = {
     "btn_export_ent_csv": {"zh": "📊 导出实体 (CSV)", "en": "📊 Export Entities (CSV)"},
     "btn_export_rel_csv": {"zh": "🔗 导出关系 (CSV)", "en": "🔗 Export Relations (CSV)"},
     "btn_export_graph_html": {"zh": "🕸️ 导出交互图谱 (HTML)", "en": "🕸️ Export Interactive Graph (HTML)"},
-
     "toggle_show_shortcuts": {"zh": "👁️ 显示机制捷径边", "en": "👁️ Show Mechanism Shortcuts"},
     "toggle_empower_ontology": {"zh": "🧬 包含关系反哺\n(父节点变大)", "en": "🧬 Ontology Empower\n(Parent Node Enlarge)"},
     "slider_alpha_ontology": {"zh": "反哺转移比例 (α)", "en": "Transfer Ratio (α)"},
@@ -1414,7 +1429,6 @@ UI_TEXT = {
     "slider_beta_node": {"zh": "互相辐射加成率 (β)", "en": "Radiation Bonus Rate (β)"},
     "toggle_empower_edge": {"zh": "🔗 核心主干加粗\n(高频连线变粗)", "en": "🔗 Edge Empower\n(High-freq Edges Thicken)"},
     "slider_gamma_edge": {"zh": "连线增粗系数 (γ)", "en": "Edge Thickening Factor (γ)"},
-
     "default_biokg_filename": {"zh": "我的图谱工程.biokg", "en": "My_Graph_Project.biokg"},
     # 图谱数据管理中心：全局与导航
     "editor_title": {"zh": "🎛️ 图谱数据管理中心", "en": "🎛️ Graph Data Management Center"},
@@ -1422,7 +1436,6 @@ UI_TEXT = {
     "nav_quick": {"zh": "⚡ 快捷功能", "en": "⚡ Quick Functions"},
     "nav_node": {"zh": "🎯 节点操作", "en": "🎯 Node Operations"},
     "nav_rel": {"zh": "🔗 关系操作", "en": "🔗 Relation Operations"},
-
     # 快捷功能区
     "quick_clear_title": {"zh": "#### 🧹 一键清理", "en": "#### 🧹 One-Click Cleanup"},
     "quick_clear_desc": {"zh": "清理掉那些既不是起点、也不是终点的“孤立无援”的节点。", "en": "Clean up isolated nodes that are neither source nor target."},
@@ -1444,7 +1457,6 @@ UI_TEXT = {
     "err_node_exists": {"zh": "⚠️ 节点已经存在！", "en": "⚠️ Node already exists!"},
     "toast_add_node_success": {"zh": "✅ 节点添加成功！", "en": "✅ Node added successfully!"},
     "default_manual_add": {"zh": "手动添加", "en": "Manual Add"},
-
     # 节点操作区
     "err_empty_graph": {"zh": "当前图谱为空，无法操作。", "en": "Graph is empty, cannot operate."},
     "lbl_search_node": {"zh": "🔍 搜索并选择要操作的节点", "en": "🔍 Search & select node to operate"},
@@ -1483,7 +1495,6 @@ UI_TEXT = {
     "warn_delete_node": {"zh": "⚠️ 警告：删除 `{node}` 将同时拔除所有相关连线！", "en": "⚠️ Warning: Deleting `{node}` will remove all its relations!"},
     "btn_confirm_delete": {"zh": "🚨 确认彻底删除", "en": "🚨 Confirm Delete"},
     "toast_delete_success": {"zh": "✅ 彻底清除！", "en": "✅ Completely Cleared!"},
-
     # 关系操作区
     "lbl_search_rel_title": {"zh": "### 🔍 搜索两个节点间的关联", "en": "### 🔍 Search Association Between Nodes"},
     "lbl_select_node_a": {"zh": "📍 选择节点 A", "en": "📍 Select Node A"},
@@ -1512,7 +1523,6 @@ UI_TEXT = {
     "btn_add_rel": {"zh": "💾 保存并添加连线", "en": "💾 Save & Add Edge"},
     "warn_rel_exists": {"zh": "⚠️ `{src}` 到 `{tgt}` 已经存在 `{type}` 类型的连线了！", "en": "⚠️ `{type}` relation already exists from `{src}` to `{tgt}`!"},
     "toast_rel_add_success": {"zh": "✅ 新关系建立成功！", "en": "✅ New relation established successfully!"},
-
     # 三大核心关系词典 (极其重要：用于UI显示，内部依然保持中文硬编码以匹配算法)
     "rel_positive": {"zh": "正作用", "en": "Positive"},
     "rel_negative": {"zh": "负作用", "en": "Negative"},
@@ -1524,7 +1534,6 @@ UI_TEXT = {
     "ai_nav_expansion": {"zh": "🔍 智能拓展 (Smart Expansion)", "en": "🔍 Smart Expansion"},
     "ai_nav_bridging": {"zh": "🔗 智能桥接 (Bridging)", "en": "🔗 Smart Bridging"},
     "ai_nav_ask": {"zh": "🤖 问 AI", "en": "🤖 Ask AI"},
-
     # 🧹 智能洗树 (Pruning) 模块
     "pruning_info": {"zh": "💡 拓扑清洗：基于大模型上下文与图论算法，自动处理同义词冗余、层级从属、机制捷径边降级、对称关系双向折叠与循环包含死锁化解。", "en": "💡 Topology Pruning: Leverages LLM reasoning and graph theory to resolve synonym redundancies, hierarchical containment, shortcut downgrading, symmetric relation folding, and mutual containment cycles."},
     "pruning_desc": {"zh": "点击下方按钮，将当前图谱的拓扑结构与文献证据发送给大模型进行诊断。",
@@ -1537,7 +1546,6 @@ UI_TEXT = {
     "toast_pruning_done": {"zh": "✅ 大模型诊断完成！", "en": "✅ LLM diagnosis completed!"},
     "pruning_tip_shortcut": {"zh": "💡 诊断完成后，请直接在上方【图谱显示控制面板】灵活开启或关闭捷径边的显示。",
                              "en": "💡 After diagnosis, you can flexibly toggle the display of shortcut edges in the [Display Control Panel] above."},
-
     # 📋 审查清单
     "review_list_title": {"zh": "### 📋 智能修改审查清单", "en": "### 📋 Smart Modification Review List"},
     "rev_merge": {"zh": "🧲 **合并同义词**: 将 `{removes}` 合并入 `{target}` (原因: {reason})",
@@ -1559,7 +1567,6 @@ UI_TEXT = {
     "no_reason": {"zh": "未提供原因", "en": "No reason provided"},
     "btn_confirm_pruning": {"zh": "💾 确认执行选中的优化", "en": "💾 Confirm Executing Selected Optimizations"},
     "toast_pruning_exec_done": {"zh": "✅ 优化已完美执行！", "en": "✅ Optimizations executed perfectly!"},
-
     # ✂️ 智能节点清洗 (Intent-Based Pruning)
     "intent_pruning_title": {"zh": "✂️ 智能节点清洗 (Intent-Based Pruning)", "en": "✂️ Intent-Based Pruning"},
     "intent_pruning_info": {"zh": "💡 意图剪枝：大模型将根据你输入的研究兴趣方向，揪出图谱中偏题或无关的对象（如误抓的其他器官/疾病），一键抹去它们及其连线。",
@@ -1572,7 +1579,6 @@ UI_TEXT = {
                                "en": "🧠 LLM is reviewing nodes and neighbors to find off-topic content..."},
     "toast_find_irrelevant_done": {"zh": "✅ 诊断完成，请在下方确认清洗名单！",
                                    "en": "✅ Diagnosis done, please confirm the purge list below!"},
-
     # 🧹 偏题节点处决名单
     "purge_list_title": {"zh": "### 🧹 偏题节点处决名单", "en": "### 🧹 Off-topic Nodes Purge List"},
     "purge_list_caption": {"zh": "请确认以下清洗建议。勾选【删除】的节点及其**所有相关连线**将被彻底从图谱中抹去。",
@@ -1586,7 +1592,6 @@ UI_TEXT = {
     "toast_purge_success": {"zh": "✅ 成功清理了 {count} 个偏题节点及其连线！图谱瞬间纯净！",
                             "en": "✅ Successfully purged {count} off-topic nodes & edges! Graph is now pure!"},
     "btn_cancel_purge": {"zh": "放弃本次剪枝", "en": "Cancel This Pruning"},
-
     # 🏷️ 智能文献名称识别与规范化 (Smart Literature Renaming) 模块
     "paper_rename_title": {"zh": "🏷️ 智能文献名称识别与规范化", "en": "🏷️ Smart Paper Title Identification & Renaming"},
     "paper_rename_info": {
@@ -1603,7 +1608,6 @@ UI_TEXT = {
     "warn_rename_failed": {"zh": "⚠️ 文献【{fname}】未能成功识别出标题（{reason}），已保留原文件名。", "en": "⚠️ Failed to identify title for [{fname}] ({reason}), kept original name."},
     "err_file_not_found": {"zh": "未在本地文件库中找到物理文件", "en": "Physical file not found in local vault"},
     "err_title_unrecognized": {"zh": "所有识别策略（PubMed检索、大模型快提与审校）均未成功识别出真实学术标题", "en": "All strategies (PubMed search, fast extraction, LLM review) failed to identify academic title"},
-
     # 🔍 智能拓展 (Smart Expansion) 模块
     "expansion_info": {"zh": "💡 选中图谱中的关键节点，系统将自动在 {db} 中检索前沿文献，并由 AI 提取摘要知识，自动将其延伸至当前图谱。",
                        "en": "💡 Select key nodes, the system will automatically search {db} for cutting-edge papers. AI will extract abstract knowledge and extend the current graph."},
@@ -1623,7 +1627,6 @@ UI_TEXT = {
     "err_need_key_for_ai_search": {"zh": "❌ 拦截：请先在侧边栏配置 API Key 以启用 AI 搜索功能。",
                                    "en": "❌ Blocked: Please configure API Key in sidebar to enable AI search."},
     "toast_search_success": {"zh": "✅ 成功检索到 {count} 篇相关文献！", "en": "✅ Successfully fetched {count} related papers!"},
-
     # 检索结果表格
     "search_results_title": {"zh": "### 📑 检索结果 (请勾选需要深度分析的文献)",
                              "en": "### 📑 Search Results (Check papers for deep analysis)"},
@@ -1634,7 +1637,6 @@ UI_TEXT = {
     "warn_check_one_paper": {"zh": "⚠️ 请至少在表格中勾选一篇文献！", "en": "⚠️ Please check at least one paper in the table!"},
     "toast_added_to_queue": {"zh": "✅ 已加入队列！请在下方控制台进行单步处理。",
                              "en": "✅ Added to queue! Please process step-by-step in the console below."},
-
     # 深度融合任务队列 (状态机面板)
     "queue_title": {"zh": "### ⚙️ 深度融合任务队列 (进度: {idx}/{total})",
                     "en": "### ⚙️ Deep Fusion Task Queue (Progress: {idx}/{total})"},
@@ -1693,7 +1695,6 @@ UI_TEXT = {
     "fmt_downgrade_reason": {"zh": "[智能桥接自动降级：已挖掘出深层通路] {old}", "en": "[Smart Bridging Auto-downgrade: Deep pathways mined] {old}"},
     "toast_bridge_merged": {"zh": "✅ 桥接机制已成功融合！图谱已生长！", "en": "✅ Bridge mechanism successfully merged! Graph has grown!"},
     "btn_reject_clear": {"zh": "❌ 感觉不对，放弃并清空", "en": "❌ Feels wrong, reject and clear"},
-
     # 🤖 问 AI (Ask AI)
     "ask_ai_info": {"zh": "💡 选中图谱中的任何节点或连线，AI 将结合它的【文献来源依据】和【网络拓扑】，为您提供独家解读。", "en": "💡 Select any node or edge in the graph. AI will provide an exclusive interpretation combining its [Literature Evidence] and [Network Topology]."},
     "lbl_what_to_explain": {"zh": "你想让 AI 解读什么？", "en": "What do you want AI to explain?"},
@@ -1776,7 +1777,6 @@ UI_TEXT = {
     "wb_orig_rel_prefix": {"zh": "原", "en": "orig"},
     "wb_unit_entities": {"zh": "个实体", "en": "entities"},
     "wb_unit_relations": {"zh": "条关系", "en": "relations"},
-
     # 🧬 工作台第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition)
     "wb_sec2_title": {"zh": "### 🧬 第二阶段：核心信号通路拆解与自调节回路建模", "en": "### 🧬 Stage 2: Signaling Pathway Decomposition & Autoregulation Modeling"},
     "wb_sec2_caption": {"zh": "融合本体分类、拓扑特征与文献溯源，自由组合挖掘核心因果传导轴、自促进/自抑制闭环反馈回路及跨文献全新假说。", "en": "Mine core causal axes, self-promotion/inhibition feedback loops, and cross-literature hypotheses leveraging ontology, topology, and citations."},
