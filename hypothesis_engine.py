@@ -760,6 +760,92 @@ class HypothesisEngine:
         hypothesis["verification_status"] = "verified"
         return hypothesis
 
+    def expand_literature_and_readjudicate(self, hypothesis: Dict[str, Any], intent: str = "", target_count: int = 8) -> Dict[str, Any]:
+        """
+        针对文献不足 (Inconclusive) 或疑似空白 (Novel Gap) 的假说卡片，
+        执行多路深挖扩检 (扩大至 8~10 篇真实文献) 并呼叫裁判大模型进行深度复审。
+        """
+        node_a = hypothesis.get("node_a", "")
+        node_b = hypothesis.get("node_b", "")
+        clean_a = re.sub(r'[\(\)\[\]]', '', node_a).strip()
+        clean_b = re.sub(r'[\(\)\[\]]', '', node_b).strip()
+
+        existing_articles = hypothesis.get("retrieved_articles", []) or []
+        seen_pmids = {str(a.get("pmid", "")).strip() for a in existing_articles if a.get("pmid")}
+
+        # 构造多角度深度检索 Query
+        query_candidates = []
+
+        # 1. 核心实体大召回自由检索与 Title/Abstract 检索
+        query_candidates.append(f'("{clean_a}" AND "{clean_b}")')
+        query_candidates.append(f'("{clean_a}"[Title/Abstract] AND "{clean_b}"[Title/Abstract])')
+
+        # 2. 结合微型机制模体中的中介实体进行联合检索
+        for cn in hypothesis.get("circuit_nodes", []):
+            m_name = cn.get("name", "").strip() if isinstance(cn, dict) else str(cn).strip()
+            clean_m = re.sub(r'[\(\)\[\]]', '', m_name).strip()
+            if clean_m and clean_m != clean_a and clean_m != clean_b:
+                query_candidates.append(f'("{clean_a}" AND "{clean_m}")')
+                query_candidates.append(f'("{clean_m}" AND "{clean_b}")')
+
+        # 3. 意向检索
+        if intent:
+            query_candidates.append(f'("{clean_a}" AND "{intent}")')
+            query_candidates.append(f'("{clean_b}" AND "{intent}")')
+
+        new_articles = []
+        for q in query_candidates:
+            if len(existing_articles) + len(new_articles) >= target_count:
+                break
+            try:
+                retrieved = self.searcher.search_articles(q, max_results=target_count)
+                for art in retrieved:
+                    pmid = str(art.get("pmid", "")).strip()
+                    if pmid and pmid not in seen_pmids:
+                        seen_pmids.add(pmid)
+                        new_articles.append(art)
+                    if len(existing_articles) + len(new_articles) >= target_count:
+                        break
+            except Exception as e:
+                print(f"⚠️ [HypothesisEngine] 深度扩检异常 ({q}): {e}")
+
+        # 补全所有新文献的真实摘要
+        for art in new_articles:
+            if not art.get("abstract"):
+                pmid = art.get("pmid", "")
+                if pmid and hasattr(self.searcher, "fetch_abstract"):
+                    try:
+                        fetched_ab = self.searcher.fetch_abstract(pmid)
+                        if fetched_ab:
+                            art["abstract"] = fetched_ab
+                    except Exception as fe:
+                        print(f"⚠️ [HypothesisEngine] 深度扩检摘要获取失败 (PMID: {pmid}): {fe}")
+
+        all_articles = existing_articles + new_articles
+        hypothesis["retrieved_articles"] = all_articles
+        hypothesis["deep_search_done"] = True
+
+        # 重新呼叫裁判大模型通读全部扩充文献进行终审裁决
+        if self.agent and hasattr(self.agent, "adjudicate_literature_novelty"):
+            adjudication = self.agent.adjudicate_literature_novelty(
+                hypothesis_info=hypothesis,
+                articles=all_articles,
+                lang=self.lang
+            )
+        else:
+            adjudication = {
+                "verdict": "novel_gap" if not all_articles else "known",
+                "confidence": 0.85,
+                "direct_evidence_pmid": all_articles[0].get("pmid", "") if all_articles else "",
+                "evidence_quote": "",
+                "research_direction": hypothesis.get("research_direction", ""),
+                "adjudication_rationale": f"已扩充通读 {len(all_articles)} 篇前沿文献完成深度复审裁决。"
+            }
+
+        hypothesis["adjudication"] = adjudication
+        hypothesis["verification_status"] = "verified"
+        return hypothesis
+
     def verify_hypotheses_concurrent(self, hypotheses: List[Dict[str, Any]],
                                       intent: str = "",
                                       max_workers: int = 4) -> List[Dict[str, Any]]:

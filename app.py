@@ -2435,6 +2435,18 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             "zh": "🔙 取消并前往运行阶段一",
             "en": "🔙 Cancel & Run Stage 1"
         },
+        "wb_hypo_btn_expand_lit": {
+            "zh": "📖 深入检索并通读更多前沿文献 (~8篇深挖复审)",
+            "en": "📖 Deep Search & Read More Literature (~8 papers re-adjudication)"
+        },
+        "wb_hypo_msg_expanding": {
+            "zh": "🔬 正在向 PubMed 深度扩检，抓取更多文献摘要并由裁判大模型深度复审...",
+            "en": "🔬 Expanding PubMed search depth, fetching more abstracts, and re-adjudicating..."
+        },
+        "wb_hypo_toast_expanded": {
+            "zh": "🎉 已完成更多前沿文献深挖与裁判终审复判！",
+            "en": "🎉 Expanded literature deep search and referee re-adjudication completed!"
+        },
     })
 
     # 1. 顶部返回导航栏与标题
@@ -3439,6 +3451,34 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.markdown(f"🔭 **科研前瞻建议**: {adj.get('research_direction', '')}")
                         st.caption(t("wb_hypo_novel_notice"))
 
+                        # 深入检索并通读更多文献深挖复审 (占满卡片全宽)
+                        if st.button(t("wb_hypo_btn_expand_lit"), key=f"btn_expand_lit_{cid}", width="stretch"):
+                            current_key = api_key.strip() if api_key else ""
+                            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                            if not current_key and not is_local:
+                                st.error(t("err_missing_api_key"))
+                                st.stop()
+
+                            from LLM_SYS import BioBrainAgent
+                            llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+                            engine = HypothesisEngine(
+                                entities=master_ents,
+                                relations=master_rels,
+                                workbench_state=st.session_state.get("workbench_state", {}),
+                                agent=llm_agent,
+                                searcher=searcher,
+                                lang=st.session_state.get("ui_language", "zh")
+                            )
+                            with st.spinner(t("wb_hypo_msg_expanding")):
+                                updated_card = engine.expand_literature_and_readjudicate(
+                                    card,
+                                    intent=st.session_state.get("active_hypo_intent", ""),
+                                    target_count=8
+                                )
+                                st.session_state.hypothesis_cards[idx] = updated_card
+                                st.toast(t("wb_hypo_toast_expanded"), icon="🎉")
+                                st.rerun()
+
                         # 导出为专题独立子工程 (.biokg) (占满卡片全宽)
                         sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
                             hypothesis=card,
@@ -3511,6 +3551,34 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     else:
                         st.info(f"**{t('wb_hypo_verdict_inconclusive')}**")
                         st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+
+                        # 深入检索并通读更多文献深挖复审 (占满卡片全宽, 优先操作)
+                        if st.button(t("wb_hypo_btn_expand_lit"), type="primary", key=f"btn_expand_lit_{cid}", width="stretch"):
+                            current_key = api_key.strip() if api_key else ""
+                            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                            if not current_key and not is_local:
+                                st.error(t("err_missing_api_key"))
+                                st.stop()
+
+                            from LLM_SYS import BioBrainAgent
+                            llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+                            engine = HypothesisEngine(
+                                entities=master_ents,
+                                relations=master_rels,
+                                workbench_state=st.session_state.get("workbench_state", {}),
+                                agent=llm_agent,
+                                searcher=searcher,
+                                lang=st.session_state.get("ui_language", "zh")
+                            )
+                            with st.spinner(t("wb_hypo_msg_expanding")):
+                                updated_card = engine.expand_literature_and_readjudicate(
+                                    card,
+                                    intent=st.session_state.get("active_hypo_intent", ""),
+                                    target_count=8
+                                )
+                                st.session_state.hypothesis_cards[idx] = updated_card
+                                st.toast(t("wb_hypo_toast_expanded"), icon="🎉")
+                                st.rerun()
 
                     # 文献摘要展开面板
                     if articles:

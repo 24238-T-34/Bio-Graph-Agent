@@ -1460,7 +1460,7 @@ PubMed 检索未直接召回包含两者的标题摘要。请结合权威生物�
                 }
 
         docs_summary = []
-        for i, art in enumerate(articles[:5]):
+        for i, art in enumerate(articles[:10]):
             pmid = art.get("pmid", "")
             title = art.get("title", "")
             abstract = art.get("abstract", "")
