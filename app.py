@@ -2392,8 +2392,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "wb_hypo_verdict_cascade": {"zh": "🔗 多步级联中介通路 (Cascade Pathway)", "en": "🔗 Multi-Step Cascade Pathway"},
         "wb_hypo_verdict_inconclusive": {"zh": "❓ 证据不足或存在争议 (Inconclusive)", "en": "❓ Inconclusive or Disputed Evidence"},
         "wb_hypo_btn_merge_return": {"zh": "📥 采纳文献证据并触发抽取流水线 (入库主图谱并返回主界面)", "en": "📥 Ingest via Pipeline & Merge to Master Graph (Return)"},
+        "wb_hypo_btn_merge_cascade": {"zh": "📥 采纳级联文献证据并智能桥接入库 (抽取中介实体与两段式调控关系)", "en": "📥 Ingest Cascade Literature Evidence & Bridge to Master Graph (Extract Mediators)"},
         "wb_hypo_btn_dl_biokg": {"zh": "📦 导出为专题研究子工程 (.biokg)", "en": "📦 Export as Research Subproject (.biokg)"},
         "wb_hypo_toast_merged_return": {"zh": "🎉 确证文献已通过流水线深度解析！新实体与调控关系已成功吸收入主图谱。", "en": "🎉 Confirmed literature successfully parsed via pipeline and merged into master graph!"},
+        "wb_hypo_toast_merged_cascade": {"zh": "🎉 级联文献已通过流水线深度解析！中介实体与两段式调控关系已智能桥接并合并入主图谱。", "en": "🎉 Cascade literature parsed via pipeline! Intermediate mediators and relations bridged into master graph."},
         "wb_hypo_novel_notice": {"zh": "ℹ️ 依据科研严谨性规范，未经验证的科学空白假说留作专享选题灵感，不污染主图谱事实库；学者可导出为独立子工程深挖。", "en": "ℹ️ By scientific standards, unverified gaps remain as research inspiration without polluting factual graph; export as subproject to investigate."},
         "wb_hypo_articles_title": {"zh": "📚 裁判检索审阅的 PubMed 文献摘要 ({count} 篇)", "en": "📚 Reviewed PubMed Abstracts ({count} items)"},
         "wb_hypo_badge_auto": {"zh": "🤖 自动感知模式", "en": "🤖 Auto Mode"},
@@ -3341,26 +3343,24 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             st.caption(f"📝 *原文依据*: “{quote}”")
                         st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
 
-                        # 采纳确证文献证据并触发智能拓展抽取流水线入库
-                        col_act_m, _ = st.columns([2, 2])
-                        with col_act_m:
-                            if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
-                                current_key = api_key.strip() if api_key else ""
-                                is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
-                                if not current_key and not is_local:
-                                    st.error(t("err_missing_api_key"))
-                                    st.stop()
+                        # 采纳确证文献证据并触发智能拓展抽取流水线入库 (占满卡片全宽)
+                        if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
+                            current_key = api_key.strip() if api_key else ""
+                            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                            if not current_key and not is_local:
+                                st.error(t("err_missing_api_key"))
+                                st.stop()
 
-                                with st.spinner(f"🔬 正在基于确证文献触发实体反思抽取、关系推导与知识图谱融合流水线..."):
-                                    ingest_verified_hypothesis_via_pipeline(
-                                        card=card,
-                                        api_key=current_key,
-                                        selected_model_id=selected_model_id,
-                                        base_url=base_url,
-                                        searcher=searcher
-                                    )
-                                st.toast(t("wb_hypo_toast_merged_return"), icon="🎉")
-                                st.rerun()
+                            with st.spinner(f"🔬 正在基于确证文献触发实体反思抽取、关系推导与知识图谱融合流水线..."):
+                                ingest_verified_hypothesis_via_pipeline(
+                                    card=card,
+                                    api_key=current_key,
+                                    selected_model_id=selected_model_id,
+                                    base_url=base_url,
+                                    searcher=searcher
+                                )
+                            st.toast(t("wb_hypo_toast_merged_return"), icon="🎉")
+                            st.rerun()
 
                     elif verdict == "novel_gap":
                         st.info(f"**{t('wb_hypo_verdict_novel')}** (创新度高)")
@@ -3368,32 +3368,75 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.markdown(f"🔭 **科研前瞻建议**: {adj.get('research_direction', '')}")
                         st.caption(t("wb_hypo_novel_notice"))
 
-                        # 导出为专题独立子工程 (.biokg)
-                        col_act_sub, _ = st.columns([2, 2])
-                        with col_act_sub:
-                            sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
-                                hypothesis=card,
-                                master_entities=master_ents,
-                                master_relations=master_rels,
-                                project_id=proj_id,
-                                project_name=proj_name,
-                                workbench_state=st.session_state.get("workbench_state", {})
-                            )
-                            sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
-                            clean_fname = f"BioKG_Hypothesis_{node_a}_{node_b}.biokg"
-                            st.download_button(
-                                t("wb_hypo_btn_dl_biokg"),
-                                data=sub_bytes,
-                                file_name=clean_fname,
-                                mime="application/json",
-                                key=f"dl_hypo_sub_{cid}",
-                                width="stretch"
-                            )
+                        # 导出为专题独立子工程 (.biokg) (占满卡片全宽)
+                        sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
+                            hypothesis=card,
+                            master_entities=master_ents,
+                            master_relations=master_rels,
+                            project_id=proj_id,
+                            project_name=proj_name,
+                            workbench_state=st.session_state.get("workbench_state", {})
+                        )
+                        sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
+                        clean_fname = f"BioKG_Hypothesis_{node_a}_{node_b}.biokg"
+                        st.download_button(
+                            t("wb_hypo_btn_dl_biokg"),
+                            data=sub_bytes,
+                            file_name=clean_fname,
+                            mime="application/json",
+                            key=f"dl_hypo_sub_{cid}",
+                            width="stretch"
+                        )
 
                     elif verdict == "cascade":
                         st.warning(f"**{t('wb_hypo_verdict_cascade')}**")
+                        pmid = adj.get("direct_evidence_pmid", "")
+                        if pmid:
+                            st.markdown(f"📄 **级联确证文献**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
+                        quote = adj.get("evidence_quote", "")
+                        if quote:
+                            st.caption(f"📝 *原文依据*: “{quote}”")
                         st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
                         st.markdown(f"🧭 **级联推演方向**: {adj.get('research_direction', '')}")
+
+                        # 采纳级联证据并触发智能拓展抽取流水线入库 (智能桥接中介并合并入主图谱，占满全宽)
+                        if st.button(t("wb_hypo_btn_merge_cascade"), type="primary", key=f"btn_merge_cascade_{cid}", width="stretch"):
+                            current_key = api_key.strip() if api_key else ""
+                            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                            if not current_key and not is_local:
+                                st.error(t("err_missing_api_key"))
+                                st.stop()
+
+                            with st.spinner(f"🔬 正在基于级联文献抽取中介实体与调控关系，执行智能桥接合并流水线..."):
+                                ingest_verified_hypothesis_via_pipeline(
+                                    card=card,
+                                    api_key=current_key,
+                                    selected_model_id=selected_model_id,
+                                    base_url=base_url,
+                                    searcher=searcher
+                                )
+                            st.toast(t("wb_hypo_toast_merged_cascade"), icon="🎉")
+                            st.rerun()
+
+                        # 同时支持导出为级联机制独立子工程 (.biokg) (占满全宽)
+                        sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
+                            hypothesis=card,
+                            master_entities=master_ents,
+                            master_relations=master_rels,
+                            project_id=proj_id,
+                            project_name=proj_name,
+                            workbench_state=st.session_state.get("workbench_state", {})
+                        )
+                        sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
+                        clean_fname = f"BioKG_Cascade_{node_a}_{node_b}.biokg"
+                        st.download_button(
+                            t("wb_hypo_btn_dl_biokg"),
+                            data=sub_bytes,
+                            file_name=clean_fname,
+                            mime="application/json",
+                            key=f"dl_hypo_sub_cascade_{cid}",
+                            width="stretch"
+                        )
                     else:
                         st.info(f"**{t('wb_hypo_verdict_inconclusive')}**")
                         st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
