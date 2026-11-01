@@ -282,68 +282,68 @@ def normalize_model_id(val: str) -> str:
 
 
 def load_config():
-    """在应用初次加载时，读取本地配置并注入到 session_state 中"""
-    if "config_loaded" not in st.session_state:
-        # 1. 设定需要持久化的默认值（去掉了所有绘图相关的选项）
-        default_config = {
-            "api_provider": "openrouter",
-            "custom_base_url": "https://api.openai.com/v1",
-            "selected_model_id": "google/gemini-3.5-flash-lite",
-            "selected_model_name": "Gemini 3.5 Flash-Lite (谷歌性价比)",  # 保持兼容
-            "custom_model_id": "",  # 用于 Ollama 等自定义手填的模型
-            "model_suffix": "",  # 记录云端模型的后缀或保底覆盖
-            "search_database": "PubMed",
-            "is_summary_only": False,
-            "use_reflection": True,
-            "append_mode": True,
-            "enable_relation_grounding": True,
-            "concurrency_workers": 4,
-            "ENABLE_EDITOR": True,  # ✨ 恢复的开关 1
-            "ENABLE_AI_CLEANER": True,  # ✨ 恢复的开关 2
-            "ui_language": "zh",
-            "vision_strategy": "opt_off",
-            "vision_match_keyword": "",
-            "vision_model_choice": "auto",
-            "vision_model_suffix": "",
-            "custom_vision_model_id": "",
-            "active_project_id": ""
-        }
+    """在应用初次加载或视图切换重跑时，持久化确保本地配置及默认状态无缝注入 session_state"""
+    # 1. 设定需要持久化的默认基准值（去掉了所有绘图相关的选项）
+    default_config = {
+        "api_provider": "openrouter",
+        "custom_base_url": "https://api.openai.com/v1",
+        "selected_model_id": "google/gemini-3.5-flash-lite",
+        "selected_model_name": "Gemini 3.5 Flash-Lite (谷歌性价比)",  # 保持兼容
+        "custom_model_id": "",  # 用于 Ollama 等自定义手填的模型
+        "model_suffix": "",  # 记录云端模型的后缀或保底覆盖
+        "search_database": "PubMed",
+        "is_summary_only": False,
+        "use_reflection": True,
+        "append_mode": True,
+        "enable_relation_grounding": True,
+        "concurrency_workers": 4,
+        "ENABLE_EDITOR": True,  # ✨ 恢复的开关 1
+        "ENABLE_AI_CLEANER": True,  # ✨ 恢复的开关 2
+        "ui_language": "zh",
+        "vision_strategy": "opt_off",
+        "vision_match_keyword": "",
+        "vision_model_choice": "auto",
+        "vision_model_suffix": "",
+        "custom_vision_model_id": "",
+        "active_project_id": ""
+    }
 
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                    local_config = json.load(f)
-                    local_config.pop("entity_language", None)
-                    if "selected_model_id" not in local_config and "selected_model_name" in local_config:
-                        local_config["selected_model_id"] = normalize_model_id(local_config["selected_model_name"])
-                    if "api_provider" in local_config:
-                        local_config["api_provider"] = normalize_api_provider(local_config["api_provider"])
-                    if "search_database" in local_config:
-                        cur_db = local_config["search_database"]
-                        local_config["search_database"] = "PubMed" if "PubMed" in str(cur_db) else "Semantic Scholar"
-                    if "vision_strategy" in local_config:
-                        vs = str(local_config["vision_strategy"])
-                        if vs not in ["opt_off", "opt_match", "opt_all"]:
-                            if "关" in vs or "Off" in vs:
-                                local_config["vision_strategy"] = "opt_off"
-                            elif "匹配" in vs or "Match" in vs:
-                                local_config["vision_strategy"] = "opt_match"
-                            elif "全" in vs or "All" in vs:
-                                local_config["vision_strategy"] = "opt_all"
-                            else:
-                                local_config["vision_strategy"] = "opt_off"
-                    default_config.update(local_config)
-            except Exception as e:
-                print(f"读取本地配置失败: {e}")
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                local_config = json.load(f)
+                local_config.pop("entity_language", None)
+                if "selected_model_id" not in local_config and "selected_model_name" in local_config:
+                    local_config["selected_model_id"] = normalize_model_id(local_config["selected_model_name"])
+                if "api_provider" in local_config:
+                    local_config["api_provider"] = normalize_api_provider(local_config["api_provider"])
+                if "search_database" in local_config:
+                    cur_db = local_config["search_database"]
+                    local_config["search_database"] = "PubMed" if "PubMed" in str(cur_db) else "Semantic Scholar"
+                if "vision_strategy" in local_config:
+                    vs = str(local_config["vision_strategy"])
+                    if vs not in ["opt_off", "opt_match", "opt_all"]:
+                        if "关" in vs or "Off" in vs:
+                            local_config["vision_strategy"] = "opt_off"
+                        elif "匹配" in vs or "Match" in vs:
+                            local_config["vision_strategy"] = "opt_match"
+                        elif "全" in vs or "All" in vs:
+                            local_config["vision_strategy"] = "opt_all"
+                        else:
+                            local_config["vision_strategy"] = "opt_off"
+                default_config.update(local_config)
+        except Exception as e:
+            print(f"读取本地配置失败: {e}")
 
-        for k, v in default_config.items():
-            if k not in st.session_state:
-                st.session_state[k] = v
+    # 无论初次加载还是从工作台切回主图谱，确保每个配置键都在 session_state 中稳态驻留
+    for k, v in default_config.items():
+        if k not in st.session_state or st.session_state[k] is None:
+            st.session_state[k] = v
 
-        if "language" not in st.session_state:
-            st.session_state.language = st.session_state.ui_language
+    if "language" not in st.session_state:
+        st.session_state.language = st.session_state.ui_language
 
-        st.session_state.config_loaded = True
+    st.session_state.config_loaded = True
 
 
 def save_config():
@@ -366,7 +366,7 @@ def save_config():
     disk_config.pop("entity_language", None)
 
     for k in config_keys:
-        if k in st.session_state:
+        if k in st.session_state and st.session_state[k] is not None:
             disk_config[k] = st.session_state[k]
 
     try:
@@ -1879,9 +1879,9 @@ if not st.session_state.get("current_project_id"):
 
 def render_sidebar_history_docs():
     """在侧边栏持久化展示当前工程的历史分析文献列表与下载按钮 (无论处于哪个视图均稳定渲染)"""
-    append_mode = st.session_state.get("append_mode", True)
-    if not append_mode and st.session_state.get("current_view", "main") == "main":
-        return
+    # 📚 历史文献始终稳定呈现，绝不因 append_mode 开关而隐匿
+    # 保证在无论何种运行模式与视图下，文献档案与下载入口均始终可见
+    pass
     cur_files = st.session_state.get("analyzed_files", [])
     st.markdown("---")
     st.header(t("history_sidebar_title"))
@@ -2095,13 +2095,13 @@ with st.sidebar:
         if "ENABLE_AI_CLEANER" not in st.session_state:
             st.session_state["ENABLE_AI_CLEANER"] = True
 
-        ENABLE_EDITOR = st.toggle(t("sidebar_toggle_editor"), key="ENABLE_EDITOR", on_change=save_config)
-        ENABLE_AI_CLEANER = st.toggle(t("sidebar_toggle_ai"), key="ENABLE_AI_CLEANER", on_change=save_config)
+        ENABLE_EDITOR = st.toggle(t("sidebar_toggle_editor"), value=st.session_state.get("ENABLE_EDITOR", True), key="ENABLE_EDITOR", persist_state="session", on_change=save_config)
+        ENABLE_AI_CLEANER = st.toggle(t("sidebar_toggle_ai"), value=st.session_state.get("ENABLE_AI_CLEANER", True), key="ENABLE_AI_CLEANER", persist_state="session", on_change=save_config)
 
         st.markdown("---")
         with st.expander(t("sidebar_contact")):
             st.markdown(t("contact_desc"))
-            st.link_button(t("contact_github"), "https://github.com/24238-T-34/Bio-Graph-Agent", use_container_width=True)
+            st.link_button(t("contact_github"), "https://github.com/24238-T-34/Bio-Graph-Agent", width="stretch")
             st.caption(t("contact_email"))
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n...")
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nit's a bug\nif you see this")
@@ -3056,13 +3056,15 @@ with left_col:
                             st.error(t("err_all_validation_fail").format(count=len(results)))
 
     st.subheader(t("extract_settings_title"))
-    is_summary_only = st.toggle(t("toggle_summary_only"), key="is_summary_only", on_change=save_config)
-    use_reflection = st.toggle(t("toggle_reflection"), key="use_reflection", on_change=save_config)
-    append_mode = st.toggle(t("toggle_append_mode"), key="append_mode", on_change=save_config)
+    is_summary_only = st.toggle(t("toggle_summary_only"), value=st.session_state.get("is_summary_only", False), key="is_summary_only", persist_state="session", on_change=save_config)
+    use_reflection = st.toggle(t("toggle_reflection"), value=st.session_state.get("use_reflection", True), key="use_reflection", persist_state="session", on_change=save_config)
+    append_mode = st.toggle(t("toggle_append_mode"), value=st.session_state.get("append_mode", True), key="append_mode", persist_state="session", on_change=save_config)
     enable_relation_grounding = st.toggle(
         t("toggle_relation_grounding"),
+        value=st.session_state.get("enable_relation_grounding", True),
         key="enable_relation_grounding",
         help=t("toggle_relation_grounding_help"),
+        persist_state="session",
         on_change=save_config
     )
     if "concurrency_workers" not in st.session_state:
@@ -3071,8 +3073,10 @@ with left_col:
         t("slider_concurrency"),
         min_value=1,
         max_value=8,
+        value=st.session_state.get("concurrency_workers", 4),
         key="concurrency_workers",
         help=t("slider_concurrency_help"),
+        persist_state="session",
         on_change=save_config
     )
 
