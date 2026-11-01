@@ -1208,19 +1208,39 @@ class PathwayDecompositionEngine:
 
     def cluster_and_induce_subgraphs(self,
                                       relations: List[Dict[str, Any]],
-                                      seeds: List[str],
+                                      seeds: List[Any],
                                       max_pathways: int = 3,
-                                      user_query: str = "") -> List[Dict[str, Any]]:
+                                      user_query: str = "",
+                                      enable_diversity_penalty: bool = True,
+                                      diversity_penalty_rate: float = 0.5) -> List[Dict[str, Any]]:
         """
-        基于图谱已知真实关系的严格有向级联诱导 (Strict Directed Subgraph Induction)
+        基于动力学语义阻抗与 MMR 累积惩罚的严格有向级联诱导 (Strict Directed Cascade Induction with Impedance & MMR Diversity)
         - 节点 100% 取自已知图谱，关系 100% 直取自 master_relations
-        - 沿真实有向调控边（正作用/负作用）追踪信号流动主干，杜绝无向乱序与虚假串联
-        - 保证各通路间具备独立性与高生物信息密度
+        - 生化动力学语义阻抗建模：因果调控 R=1.0 (超导体流速快)；弱关联 R=2.5；包含从属 R=10.0 (高阻抗，保底连通不夺舍)
+        - 修复 downstream[:5] 字典序机械截断 Bug：按边导纳 1/R 与节点度数排序探索
+        - MMR 累积路径惩罚调度：动态衰减已走过节点对后续通路的吸引力，自然逼出第二、第三条平行黄金主轴
+        - 父子节点层级容器化：包含从属不作伪因果箭头，识别为空间场域/复合物容器
         """
         if not relations or not seeds:
             return []
 
-        # 1. 构建有向网络，区分功能调控边与辅助边
+        from collections import Counter
+
+        # 1. 规范化种子列表与其初始基准得分
+        candidate_seeds = []
+        base_scores = {}
+        for idx, item in enumerate(seeds):
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                s_name = str(item[0]).strip()
+                s_score = float(item[1])
+            else:
+                s_name = str(item).strip()
+                s_score = float(len(seeds) - idx)
+            if s_name and s_name not in base_scores:
+                candidate_seeds.append(s_name)
+                base_scores[s_name] = s_score
+
+        # 2. 构建有向网络，计算生化动力学语义阻抗与导纳
         G_dir = nx.DiGraph()
         for r in relations:
             s = str(r.get("source", "")).strip()
@@ -1232,96 +1252,202 @@ class PathwayDecompositionEngine:
                 verb = str(ann.get("mechanism_verb", orig_rel)).lower()
                 cat = str(ann.get("mechanism_category", "")).lower()
 
-                is_reg = (orig_rel in ["正作用", "负作用"]) or any(kw in (cat + " " + verb) for kw in [
-                    "inhibit", "activat", "promot", "suppress", "degrad", "phospho",
-                    "抑制", "激活", "促进", "阻断", "降解", "诱导", "磷酸化"
+                # 从属/包含/分类层级边 (高阻抗 R=10.0，导纳 0.05，仅作场域容器，不作为传导级联步)
+                is_containment = (orig_rel in ["包含", "属于", "从属", "part_of", "subclass_of", "member_of", "hierarchy", "component"]) or any(
+                    kw in (cat + " " + verb) for kw in ["part_of", "subclass", "hierarchy", "component", "complex", "包含", "属于", "从属", "复合体", "亚型", "分类"]
+                )
+
+                # 生化功能因果调控边 (超导体 R=1.0，导纳 1.0)
+                is_causal = (orig_rel in ["正作用", "负作用"]) or any(kw in (cat + " " + verb) for kw in [
+                    "inhibit", "activat", "promot", "suppress", "degrad", "phospho", "cleav", "hydroly",
+                    "bind", "cataly", "induc", "target", "upregulat", "downregulat", "modulat",
+                    "抑制", "激活", "促进", "阻断", "降解", "诱导", "磷酸化", "催化", "水解", "裂解", "结合", "调控", "上调", "下调"
                 ])
-                # 调控边权重大，辅助边权重小
-                w = 1.0 if is_reg else 2.5
-                G_dir.add_edge(s, t, rel=r, is_regulatory=is_reg, weight=w)
+
+                if is_containment:
+                    r_imp = 10.0
+                    conductance = 0.05
+                elif is_causal:
+                    r_imp = 1.0
+                    conductance = 1.0
+                else:
+                    r_imp = 2.5
+                    conductance = 0.4
+
+                G_dir.add_edge(s, t, rel=r, is_regulatory=is_causal, is_containment=is_containment,
+                               impedance=r_imp, conductance=conductance, weight=r_imp)
 
         if len(G_dir) == 0:
             return []
 
+        deg_dict = dict(G_dir.degree())
+        max_deg = max(deg_dict.values()) if deg_dict else 1
+
+        # 统计节点因果出度，上游驱动因子/中继酶更优先作为级联源头，纯终点表型后置
+        out_causal_dict = {n: sum(1 for succ in G_dir.successors(n) if G_dir[n][succ].get("is_regulatory")) for n in G_dir}
+        for s in candidate_seeds:
+            out_c = out_causal_dict.get(s, 0)
+            driver_factor = 1.3 if out_c > 0 else 0.75
+            base_scores[s] = base_scores.get(s, 1.0) * driver_factor
+
+        candidate_seeds.sort(key=lambda x: base_scores.get(x, 1.0), reverse=True)
+
+        visited_node_counts = Counter()
         selected_subsets = []
         seen_node_sets = []
 
-        # 2. 针对每个关键种子追踪有向传导流 (下游效应 + 上游调节)
-        for seed in seeds:
-            if len(selected_subsets) >= max_pathways:
-                break
+        # 3. 循环多轮诱导不同方向的通路
+        while len(selected_subsets) < max_pathways:
+            # MMR 动态种子重排：已曝光节点得分受衰减
+            if enable_diversity_penalty and visited_node_counts:
+                active_seeds_order = sorted(
+                    candidate_seeds,
+                    key=lambda s: base_scores.get(s, 1.0) * ((1.0 - diversity_penalty_rate) ** visited_node_counts[s]),
+                    reverse=True
+                )
+            else:
+                active_seeds_order = candidate_seeds
 
-            cascade_nodes = {seed}
+            found_new = False
+            for seed in active_seeds_order:
+                if seed not in G_dir:
+                    continue
 
-            # A. 沿有向出边搜寻直接下游效应 (Downstream Cascade, 最深 2 步)
-            downstream = []
-            if seed in G_dir:
-                for succ in G_dir.successors(seed):
-                    downstream.append(succ)
-                    if len(downstream) < 5:
-                        for s2 in G_dir.successors(succ):
-                            if s2 != seed:
-                                downstream.append(s2)
-            cascade_nodes.update(downstream[:5])
+                # 动态阻抗图：已走过节点间的边阻抗按访问频次累进增加
+                G_curr = nx.DiGraph()
+                for u, v, d in G_dir.edges(data=True):
+                    base_w = d["impedance"]
+                    if enable_diversity_penalty:
+                        w = base_w * (1.6 ** (visited_node_counts[u] + visited_node_counts[v]))
+                    else:
+                        w = base_w
+                    d_copy = dict(d)
+                    d_copy["weight"] = w
+                    G_curr.add_edge(u, v, **d_copy)
 
-            # B. 沿有向入边搜寻上游刺激/输入 (Upstream Regulators, 最深 2 步)
-            upstream = []
-            if seed in G_dir:
-                for pred in G_dir.predecessors(seed):
-                    upstream.append(pred)
-                    if len(upstream) < 4:
-                        for p2 in G_dir.predecessors(pred):
-                            if p2 != seed and p2 not in cascade_nodes:
-                                upstream.append(p2)
-            cascade_nodes.update(upstream[:4])
+                cascade_nodes = {seed}
 
-            # 若处于定向探索模式或节点规模偏小，优先打通与其它高分焦点种子之间的有向最短路径
-            max_connect_limit = 8 if user_query else 6
-            if len(cascade_nodes) < max_connect_limit:
-                for other in seeds[:6]:
-                    if other != seed and other in G_dir and len(cascade_nodes) < 10:
-                        try:
-                            if nx.has_path(G_dir, seed, other):
-                                p = nx.shortest_path(G_dir, seed, other, weight="weight")
-                                if len(p) <= 4:
-                                    cascade_nodes.update(p)
-                            elif nx.has_path(G_dir, other, seed):
-                                p = nx.shortest_path(G_dir, other, seed, weight="weight")
-                                if len(p) <= 4:
-                                    cascade_nodes.update(p)
-                        except Exception:
-                            pass
+                # A. 沿有向出边搜寻直接下游效应 (Downstream Cascade，过滤纯包含关系，按导纳*度数*多样性加权)
+                direct_succs = []
+                for succ in G_curr.successors(seed):
+                    if G_curr[seed][succ].get("is_containment"):
+                        continue
+                    cond = G_curr[seed][succ].get("conductance", 0.4)
+                    deg_factor = 1.0 + (deg_dict.get(succ, 1) / max_deg)
+                    vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[succ]) if enable_diversity_penalty else 1.0
+                    prio = cond * deg_factor * vis_factor
+                    direct_succs.append((succ, prio))
+                direct_succs.sort(key=lambda x: x[1], reverse=True)
 
-            if len(cascade_nodes) > 10:
-                deg_map = dict(G_dir.degree())
-                sorted_cand = sorted(list(cascade_nodes), key=lambda x: (x == seed, deg_map.get(x, 0)), reverse=True)
-                cascade_nodes = set(sorted_cand[:10])
+                top_succs = [x[0] for x in direct_succs[:4]]
+                cascade_nodes.update(top_succs)
 
-            # 3. 严格从 master_relations 中切片诱导已知边 (原封不动保持不变)
-            sub_rels = []
-            for r in relations:
-                src = str(r.get("source", "")).strip()
-                tgt = str(r.get("target", "")).strip()
-                if src in cascade_nodes and tgt in cascade_nodes and src != tgt:
-                    sub_rels.append(r)
+                second_succs = []
+                for s1 in top_succs:
+                    for s2 in G_curr.successors(s1):
+                        if s2 != seed and s2 not in cascade_nodes and not G_curr[s1][s2].get("is_containment"):
+                            cond = G_curr[s1][s2].get("conductance", 0.4)
+                            deg_factor = 1.0 + (deg_dict.get(s2, 1) / max_deg)
+                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[s2]) if enable_diversity_penalty else 1.0
+                            prio = cond * deg_factor * vis_factor
+                            second_succs.append((s2, prio))
+                second_succs.sort(key=lambda x: x[1], reverse=True)
+                cascade_nodes.update([x[0] for x in second_succs[:3]])
 
-            if len(cascade_nodes) >= 2 and len(sub_rels) >= 1:
-                # 检查与已采纳通路的 Jaccard 相似度，避免重复雷同通路
-                is_duplicate = False
-                for existing in seen_node_sets:
-                    jaccard = len(cascade_nodes.intersection(existing)) / max(1, len(cascade_nodes.union(existing)))
-                    if jaccard >= 0.70:
-                        is_duplicate = True
+                # B. 沿有向入边搜寻上游刺激/输入 (Upstream Regulators，过滤纯包含关系)
+                direct_preds = []
+                for pred in G_curr.predecessors(seed):
+                    if G_curr[pred][seed].get("is_containment"):
+                        continue
+                    cond = G_curr[pred][seed].get("conductance", 0.4)
+                    deg_factor = 1.0 + (deg_dict.get(pred, 1) / max_deg)
+                    vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[pred]) if enable_diversity_penalty else 1.0
+                    prio = cond * deg_factor * vis_factor
+                    direct_preds.append((pred, prio))
+                direct_preds.sort(key=lambda x: x[1], reverse=True)
+
+                top_preds = [x[0] for x in direct_preds[:3]]
+                cascade_nodes.update(top_preds)
+
+                second_preds = []
+                for p1 in top_preds:
+                    for p2 in G_curr.predecessors(p1):
+                        if p2 != seed and p2 not in cascade_nodes and not G_curr[p2][p1].get("is_containment"):
+                            cond = G_curr[p2][p1].get("conductance", 0.4)
+                            deg_factor = 1.0 + (deg_dict.get(p2, 1) / max_deg)
+                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[p2]) if enable_diversity_penalty else 1.0
+                            prio = cond * deg_factor * vis_factor
+                            second_preds.append((p2, prio))
+                second_preds.sort(key=lambda x: x[1], reverse=True)
+                cascade_nodes.update([x[0] for x in second_preds[:2]])
+
+                # C. 打通与其它高优先级种子之间的有向最短路径 (加权 Dijkstra，最深 5 步)
+                target_peers = [o for o in active_seeds_order if o != seed and o in G_curr]
+                for other in target_peers[:15]:
+                    if len(cascade_nodes) >= 11:
+                        break
+                    try:
+                        if nx.has_path(G_curr, seed, other):
+                            p = nx.shortest_path(G_curr, seed, other, weight="weight")
+                            if len(p) <= 5:
+                                cascade_nodes.update(p)
+                        elif nx.has_path(G_curr, other, seed):
+                            p = nx.shortest_path(G_curr, other, seed, weight="weight")
+                            if len(p) <= 5:
+                                cascade_nodes.update(p)
+                    except Exception:
+                        pass
+
+                # D. 父子场域容器归属激活：若有子节点在通路中，将其所属父容器作为发生场域上下文标记
+                containers = []
+                for node in list(cascade_nodes):
+                    for pred in G_dir.predecessors(node):
+                        if G_dir[pred][node].get("is_containment"):
+                            containers.append({"container": pred, "contained": node})
+                            if pred in candidate_seeds[:10] and len(cascade_nodes) < 11:
+                                cascade_nodes.add(pred)
+
+                # 节点规模精炼修剪 (至多 11 个核心节点)
+                if len(cascade_nodes) > 11:
+                    sorted_cand = sorted(
+                        list(cascade_nodes),
+                        key=lambda x: (x == seed, -visited_node_counts[x], deg_dict.get(x, 0)),
+                        reverse=True
+                    )
+                    cascade_nodes = set(sorted_cand[:11])
+
+                # 诱导已知边
+                sub_rels = []
+                for r in relations:
+                    src = str(r.get("source", "")).strip()
+                    tgt = str(r.get("target", "")).strip()
+                    if src in cascade_nodes and tgt in cascade_nodes and src != tgt:
+                        sub_rels.append(r)
+
+                if len(cascade_nodes) >= 2 and len(sub_rels) >= 1:
+                    # 检查 Jaccard 相似度，多样性模式下阈值收紧至 0.45
+                    jaccard_max = 0.0
+                    for existing in seen_node_sets:
+                        jacc = len(cascade_nodes.intersection(existing)) / max(1, len(cascade_nodes.union(existing)))
+                        if jacc > jaccard_max:
+                            jaccard_max = jacc
+
+                    sim_threshold = 0.45 if enable_diversity_penalty else 0.65
+                    if jaccard_max < sim_threshold:
+                        seen_node_sets.append(cascade_nodes)
+                        visited_node_counts.update(cascade_nodes)
+                        selected_subsets.append({
+                            "cluster_id": len(selected_subsets) + 1,
+                            "seed_nodes": [seed],
+                            "nodes": sorted(list(cascade_nodes)),
+                            "relations": sub_rels,
+                            "containers": containers
+                        })
+                        found_new = True
                         break
 
-                if not is_duplicate:
-                    seen_node_sets.append(cascade_nodes)
-                    selected_subsets.append({
-                        "cluster_id": len(selected_subsets) + 1,
-                        "seed_nodes": [seed],
-                        "nodes": sorted(list(cascade_nodes)),
-                        "relations": sub_rels
-                    })
+            if not found_new:
+                break
 
         return selected_subsets[:max_pathways]
 
@@ -1502,7 +1628,9 @@ class PathwayDecompositionEngine:
             ann = self.relation_annotations.get(edge_k, {})
             verb = ann.get("mechanism_verb", rel)
             evi = str(r.get("evidence", r.get("reason", "无")))[:80]
-            edges_desc.append(f"- {s} ➔ {t} : `{verb}` (原文依据: {evi})")
+            is_comp = (rel in ["包含", "属于", "component", "hierarchy"]) or any(k in str(verb).lower() for k in ["包含", "属于", "从属", "component", "complex"])
+            tag = " [空间场域/组成结构]" if is_comp else ""
+            edges_desc.append(f"- {s} ➔ {t} : `{verb}`{tag} (原文依据: {evi})")
 
         loops_desc = []
         for lp in feedback_loops:
@@ -1556,6 +1684,9 @@ class PathwayDecompositionEngine:
                           enable_bridges: bool = True,
                           enable_subgraphs: bool = True,
                           max_pathways: int = 3,
+                          enable_diversity_penalty: bool = True,
+                          diversity_penalty_rate: float = 0.5,
+                          layout_mode: str = "hierarchical",
                           language: str = "zh",
                           progress_callback: Optional[Callable] = None,
                           log_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:
@@ -1587,7 +1718,7 @@ class PathwayDecompositionEngine:
         else:
             prog(0.12, "正在计算多维节点图论重要性得分..." if not is_en else "Computing multi-criteria graph importance scores...")
 
-        seed_scores = self.score_candidate_seeds(entities, relations, user_query=user_query, max_seeds=18, language=language)
+        seed_scores = self.score_candidate_seeds(entities, relations, user_query=user_query, max_seeds=20, language=language)
         seed_names = [s[0] for s in seed_scores]
         if user_query:
             top_scored_str = ", ".join([f"{s[0]}({s[1]:.1f}分)" for s in seed_scores[:6]])
@@ -1595,9 +1726,16 @@ class PathwayDecompositionEngine:
         else:
             log(f"🎯 成功挑选出 {len(seed_names)} 个核心候选种子实体: {', '.join(seed_names[:8])}..." if not is_en else f"🎯 Identified {len(seed_names)} candidate seeds: {', '.join(seed_names[:8])}...")
 
-        # 2. 严格基于已知大图谱有向调控边诱导子图
-        prog(0.30, "正在沿有向调控级联诱导真实子图..." if not is_en else "Inducing directed subgraphs along verified cascades...")
-        subgraphs = self.cluster_and_induce_subgraphs(relations, seed_names, max_pathways=max_pathways, user_query=user_query)
+        # 2. 严格基于已知大图谱有向调控边与动力学语义阻抗诱导子图
+        prog(0.30, "正在沿有向调控级联诱导真实子图 (MMR累积多样性探索)..." if not is_en else "Inducing directed subgraphs along verified cascades (MMR diversity)...")
+        subgraphs = self.cluster_and_induce_subgraphs(
+            relations=relations,
+            seeds=seed_scores,
+            max_pathways=max_pathways,
+            user_query=user_query,
+            enable_diversity_penalty=enable_diversity_penalty,
+            diversity_penalty_rate=diversity_penalty_rate
+        )
         log(f"📦 成功诱导出 {len(subgraphs)} 个高价值通路子网络模块" if not is_en else f"📦 Successfully induced {len(subgraphs)} pathway modules")
 
         if not subgraphs:
@@ -1668,7 +1806,8 @@ class PathwayDecompositionEngine:
                         ontology=self.ontology,
                         output_file=html_abs_path,
                         output_lang=language,
-                        height="480px"
+                        height="480px",
+                        layout_mode=layout_mode
                     )
                 except Exception as e:
                     log(f"⚠️ 生成子图 HTML 遇到小异常: {e}")
@@ -1680,6 +1819,8 @@ class PathwayDecompositionEngine:
                 "summary": narrative.get("summary", ""),
                 "nodes": nodes,
                 "relations": rels,
+                "containers": sub.get("containers", []),
+                "layout_mode": layout_mode,
                 "has_feedback_loop": len(loops) > 0,
                 "feedback_loops": loops,
                 "is_cross_paper": bridges.get("is_cross_paper", False),
@@ -1695,7 +1836,10 @@ class PathwayDecompositionEngine:
             "enable_loops": enable_loops,
             "enable_bridges": enable_bridges,
             "enable_subgraphs": enable_subgraphs,
-            "max_pathways": max_pathways
+            "max_pathways": max_pathways,
+            "enable_diversity_penalty": enable_diversity_penalty,
+            "diversity_penalty_rate": diversity_penalty_rate,
+            "layout_mode": layout_mode
         }
         self.save_manifest(results, user_query=user_query, options=options)
 

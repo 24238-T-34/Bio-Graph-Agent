@@ -1782,6 +1782,10 @@ UI_TEXT = {
     "wb_sec2_caption": {"zh": "融合本体分类、拓扑特征与文献溯源，自由组合挖掘核心因果传导轴、自促进/自抑制闭环反馈回路及跨文献全新假说。", "en": "Mine core causal axes, self-promotion/inhibition feedback loops, and cross-literature hypotheses leveraging ontology, topology, and citations."},
     "wb_pw_input_label": {"zh": "🎯 通路探索焦点（输入关键科学问题/疾病/表型/药物；留空则触发全局自主发掘）：", "en": "🎯 Pathway Exploration Focus (Enter biological question/disease/phenotype/drug; leave blank for autonomous discovery):"},
     "wb_pw_input_placeholder": {"zh": "例如：探讨索拉非尼耐药机制与铁死亡调控轴；或留空", "en": "e.g. Explore sorafenib resistance mechanism and ferroptosis regulatory axis; or leave blank"},
+    "wb_pw_chk_diversity": {"zh": "✨ 通路探索广度强化 (MMR 累积惩罚，向外发散发掘多条独立主线)", "en": "✨ Exploration Breadth (MMR Visited Penalty for multi-axis diversity)"},
+    "wb_pw_sel_layout": {"zh": "📐 通路拓扑排版模式", "en": "📐 Pathway Topology Layout"},
+    "wb_pw_layout_hierarchical": {"zh": "有向级联流向 (从左到右 LR)", "en": "Directed Cascade Flow (Left-to-Right LR)"},
+    "wb_pw_layout_force": {"zh": "经典弹性网络 (力导向)", "en": "Classic Force-Directed Network"},
     "wb_pw_chk_loops": {"zh": "🔄 闭环与自反馈调节挖掘 (检测自抑制/自促进)", "en": "🔄 Feedback Loop Mining (Detect self-inhibition / self-promotion)"},
     "wb_pw_chk_bridges": {"zh": "🌟 跨文献合成通路识别 (发现新假说)", "en": "🌟 Cross-Paper Bridge Detection (Discover novel hypotheses)"},
     "wb_pw_chk_subgraphs": {"zh": "🎨 精简独立子图渲染 (生成轻量交互画布)", "en": "🎨 Mini-Subgraph Rendering (Generate lightweight interactive canvas)"},
@@ -2161,8 +2165,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     import importlib
     import workbench_engine
     import IO_SYS
+    import LLM_SYS
     importlib.reload(workbench_engine)
     importlib.reload(IO_SYS)
+    importlib.reload(LLM_SYS)
     from workbench_engine import OntologyManager, WorkbenchAnalysisEngine, PathwayDecompositionEngine
     from IO_SYS import GraphVisualizer
     from collections import Counter
@@ -2693,6 +2699,14 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         )
 
         st.caption("⚙️ " + ("子功能独立控制与配置" if not is_en else "Sub-feature Configuration"))
+        c_top1, c_top2 = st.columns([5, 4])
+        with c_top1:
+            pw_chk_diversity = st.checkbox(t("wb_pw_chk_diversity"), value=True, key="wb_pw_chk_diversity")
+        with c_top2:
+            layout_options = ["hierarchical", "force"]
+            layout_format = lambda x: t("wb_pw_layout_hierarchical") if x == "hierarchical" else t("wb_pw_layout_force")
+            pw_sel_layout = st.selectbox(t("wb_pw_sel_layout"), options=layout_options, format_func=layout_format, key="wb_sel_pathway_layout")
+
         c_sw1, c_sw2, c_sw3, c_sw4 = st.columns([3, 3, 3, 2])
         with c_sw1:
             pw_chk_loops = st.checkbox(t("wb_pw_chk_loops"), value=True, key="wb_pw_chk_loops")
@@ -2740,6 +2754,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             enable_bridges=pw_chk_bridges,
             enable_subgraphs=pw_chk_subgraphs,
             max_pathways=pw_max_count,
+            enable_diversity_penalty=pw_chk_diversity,
+            layout_mode=pw_sel_layout,
             language=st.session_state.get("ui_language", "zh"),
             progress_callback=on_pw_prog
         )

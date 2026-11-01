@@ -1195,7 +1195,7 @@ class BioBrainAgent:
                 "You will be given an exact biological subnetwork module induced from a validated knowledge graph. "
                 "Your task is to synthesize: "
                 "1. A highly professional academic pathway title using LaTeX format where appropriate "
-                "(\e.g. '$\\text{CRL5}^{\\text{SOCS4}}$-mediated ubiquitination pathway and neurodegeneration resistance'). "
+                "(e.g. '$\\text{CRL5}^{\\text{SOCS4}}$-mediated ubiquitination pathway and neurodegeneration resistance'). "
                 "2. A concise 2-3 sentence executive summary explaining the molecular mechanism. "
                 "If a feedback loop is verified in the network, briefly discuss its dynamic role (homeostasis or bistable switch). "
                 f"{focus_instruction}\n"

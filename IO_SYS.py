@@ -876,7 +876,8 @@ class GraphVisualizer:
                               feedback_loops=None, cross_paper_bridges=None,
                               entity_annotations=None, relation_annotations=None,
                               ontology=None, output_file="pathway_subgraph.html",
-                              output_lang="zh", height="480px"):
+                              output_lang="zh", height="480px",
+                              layout_mode="hierarchical"):
         """
         绘制信号/因果通路拆解与建模的精简独立交互子图 (Mini-Subgraph)：
         - 聚焦呈现该通路 5~10 个关键种子节点与直接中继边
@@ -954,6 +955,18 @@ class GraphVisualizer:
                 v = c_nodes[(i + 1) % len(c_nodes)]
                 cycle_edge_set.add((u, v))
 
+        # 预先扫描识别空间/复合物场域容器节点
+        container_nodes = set()
+        for r in pathway_relations:
+            r_rel = str(r.get("relation", r.get("relation_type", ""))).strip()
+            r_src = str(r.get("source", "")).strip()
+            edge_k = f"{r_src}|{r.get('target', '')}|{r_rel}"
+            ann = relation_annotations.get(edge_k, {})
+            m_cat = str(ann.get("mechanism_category", "")).lower()
+            m_verb = str(ann.get("mechanism_verb", "")).lower()
+            if (r_rel in ["包含", "属于", "part_of", "hierarchy", "component"]) or any(k in (m_cat + " " + m_verb) for k in ["hierarchy", "component", "complex", "包含", "属于", "复合体", "亚型", "分类"]):
+                container_nodes.add(r_src)
+
         net = Network(
             height=height,
             width="100%",
@@ -962,7 +975,36 @@ class GraphVisualizer:
             directed=True,
             cdn_resources="remote"
         )
-        net.force_atlas_2based(gravity=-60, central_gravity=0.015, spring_length=120, spring_strength=0.08, damping=0.9)
+        if str(layout_mode).lower() == "hierarchical":
+            hierarchical_options = {
+                "layout": {
+                    "hierarchical": {
+                        "enabled": True,
+                        "direction": "LR",
+                        "sortMethod": "directed",
+                        "levelSeparation": 190,
+                        "nodeSpacing": 110,
+                        "treeSpacing": 160,
+                        "blockShifting": True,
+                        "edgeMinimization": True,
+                        "parentCentralization": True
+                    }
+                },
+                "physics": {
+                    "hierarchicalRepulsion": {
+                        "centralGravity": 0.0,
+                        "springLength": 100,
+                        "springConstant": 0.01,
+                        "nodeDistance": 120,
+                        "damping": 0.09
+                    },
+                    "solver": "hierarchicalRepulsion"
+                }
+            }
+            import json
+            net.set_options(json.dumps(hierarchical_options))
+        else:
+            net.force_atlas_2based(gravity=-60, central_gravity=0.015, spring_length=120, spring_strength=0.08, damping=0.9)
 
         # 1. 实体节点添加
         entity_info_map = {}
@@ -996,17 +1038,21 @@ class GraphVisualizer:
             node_size = 22 + min(12, sub_heat[std_name] * 3)
 
             is_pivot = std_name in pivot_node_names
-            border_width = 3 if is_pivot else 1.5
-            border_color = "#f59e0b" if is_pivot else "#ffffff"
+            is_container = std_name in container_nodes
+            border_width = 3 if is_pivot else (2.5 if is_container else 1.5)
+            border_color = "#f59e0b" if is_pivot else ("#8b5cf6" if is_container else "#ffffff")
 
             # 悬停说明卡片
             lbl_type = "Category" if is_en else "实体分类"
             lbl_pivot = "🌟 [Cross-Literature Pivot]" if is_en else "🌟 [跨文献桥接中枢]"
+            lbl_container = "🏛️ [Spatial/Complex Container]" if is_en else "🏛️ [空间/复合物场域容器]"
             lbl_src = "Source" if is_en else "来源文献"
 
             title_lines = [f"{std_name}"]
             if is_pivot:
                 title_lines.append(lbl_pivot)
+            if is_container:
+                title_lines.append(lbl_container)
             title_lines.append(f"{lbl_type}: {primary_type}" + (f" ({sub_type})" if sub_type else ""))
             if aliases:
                 title_lines.append(f"Aliases: {', '.join(aliases[:4])}")
@@ -1048,10 +1094,10 @@ class GraphVisualizer:
             edge_label = mech_verb if mech_verb else rel_type
             is_in_loop = (src, tgt) in cycle_edge_set
 
-            # 极性色彩判断
-            is_positive = (rel_type == "正作用") or any(k in str(mech_cat).lower() or k in str(mech_verb).lower() for k in ["positive", "activation", "induction", "agonism", "stimulat", "促进", "激活", "上调"])
+            # 极性色彩判断与动力学层次表达
+            is_positive = (rel_type == "正作用") or any(k in str(mech_cat).lower() or k in str(mech_verb).lower() for k in ["positive", "activation", "induction", "agonism", "stimulat", "促进", "激活", "上调", "催化"])
             is_negative = (rel_type == "负作用") or any(k in str(mech_cat).lower() or k in str(mech_verb).lower() for k in ["negative", "inhibition", "degradation", "lysis", "suppress", "block", "repress", "抑制", "降解", "阻断", "下调"])
-            is_component = (rel_type == "包含") or any(k in str(mech_cat).lower() for k in ["hierarchy", "component", "complex", "包含", "复合体"])
+            is_component = (rel_type in ["包含", "属于", "part_of", "hierarchy", "component"]) or any(k in str(mech_cat).lower() or k in str(mech_verb).lower() for k in ["hierarchy", "component", "complex", "包含", "属于", "从属", "复合体", "亚型", "分类"])
 
             if is_in_loop:
                 # 闭环连线醒目高亮
@@ -1059,20 +1105,21 @@ class GraphVisualizer:
                 edge_width = 3.5
                 is_dashed = False
             elif is_negative:
-                edge_color = "#ef4444"  # 红色
+                edge_color = "#ef4444"  # 红色实线 (阻断/降解/抑制)
                 edge_width = 2.5
                 is_dashed = False
             elif is_positive:
-                edge_color = "#10b981"  # 绿色
+                edge_color = "#10b981"  # 绿色实线 (激活/促进/催化)
                 edge_width = 2.0
                 is_dashed = False
             elif is_component:
-                edge_color = "#8b5cf6"  # 紫色
-                edge_width = 1.8
-                is_dashed = False
+                edge_color = "#a78bfa"  # 淡紫色虚线 (从属/结构组成/场域容器，不喧宾夺主)
+                edge_width = 1.4
+                is_dashed = True
+                edge_label = f"[{edge_label}]"
             else:
-                edge_color = "#9ca3af"  # 灰色虚线
-                edge_width = 1.5
+                edge_color = "#9ca3af"  # 灰色虚线 (一般关联)
+                edge_width = 1.4
                 is_dashed = True
 
             edge_title_lines = [
