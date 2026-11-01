@@ -1686,7 +1686,7 @@ class PathwayDecompositionEngine:
                           max_pathways: int = 3,
                           enable_diversity_penalty: bool = True,
                           diversity_penalty_rate: float = 0.5,
-                          layout_mode: str = "hierarchical",
+                          layout_mode: str = "force",
                           language: str = "zh",
                           progress_callback: Optional[Callable] = None,
                           log_callback: Optional[Callable] = None) -> List[Dict[str, Any]]:

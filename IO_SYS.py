@@ -877,7 +877,7 @@ class GraphVisualizer:
                               entity_annotations=None, relation_annotations=None,
                               ontology=None, output_file="pathway_subgraph.html",
                               output_lang="zh", height="480px",
-                              layout_mode="hierarchical"):
+                              layout_mode="force"):
         """
         绘制信号/因果通路拆解与建模的精简独立交互子图 (Mini-Subgraph)：
         - 聚焦呈现该通路 5~10 个关键种子节点与直接中继边
@@ -975,36 +975,8 @@ class GraphVisualizer:
             directed=True,
             cdn_resources="remote"
         )
-        if str(layout_mode).lower() == "hierarchical":
-            hierarchical_options = {
-                "layout": {
-                    "hierarchical": {
-                        "enabled": True,
-                        "direction": "LR",
-                        "sortMethod": "directed",
-                        "levelSeparation": 190,
-                        "nodeSpacing": 110,
-                        "treeSpacing": 160,
-                        "blockShifting": True,
-                        "edgeMinimization": True,
-                        "parentCentralization": True
-                    }
-                },
-                "physics": {
-                    "hierarchicalRepulsion": {
-                        "centralGravity": 0.0,
-                        "springLength": 100,
-                        "springConstant": 0.01,
-                        "nodeDistance": 120,
-                        "damping": 0.09
-                    },
-                    "solver": "hierarchicalRepulsion"
-                }
-            }
-            import json
-            net.set_options(json.dumps(hierarchical_options))
-        else:
-            net.force_atlas_2based(gravity=-60, central_gravity=0.015, spring_length=120, spring_strength=0.08, damping=0.9)
+        # 恢复默认经典弹性网络力导向布局 (ForceAtlas2)，节点舒展自然，杜绝层级重叠或漂移
+        net.force_atlas_2based(gravity=-60, central_gravity=0.015, spring_length=120, spring_strength=0.08, damping=0.9)
 
         # 1. 实体节点添加
         entity_info_map = {}

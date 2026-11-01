@@ -2699,22 +2699,16 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         )
 
         st.caption("⚙️ " + ("子功能独立控制与配置" if not is_en else "Sub-feature Configuration"))
-        c_top1, c_top2 = st.columns([5, 4])
-        with c_top1:
-            pw_chk_diversity = st.checkbox(t("wb_pw_chk_diversity"), value=True, key="wb_pw_chk_diversity")
-        with c_top2:
-            layout_options = ["hierarchical", "force"]
-            layout_format = lambda x: t("wb_pw_layout_hierarchical") if x == "hierarchical" else t("wb_pw_layout_force")
-            pw_sel_layout = st.selectbox(t("wb_pw_sel_layout"), options=layout_options, format_func=layout_format, key="wb_sel_pathway_layout")
-
-        c_sw1, c_sw2, c_sw3, c_sw4 = st.columns([3, 3, 3, 2])
+        c_sw1, c_sw2, c_sw3, c_sw4, c_sw5 = st.columns([4, 3, 3, 3, 2])
         with c_sw1:
-            pw_chk_loops = st.checkbox(t("wb_pw_chk_loops"), value=True, key="wb_pw_chk_loops")
+            pw_chk_diversity = st.checkbox(t("wb_pw_chk_diversity"), value=True, key="wb_pw_chk_diversity")
         with c_sw2:
-            pw_chk_bridges = st.checkbox(t("wb_pw_chk_bridges"), value=True, key="wb_pw_chk_bridges")
+            pw_chk_loops = st.checkbox(t("wb_pw_chk_loops"), value=True, key="wb_pw_chk_loops")
         with c_sw3:
-            pw_chk_subgraphs = st.checkbox(t("wb_pw_chk_subgraphs"), value=True, key="wb_pw_chk_subgraphs")
+            pw_chk_bridges = st.checkbox(t("wb_pw_chk_bridges"), value=True, key="wb_pw_chk_bridges")
         with c_sw4:
+            pw_chk_subgraphs = st.checkbox(t("wb_pw_chk_subgraphs"), value=True, key="wb_pw_chk_subgraphs")
+        with c_sw5:
             pw_max_count = st.slider(t("wb_pw_slider_count"), min_value=1, max_value=5, value=3, key="wb_pw_slider_count")
 
         btn_run_label = t("wb_pw_btn_rerun") if display_pathways else t("wb_pw_btn_start")
@@ -2755,7 +2749,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             enable_subgraphs=pw_chk_subgraphs,
             max_pathways=pw_max_count,
             enable_diversity_penalty=pw_chk_diversity,
-            layout_mode=pw_sel_layout,
+            layout_mode="force",
             language=st.session_state.get("ui_language", "zh"),
             progress_callback=on_pw_prog
         )
