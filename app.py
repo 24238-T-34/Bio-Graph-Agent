@@ -2160,6 +2160,188 @@ def open_directory_in_file_manager(dir_path: str) -> bool:
         return False
 
 
+def ingest_verified_hypothesis_via_pipeline(card: dict, api_key: str, selected_model_id: str, base_url: str, searcher):
+    """
+    完全参照【智能拓展 (Smart Expansion)】的标准流水线：
+    提取确证假说对应的 PubMed 真实文献摘要，执行：
+    1. 实体抽取与自我反思 (extract_entities_with_reflection)
+    2. 文献注册与哈希溯源 (register_or_update_paper & canonicalize_project_papers)
+    3. 机制关系抽取 (extract_relations)
+    4. 全局实体对齐映射 (align_global_entities)
+    5. 主图谱融合与同质边规整 (consolidate_homogeneous_relations)
+    6. 拓展历史日志记录与本地持久化
+    7. 刷新主画布并平滑返回主界面
+    """
+    adj = card.get("adjudication", {}) or {}
+    pmid = str(adj.get("direct_evidence_pmid", "")).strip()
+    articles = card.get("retrieved_articles", [])
+    target_art = None
+    if pmid:
+        for a in articles:
+            if str(a.get("pmid", "")).strip() == pmid:
+                target_art = a
+                break
+    if not target_art and articles:
+        target_art = articles[0]
+        if not pmid:
+            pmid = str(target_art.get("pmid", "")).strip()
+
+    title = target_art.get("title", f"PubMed:{pmid}") if target_art else f"PubMed:{pmid}"
+    abstract = target_art.get("abstract", "") if target_art else ""
+
+    # 若摘要缺失或过短，尝试向数据库现场补抓
+    if (not abstract or len(abstract) < 50) and pmid and hasattr(searcher, "fetch_abstract"):
+        try:
+            fetched = searcher.fetch_abstract(pmid)
+            if fetched and len(fetched) >= 50:
+                abstract = fetched
+        except Exception as e:
+            print(f"⚠️ [Pipeline] 现场获取摘要异常: {e}")
+
+    # 若极端情况下无摘要或无文献，以假说陈述与依据作为保底证据文本
+    if not abstract or len(abstract) < 30:
+        quote = adj.get("evidence_quote", "")
+        rationale = adj.get("adjudication_rationale", "")
+        stmt = card.get("hypothesis_statement", "")
+        abstract = f"{title}. {quote} {rationale} {stmt}".strip()
+
+    current_api_key = api_key.strip() if api_key else ""
+    from LLM_SYS import BioBrainAgent
+    agent = BioBrainAgent(api_key=current_api_key, model=selected_model_id, base_url=base_url)
+
+    use_reflection = st.session_state.get("use_reflection", True)
+    entity_language = st.session_state.get("entity_language", "关闭 (保持原文语言)")
+
+    # 1. 实体抽取与自我反思
+    new_entities = agent.extract_entities_with_reflection(
+        abstract,
+        use_reflection=use_reflection,
+        entity_lang=entity_language
+    )
+
+    # 2. 文献注册与溯源标签 (PMID)
+    pmid_tag = f"PubMed:{pmid}" if pmid else f"PubMed:Hypo_{card.get('id', '')}"
+    v_hash = f"pmid:{pmid}" if pmid else f"hypo:{card.get('id', '')}"
+    proj_id = get_current_project_id()
+
+    register_or_update_paper(
+        proj_id,
+        doc_hash=v_hash,
+        display_name=pmid_tag,
+        aliases=[pmid_tag, str(pmid)] if pmid else [pmid_tag],
+        pmid=str(pmid) if pmid else "",
+        source_type="online_pmid"
+    )
+
+    for ent in new_entities:
+        ent["doc_source"] = pmid_tag
+        ent["doc_hash"] = v_hash
+
+    if pmid_tag not in st.session_state.analyzed_files:
+        st.session_state.analyzed_files.append(pmid_tag)
+    st.session_state.analyzed_files = canonicalize_project_papers(proj_id, st.session_state.analyzed_files)
+
+    # 3. 机制关系抽取
+    combined_entities_dict = st.session_state.master_entities + new_entities
+    new_relations = agent.extract_relations(abstract, combined_entities_dict)
+    for rel in new_relations:
+        rel["doc_source"] = pmid_tag
+        rel["doc_hash"] = v_hash
+        rel["weight"] = 1
+
+    # 4. 全局实体对齐映射
+    alignment_map = agent.align_global_entities(st.session_state.master_entities, new_entities)
+
+    aligned_new_entities = []
+    master_names = {ent["standard_name"]: ent for ent in st.session_state.master_entities}
+
+    for new_ent in new_entities:
+        new_name = new_ent.get("standard_name")
+        new_source = new_ent.get("doc_source", "")
+
+        if new_name in master_names:
+            master_ent = master_names[new_name]
+            aliases = master_ent.setdefault("aliases", [])
+            for new_alias in new_ent.get("aliases", []):
+                if new_alias not in aliases and new_alias != new_name:
+                    aliases.append(new_alias)
+            old_source = master_ent.get("doc_source", "")
+            if new_source and new_source not in old_source:
+                master_ent["doc_source"] = f"{old_source} | {new_source}"
+        elif alignment_map and new_name in alignment_map:
+            master_name = alignment_map[new_name]
+            if master_name in master_names:
+                master_ent = master_names[master_name]
+                aliases = master_ent.setdefault("aliases", [])
+                if new_name not in aliases:
+                    aliases.append(new_name)
+                for new_alias in new_ent.get("aliases", []):
+                    if new_alias not in aliases and new_alias != master_name:
+                        aliases.append(new_alias)
+                old_source = master_ent.get("doc_source", "")
+                if new_source and new_source not in old_source:
+                    master_ent["doc_source"] = f"{old_source} | {new_source}"
+            else:
+                aligned_new_entities.append(new_ent)
+        else:
+            aligned_new_entities.append(new_ent)
+
+    if alignment_map:
+        for rel in new_relations:
+            if rel.get("source") in alignment_map:
+                rel["source"] = alignment_map[rel["source"]]
+            if rel.get("target") in alignment_map:
+                rel["target"] = alignment_map[rel["target"]]
+
+    # 5. 确保学者检验的核心机制边必定入库
+    node_a = card.get("node_a", "")
+    node_b = card.get("node_b", "")
+    aligned_a = alignment_map.get(node_a, node_a) if alignment_map else node_a
+    aligned_b = alignment_map.get(node_b, node_b) if alignment_map else node_b
+    has_direct_rel = any(
+        (r.get("source") == aligned_a and r.get("target") == aligned_b) or
+        (r.get("source") == aligned_b and r.get("target") == aligned_a)
+        for r in new_relations
+    )
+    if not has_direct_rel and aligned_a and aligned_b:
+        new_relations.append({
+            "source": aligned_a,
+            "target": aligned_b,
+            "relation": card.get("proposed_relation", "Positive_Regulation"),
+            "doc_source": pmid_tag,
+            "doc_hash": v_hash,
+            "evidence": adj.get("evidence_quote") or card.get("hypothesis_statement", ""),
+            "weight": 1
+        })
+
+    # 6. 主图谱合并与同质边融合
+    all_rels = st.session_state.master_relations + new_relations
+    st.session_state.master_relations = consolidate_homogeneous_relations(all_rels)
+    st.session_state.master_entities.extend(aligned_new_entities)
+
+    # 7. 拓展历史日志记录
+    log_entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] PMID: {pmid} | Title: {title} (Verified Hypothesis: {node_a} ⟷ {node_b})\n"
+    try:
+        log_dir = ".expanded_logs"
+        os.makedirs(log_dir, exist_ok=True)
+        with open(os.path.join(log_dir, "expansion_history.txt"), "a", encoding="utf-8") as f:
+            f.write(log_entry)
+    except Exception:
+        pass
+
+    try:
+        proj_dir = get_project_dir_by_id(proj_id)
+        with open(os.path.join(proj_dir, "expansion_history.txt"), "a", encoding="utf-8") as f:
+            f.write(log_entry)
+    except Exception:
+        pass
+
+    # 8. 保存 Vault + 重绘主画布 + 设为主视图
+    save_local_vault()
+    redraw_and_update()
+    st.session_state.current_view = "main"
+
+
 def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: str):
     """图谱分析工作台独立视图渲染 (Graph Analysis Workbench) - 完整双语国际化与条件渲染"""
     import importlib
@@ -2181,9 +2363,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "en": "Package this pathway/circuit as a standard .biokg project archive, ready for secondary smart expansion, bridging, and deep analysis"
     })
     UI_TEXT.update({
-        "wb_tab_stage1_title": {"zh": "🏷️ 多维本体分类与机制标定", "en": "🏷️ Ontology & Mechanism Annotation"},
-        "wb_tab_stage2_title": {"zh": "🔍 核心通路拆解与回路建模", "en": "🔍 Pathway Circuit Decomposition"},
-        "wb_tab_stage3_title": {"zh": "💡 智能假说推演与科研探勘", "en": "💡 Hypothesis Deduction & Discovery Engine"},
         "wb_sec3_title": {
             "zh": "### 💡 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)",
             "en": "### 💡 Stage 3: Hypothesis Deduction & Discovery Copilot"
@@ -2210,9 +2389,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "wb_hypo_verdict_novel": {"zh": "🌟 真正的科研空白 (原始创新假说 / Novelty High)", "en": "🌟 Genuine Scientific White Space (Novelty High)"},
         "wb_hypo_verdict_cascade": {"zh": "🔗 多步级联中介通路 (Cascade Pathway)", "en": "🔗 Multi-Step Cascade Pathway"},
         "wb_hypo_verdict_inconclusive": {"zh": "❓ 证据不足或存在争议 (Inconclusive)", "en": "❓ Inconclusive or Disputed Evidence"},
-        "wb_hypo_btn_merge_return": {"zh": "📥 采纳并补入主图谱 (返回主界面)", "en": "📥 Accept & Merge into Master Graph (Return to Main)"},
+        "wb_hypo_btn_merge_return": {"zh": "📥 采纳文献证据并触发抽取流水线 (入库主图谱并返回主界面)", "en": "📥 Ingest via Pipeline & Merge to Master Graph (Return)"},
         "wb_hypo_btn_dl_biokg": {"zh": "📦 导出为专题研究子工程 (.biokg)", "en": "📦 Export as Research Subproject (.biokg)"},
-        "wb_hypo_toast_merged_return": {"zh": "🎉 确证事实已成功补入知识图谱！已自动返回主图谱画布。", "en": "🎉 Confirmed fact successfully merged into graph! Returned to main canvas."},
+        "wb_hypo_toast_merged_return": {"zh": "🎉 确证文献已通过流水线深度解析！新实体与调控关系已成功吸收入主图谱。", "en": "🎉 Confirmed literature successfully parsed via pipeline and merged into master graph!"},
         "wb_hypo_novel_notice": {"zh": "ℹ️ 依据科研严谨性规范，未经验证的科学空白假说留作专享选题灵感，不污染主图谱事实库；学者可导出为独立子工程深挖。", "en": "ℹ️ By scientific standards, unverified gaps remain as research inspiration without polluting factual graph; export as subproject to investigate."},
         "wb_hypo_articles_title": {"zh": "📚 裁判检索审阅的 PubMed 文献摘要 ({count} 篇)", "en": "📚 Reviewed PubMed Abstracts ({count} items)"},
         "wb_hypo_badge_auto": {"zh": "🤖 自动感知模式", "en": "🤖 Auto Mode"},
@@ -2267,370 +2446,428 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         else:
             st.caption(t("wb_no_base_graph"))
 
-    # 3. 三大核心分析模块 Tab 切换 (Tab Navigation)
-    tab_stage1, tab_stage2, tab_stage3 = st.tabs([
-        t("wb_tab_stage1_title"),
-        t("wb_tab_stage2_title"),
-        t("wb_tab_stage3_title")
-    ])
+    # 3. 本体预设与分析控制面板
+    mgr = OntologyManager()
+    presets = mgr.list_presets()
+    preset_id_map = {p["id"]: p for p in presets}
+    preset_ids = list(preset_id_map.keys())
+    default_idx = preset_ids.index("universal_biored") if "universal_biored" in preset_ids else 0
 
-    with tab_stage1:
-        # 3. 本体预设与分析控制面板
-        mgr = OntologyManager()
-        presets = mgr.list_presets()
-        preset_id_map = {p["id"]: p for p in presets}
-        preset_ids = list(preset_id_map.keys())
-        default_idx = preset_ids.index("universal_biored") if "universal_biored" in preset_ids else 0
+    with st.container(border=True):
+        st.markdown(f"#### {t('wb_config_title')}")
+        col_p1, col_p2 = st.columns([3, 2])
+        with col_p1:
+            def get_preset_fmt(pid):
+                p = preset_id_map.get(pid, {})
+                return p.get("en_name", p.get("name", pid)) if is_en else p.get("name", pid)
 
-        with st.container(border=True):
-            st.markdown(f"#### {t('wb_config_title')}")
-            col_p1, col_p2 = st.columns([3, 2])
-            with col_p1:
-                def get_preset_fmt(pid):
-                    p = preset_id_map.get(pid, {})
-                    return p.get("en_name", p.get("name", pid)) if is_en else p.get("name", pid)
+            selected_pid = st.selectbox(
+                t("wb_preset_select"),
+                options=preset_ids,
+                format_func=get_preset_fmt,
+                index=default_idx,
+                key="wb_preset_select"
+            )
+            selected_preset = preset_id_map[selected_pid]
+            desc = selected_preset.get('en_description', selected_preset.get('description', '')) if is_en else selected_preset.get('description', '')
+            st.caption(f"ℹ️ {desc}")
+        with col_p2:
+            st.markdown(f"**{t('wb_custom_preset_title')}**")
+            st.caption(t("wb_open_presets_dir_desc"))
+            btn_col1, btn_col2 = st.columns([3, 2])
+            with btn_col1:
+                if st.button(t("wb_btn_open_presets_dir"), key="wb_btn_open_presets_dir", width="stretch"):
+                    abs_dir = os.path.abspath(mgr.presets_dir)
+                    opened = open_directory_in_file_manager(abs_dir)
+                    if opened:
+                        st.toast(t("wb_toast_folder_opened").format(path=abs_dir), icon="📁")
+                    else:
+                        st.info(f"📁 `{abs_dir}`")
+            with btn_col2:
+                if st.button(t("wb_btn_refresh_presets"), key="wb_btn_refresh_presets", width="stretch"):
+                    st.rerun()
+            st.caption(f"📁 `{os.path.abspath(mgr.presets_dir)}`")
 
-                selected_pid = st.selectbox(
-                    t("wb_preset_select"),
-                    options=preset_ids,
-                    format_func=get_preset_fmt,
-                    index=default_idx,
-                    key="wb_preset_select"
-                )
-                selected_preset = preset_id_map[selected_pid]
-                desc = selected_preset.get('en_description', selected_preset.get('description', '')) if is_en else selected_preset.get('description', '')
-                st.caption(f"ℹ️ {desc}")
-            with col_p2:
-                st.markdown(f"**{t('wb_custom_preset_title')}**")
-                st.caption(t("wb_open_presets_dir_desc"))
-                btn_col1, btn_col2 = st.columns([3, 2])
-                with btn_col1:
-                    if st.button(t("wb_btn_open_presets_dir"), key="wb_btn_open_presets_dir", width="stretch"):
-                        abs_dir = os.path.abspath(mgr.presets_dir)
-                        opened = open_directory_in_file_manager(abs_dir)
-                        if opened:
-                            st.toast(t("wb_toast_folder_opened").format(path=abs_dir), icon="📁")
-                        else:
-                            st.info(f"📁 `{abs_dir}`")
-                with btn_col2:
-                    if st.button(t("wb_btn_refresh_presets"), key="wb_btn_refresh_presets", width="stretch"):
-                        st.rerun()
-                st.caption(f"📁 `{os.path.abspath(mgr.presets_dir)}`")
+        c_t1, c_t2, c_t3 = st.columns(3)
+        with c_t1:
+            enable_entities = st.checkbox(t("wb_chk_entities"), value=True, key="wb_chk_entities")
+        with c_t2:
+            enable_relations = st.checkbox(t("wb_chk_relations"), value=True, key="wb_chk_relations")
+        with c_t3:
+            force_reanalyze = st.checkbox(t("wb_chk_force"), value=False, key="wb_chk_force")
 
-            c_t1, c_t2, c_t3 = st.columns(3)
-            with c_t1:
-                enable_entities = st.checkbox(t("wb_chk_entities"), value=True, key="wb_chk_entities")
-            with c_t2:
-                enable_relations = st.checkbox(t("wb_chk_relations"), value=True, key="wb_chk_relations")
-            with c_t3:
-                force_reanalyze = st.checkbox(t("wb_chk_force"), value=False, key="wb_chk_force")
+        with st.expander(t("wb_esc_title"), expanded=False):
+            c_r0, c_r1 = st.columns(2)
+            c_r2, c_r3 = st.columns(2)
+            with c_r0:
+                enable_r0 = st.checkbox(t("wb_esc_r0"), value=True, key="wb_esc_r0")
+            with c_r1:
+                enable_r1 = st.checkbox(t("wb_esc_r1"), value=True, key="wb_esc_r1")
+            with c_r2:
+                enable_r2 = st.checkbox(t("wb_esc_r2"), value=True, key="wb_esc_r2")
+            with c_r3:
+                enable_r3 = st.checkbox(t("wb_esc_r3"), value=True, key="wb_esc_r3")
 
-            with st.expander(t("wb_esc_title"), expanded=False):
-                c_r0, c_r1 = st.columns(2)
-                c_r2, c_r3 = st.columns(2)
-                with c_r0:
-                    enable_r0 = st.checkbox(t("wb_esc_r0"), value=True, key="wb_esc_r0")
-                with c_r1:
-                    enable_r1 = st.checkbox(t("wb_esc_r1"), value=True, key="wb_esc_r1")
-                with c_r2:
-                    enable_r2 = st.checkbox(t("wb_esc_r2"), value=True, key="wb_esc_r2")
-                with c_r3:
-                    enable_r3 = st.checkbox(t("wb_esc_r3"), value=True, key="wb_esc_r3")
+        col_btn1, col_btn2 = st.columns([2, 1])
+        with col_btn1:
+            btn_run = st.button(t("wb_btn_start_run"), type="primary", key="wb_btn_start_run", width="stretch")
+        with col_btn2:
+            btn_rerender = st.button(t("wb_btn_rerender_canvas"), key="wb_btn_rerender_canvas", width="stretch")
 
-            col_btn1, col_btn2 = st.columns([2, 1])
-            with col_btn1:
-                btn_run = st.button(t("wb_btn_start_run"), type="primary", key="wb_btn_start_run", width="stretch")
-            with col_btn2:
-                btn_rerender = st.button(t("wb_btn_rerender_canvas"), key="wb_btn_rerender_canvas", width="stretch")
+        if btn_run:
+            needs_llm = (enable_r1 or enable_r2 or enable_r3 or enable_relations)
+            current_key = api_key.strip() if api_key else ""
+            if needs_llm and not current_key and "ollama" not in str(st.session_state.get("api_provider", "")).lower():
+                st.error(t("err_missing_api_key"))
+                st.stop()
 
-            if btn_run:
-                needs_llm = (enable_r1 or enable_r2 or enable_r3 or enable_relations)
-                current_key = api_key.strip() if api_key else ""
-                if needs_llm and not current_key and "ollama" not in str(st.session_state.get("api_provider", "")).lower():
-                    st.error(t("err_missing_api_key"))
-                    st.stop()
+            from LLM_SYS import BioBrainAgent
+            llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url) if needs_llm else None
+            paper_texts = get_project_paper_full_texts(proj_id) if enable_r2 else {}
 
-                from LLM_SYS import BioBrainAgent
-                llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url) if needs_llm else None
-                paper_texts = get_project_paper_full_texts(proj_id) if enable_r2 else {}
+            concurrency_val = int(st.session_state.get("concurrency_workers", 4))
+            engine = WorkbenchAnalysisEngine(
+                llm_agent=llm_agent,
+                ontology=selected_preset,
+                paper_full_texts=paper_texts,
+                cached_entities=wb_cached.get("entity_annotations", {}),
+                cached_relations=wb_cached.get("relation_annotations", {})
+            )
 
-                concurrency_val = int(st.session_state.get("concurrency_workers", 4))
-                engine = WorkbenchAnalysisEngine(
-                    llm_agent=llm_agent,
-                    ontology=selected_preset,
-                    paper_full_texts=paper_texts,
-                    cached_entities=wb_cached.get("entity_annotations", {}),
-                    cached_relations=wb_cached.get("relation_annotations", {})
-                )
+            p_bar = st.progress(0.0)
+            status_elem = st.empty()
+            log_expander = st.expander(t("wb_log_expander_title"), expanded=True)
+            log_placeholder = log_expander.empty()
+            captured_logs = []
 
-                p_bar = st.progress(0.0)
-                status_elem = st.empty()
-                log_expander = st.expander(t("wb_log_expander_title"), expanded=True)
-                log_placeholder = log_expander.empty()
-                captured_logs = []
+            def on_prog(frac, msg):
+                p_bar.progress(frac)
+                status_elem.info(f"⏳ {msg}")
 
-                def on_prog(frac, msg):
-                    p_bar.progress(frac)
-                    status_elem.info(f"⏳ {msg}")
+            def on_log(msg):
+                captured_logs.append(msg)
+                log_placeholder.code("\n".join(captured_logs[-15:]), language="text")
 
-                def on_log(msg):
-                    captured_logs.append(msg)
-                    log_placeholder.code("\n".join(captured_logs[-15:]), language="text")
+            analysis_kwargs = {
+                "entities": ents,
+                "relations": rels,
+                "enable_entities": enable_entities,
+                "enable_relations": enable_relations,
+                "enable_round0_rules": enable_r0,
+                "enable_round1_context": enable_r1,
+                "enable_round2_regex": enable_r2,
+                "enable_round3_world": enable_r3,
+                "force_reanalyze": force_reanalyze,
+                "max_workers": concurrency_val,
+                "language": st.session_state.get("ui_language", "zh"),
+                "progress_callback": on_prog,
+                "log_callback": on_log
+            }
+            # 兼容性防御：如果极端情况下引擎为早期缓存模块且无 max_workers 参数，安全自适应
+            import inspect
+            sig = inspect.signature(engine.run_analysis)
+            if "max_workers" not in sig.parameters and not any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                analysis_kwargs.pop("max_workers", None)
 
-                analysis_kwargs = {
-                    "entities": ents,
-                    "relations": rels,
-                    "enable_entities": enable_entities,
-                    "enable_relations": enable_relations,
-                    "enable_round0_rules": enable_r0,
-                    "enable_round1_context": enable_r1,
-                    "enable_round2_regex": enable_r2,
-                    "enable_round3_world": enable_r3,
-                    "force_reanalyze": force_reanalyze,
-                    "max_workers": concurrency_val,
-                    "language": st.session_state.get("ui_language", "zh"),
-                    "progress_callback": on_prog,
-                    "log_callback": on_log
-                }
-                # 兼容性防御：如果极端情况下引擎为早期缓存模块且无 max_workers 参数，安全自适应
-                import inspect
-                sig = inspect.signature(engine.run_analysis)
-                if "max_workers" not in sig.parameters and not any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
-                    analysis_kwargs.pop("max_workers", None)
+            new_state = engine.run_analysis(**analysis_kwargs)
 
-                new_state = engine.run_analysis(**analysis_kwargs)
+            st.session_state.workbench_state = new_state
 
-                st.session_state.workbench_state = new_state
+            # 生成工作台拓扑 HTML
+            vis = GraphVisualizer()
+            wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
+            vis.generate_workbench_html(
+                global_entities=ents,
+                global_relations=rels,
+                entity_annotations=new_state.get("entity_annotations", {}),
+                relation_annotations=new_state.get("relation_annotations", {}),
+                ontology=selected_preset,
+                output_file=wb_html_path,
+                output_lang=st.session_state.get("ui_language", "zh")
+            )
 
-                # 生成工作台拓扑 HTML
-                vis = GraphVisualizer()
-                wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
-                vis.generate_workbench_html(
-                    global_entities=ents,
-                    global_relations=rels,
-                    entity_annotations=new_state.get("entity_annotations", {}),
-                    relation_annotations=new_state.get("relation_annotations", {}),
-                    ontology=selected_preset,
-                    output_file=wb_html_path,
-                    output_lang=st.session_state.get("ui_language", "zh")
-                )
+            save_local_vault()
+            st.toast(t("wb_toast_analysis_done"), icon="✨")
+            st.rerun()
 
-                save_local_vault()
-                st.toast(t("wb_toast_analysis_done"), icon="✨")
-                st.rerun()
+        if btn_rerender:
+            vis = GraphVisualizer()
+            wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
+            vis.generate_workbench_html(
+                global_entities=ents,
+                global_relations=rels,
+                entity_annotations=wb_cached.get("entity_annotations", {}),
+                relation_annotations=wb_cached.get("relation_annotations", {}),
+                ontology=selected_preset,
+                output_file=wb_html_path,
+                output_lang=st.session_state.get("ui_language", "zh")
+            )
+            st.toast(t("wb_toast_rerender_done"), icon="🎨")
+            st.rerun()
 
-            if btn_rerender:
-                vis = GraphVisualizer()
-                wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
-                vis.generate_workbench_html(
-                    global_entities=ents,
-                    global_relations=rels,
-                    entity_annotations=wb_cached.get("entity_annotations", {}),
-                    relation_annotations=wb_cached.get("relation_annotations", {}),
-                    ontology=selected_preset,
-                    output_file=wb_html_path,
-                    output_lang=st.session_state.get("ui_language", "zh")
-                )
-                st.toast(t("wb_toast_rerender_done"), icon="🎨")
-                st.rerun()
+    # 4. 条件渲染：仅在存在分析结果时展示大盘、画布与调换操作台 (Point 4)
+    if not has_analysis:
+        st.markdown("---")
+        st.info(t("wb_not_analyzed_hint"))
+    else:
+        cur_ontology = wb_cached.get("ontology", selected_preset)
+        ent_cat_defs = cur_ontology.get("entity_categories", {})
+        rel_cat_defs = cur_ontology.get("relation_categories", {})
 
-        # 4. 条件渲染：仅在存在分析结果时展示大盘、画布与调换操作台 (Point 4)
-        if not has_analysis:
-            st.markdown("---")
-            st.info(t("wb_not_analyzed_hint"))
-        else:
-            cur_ontology = wb_cached.get("ontology", selected_preset)
-            ent_cat_defs = cur_ontology.get("entity_categories", {})
-            rel_cat_defs = cur_ontology.get("relation_categories", {})
+        resolved_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "resolved")
+        uncertain_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "uncertain" or a.get("primary_type") == "Uncertain")
+        analyzed_rel_cnt = len(rel_annots)
 
-            resolved_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "resolved")
-            uncertain_cnt = sum(1 for a in ent_annots.values() if a.get("status") == "uncertain" or a.get("primary_type") == "Uncertain")
-            analyzed_rel_cnt = len(rel_annots)
+        st.markdown(t("wb_metrics_title"))
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(t("wb_metric_total"), len(ents))
+        m2.metric(t("wb_metric_resolved"), resolved_cnt)
+        m3.metric(t("wb_metric_uncertain"), uncertain_cnt)
+        m4.metric(t("wb_metric_relations"), analyzed_rel_cnt)
 
-            st.markdown(t("wb_metrics_title"))
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric(t("wb_metric_total"), len(ents))
-            m2.metric(t("wb_metric_resolved"), resolved_cnt)
-            m3.metric(t("wb_metric_uncertain"), uncertain_cnt)
-            m4.metric(t("wb_metric_relations"), analyzed_rel_cnt)
+        col_ent_view, col_rel_view = st.columns([1, 1], gap="medium")
 
-            col_ent_view, col_rel_view = st.columns([1, 1], gap="medium")
+        with col_ent_view:
+            st.markdown(t("wb_sec_ent_dist"))
+            cat_to_nodes = {}
+            for n in ents:
+                sname = n.get("standard_name")
+                cat = ent_annots.get(sname, {}).get("primary_type", "Uncertain")
+                if cat not in ent_cat_defs or cat == "Uncertain":
+                    cat = "Uncertain"
+                cat_to_nodes.setdefault(cat, []).append(sname)
 
-            with col_ent_view:
-                st.markdown(t("wb_sec_ent_dist"))
-                cat_to_nodes = {}
-                for n in ents:
-                    sname = n.get("standard_name")
-                    cat = ent_annots.get(sname, {}).get("primary_type", "Uncertain")
-                    if cat not in ent_cat_defs or cat == "Uncertain":
-                        cat = "Uncertain"
-                    cat_to_nodes.setdefault(cat, []).append(sname)
+            sorted_cats = sorted(cat_to_nodes.items(), key=lambda x: len(x[1]), reverse=True)
+            for cat_id, nodes in sorted_cats:
+                c_def = ent_cat_defs.get(cat_id, {})
+                c_lbl = ((c_def.get("en_name") or c_def.get("en_label", cat_id)) if is_en else (c_def.get("name") or c_def.get("label", cat_id))) or cat_id
+                pct = (len(nodes) / max(1, len(ents))) * 100
+                unit_txt = t("wb_unit_entities")
+                with st.expander(f"{c_lbl} — {len(nodes)} {unit_txt} ({pct:.1f}%)", expanded=False):
+                    for nodename in nodes:
+                        a = ent_annots.get(nodename, {})
+                        sub = a.get("sub_type", "")
+                        rnd = a.get("round", "")
+                        conf = a.get("confidence", 0.0)
+                        rsn = a.get("reasoning", "")
+                        st.markdown(f"**{nodename}**" + (f" `[{sub}]`" if sub else "") + f" *(Round {rnd}, {int(conf*100)}%)*")
+                        if rsn:
+                            st.caption(f"💡 {rsn}")
 
-                sorted_cats = sorted(cat_to_nodes.items(), key=lambda x: len(x[1]), reverse=True)
-                for cat_id, nodes in sorted_cats:
-                    c_def = ent_cat_defs.get(cat_id, {})
-                    c_lbl = ((c_def.get("en_name") or c_def.get("en_label", cat_id)) if is_en else (c_def.get("name") or c_def.get("label", cat_id))) or cat_id
-                    pct = (len(nodes) / max(1, len(ents))) * 100
-                    unit_txt = t("wb_unit_entities")
-                    with st.expander(f"{c_lbl} — {len(nodes)} {unit_txt} ({pct:.1f}%)", expanded=False):
-                        for nodename in nodes:
-                            a = ent_annots.get(nodename, {})
-                            sub = a.get("sub_type", "")
-                            rnd = a.get("round", "")
-                            conf = a.get("confidence", 0.0)
-                            rsn = a.get("reasoning", "")
-                            st.markdown(f"**{nodename}**" + (f" `[{sub}]`" if sub else "") + f" *(Round {rnd}, {int(conf*100)}%)*")
-                            if rsn:
-                                st.caption(f"💡 {rsn}")
-
-            with col_rel_view:
-                st.markdown(t("wb_sec_rel_dist"))
-                mech_to_edges = {}
-                for r in rels:
-                    src = r.get("source")
-                    tgt = r.get("target")
-                    rel = r.get("relation", "相关")
-                    k = f"{src}|{tgt}|{rel}"
-                    mech_cat = rel_annots.get(k, {}).get("mechanism_category", "未分析" if not is_en else "Unanalyzed")
-                    if mech_cat not in rel_cat_defs and mech_cat not in ["未分析", "Unanalyzed"]:
-                        mech_cat = "Association_Correlation" if "Association_Correlation" in rel_cat_defs else ("未分析" if not is_en else "Unanalyzed")
-                    mech_to_edges.setdefault(mech_cat, []).append((src, tgt, rel, k))
-
-                sorted_mechs = sorted(mech_to_edges.items(), key=lambda x: len(x[1]), reverse=True)
-                for mech_id, edge_tuples in sorted_mechs:
-                    r_def = rel_cat_defs.get(mech_id, {})
-                    r_lbl = ((r_def.get("en_name") or r_def.get("en_label", mech_id)) if is_en else (r_def.get("name") or r_def.get("label", mech_id))) or mech_id
-                    unit_rel = t("wb_unit_relations")
-                    with st.expander(f"{r_lbl} — {len(edge_tuples)} {unit_rel}", expanded=False):
-                        for src, tgt, rel, k in edge_tuples:
-                            a = rel_annots.get(k, {})
-                            verb = a.get("mechanism_verb", rel)
-                            conf = a.get("confidence", 0.0)
-                            rsn = a.get("reasoning", "")
-                            orig_prefix = t("wb_orig_rel_prefix")
-                            st.markdown(f"**{src}** ➔ **{tgt}** : `{verb}` *({orig_prefix}: {rel})*")
-                            if rsn:
-                                st.caption(f"💡 {rsn}")
-
-            # 5. 拓扑画布展示与结果导出
-            st.markdown("---")
-            st.markdown(t("wb_canvas_title"))
-
-            wb_html_data = ""
-            if os.path.exists(wb_html_file):
-                try:
-                    with open(wb_html_file, "r", encoding="utf-8") as f:
-                        wb_html_data = f.read()
-                except Exception as e:
-                    st.error(f"Error loading workbench html: {e}")
-
-            # 准备工作台导出数据 (包含本体分类与深层机制注解)
-            wb_ents_list = []
-            for e in ents:
-                item = dict(e)
-                sname = e.get("standard_name")
-                annot = ent_annots.get(sname, {})
-                item["primary_type"] = annot.get("primary_type", "Uncertain")
-                item["sub_type"] = annot.get("sub_type", "")
-                item["tags"] = annot.get("tags", [])
-                item["confidence"] = annot.get("confidence", 0.0)
-                item["reasoning"] = annot.get("reasoning", "")
-                item["round"] = annot.get("round", "")
-                wb_ents_list.append(item)
-
-            wb_entities_json = json.dumps(wb_ents_list, ensure_ascii=False, indent=2)
-
-            df_wb_entities = pd.DataFrame(wb_ents_list)
-            if 'aliases' in df_wb_entities.columns:
-                df_wb_entities['aliases'] = df_wb_entities['aliases'].apply(
-                    lambda x: ", ".join(x) if isinstance(x, list) else x)
-            if 'tags' in df_wb_entities.columns:
-                df_wb_entities['tags'] = df_wb_entities['tags'].apply(
-                    lambda x: ", ".join(x) if isinstance(x, list) else x)
-            csv_wb_entities = df_wb_entities.to_csv(index=False).encode('utf-8')
-
-            wb_rels_list = []
+        with col_rel_view:
+            st.markdown(t("wb_sec_rel_dist"))
+            mech_to_edges = {}
             for r in rels:
-                item = dict(r)
                 src = r.get("source")
                 tgt = r.get("target")
                 rel = r.get("relation", "相关")
                 k = f"{src}|{tgt}|{rel}"
-                annot = rel_annots.get(k, {})
-                item["mechanism_category"] = annot.get("mechanism_category", "")
-                item["mechanism_verb"] = annot.get("mechanism_verb", rel)
-                item["confidence"] = annot.get("confidence", 0.0)
-                item["reasoning"] = annot.get("reasoning", "")
-                item["round"] = annot.get("round", "")
-                wb_rels_list.append(item)
+                mech_cat = rel_annots.get(k, {}).get("mechanism_category", "未分析" if not is_en else "Unanalyzed")
+                if mech_cat not in rel_cat_defs and mech_cat not in ["未分析", "Unanalyzed"]:
+                    mech_cat = "Association_Correlation" if "Association_Correlation" in rel_cat_defs else ("未分析" if not is_en else "Unanalyzed")
+                mech_to_edges.setdefault(mech_cat, []).append((src, tgt, rel, k))
 
-            df_wb_relations = pd.DataFrame(wb_rels_list)
-            csv_wb_relations = df_wb_relations.to_csv(index=False).encode('utf-8') if not df_wb_relations.empty else b""
+            sorted_mechs = sorted(mech_to_edges.items(), key=lambda x: len(x[1]), reverse=True)
+            for mech_id, edge_tuples in sorted_mechs:
+                r_def = rel_cat_defs.get(mech_id, {})
+                r_lbl = ((r_def.get("en_name") or r_def.get("en_label", mech_id)) if is_en else (r_def.get("name") or r_def.get("label", mech_id))) or mech_id
+                unit_rel = t("wb_unit_relations")
+                with st.expander(f"{r_lbl} — {len(edge_tuples)} {unit_rel}", expanded=False):
+                    for src, tgt, rel, k in edge_tuples:
+                        a = rel_annots.get(k, {})
+                        verb = a.get("mechanism_verb", rel)
+                        conf = a.get("confidence", 0.0)
+                        rsn = a.get("reasoning", "")
+                        orig_prefix = t("wb_orig_rel_prefix")
+                        st.markdown(f"**{src}** ➔ **{tgt}** : `{verb}` *({orig_prefix}: {rel})*")
+                        if rsn:
+                            st.caption(f"💡 {rsn}")
 
-            wb_exp_col1, wb_exp_col2, wb_exp_col3, wb_exp_col4 = st.columns(4)
-            with wb_exp_col1:
-                st.download_button(t("btn_export_ent_json"), wb_entities_json, "Bio_Analysis_entities.json", "application/json",
-                                   width="stretch", key="wb_dl_ent_json")
-            with wb_exp_col2:
-                st.download_button(t("btn_export_ent_csv"), csv_wb_entities, "Bio_Analysis_entities.csv", "text/csv",
-                                   width="stretch", key="wb_dl_ent_csv")
-            with wb_exp_col3:
-                st.download_button(t("btn_export_rel_csv"), csv_wb_relations, "Bio_Analysis_relations.csv", "text/csv",
-                                   width="stretch", key="wb_dl_rel_csv")
-            with wb_exp_col4:
-                st.download_button(t("btn_export_graph_html"), wb_html_data, "Bio_Analysis_graph.html", "text/html",
-                                   width="stretch", key="wb_dl_graph_html")
+        # 5. 拓扑画布展示与结果导出
+        st.markdown("---")
+        st.markdown(t("wb_canvas_title"))
 
-            if wb_html_data:
-                components.html(wb_html_data, height=800, scrolling=True)
+        wb_html_data = ""
+        if os.path.exists(wb_html_file):
+            try:
+                with open(wb_html_file, "r", encoding="utf-8") as f:
+                    wb_html_data = f.read()
+            except Exception as e:
+                st.error(f"Error loading workbench html: {e}")
 
-            # 6. 人工专家调换工作台 (Human-in-the-Loop)
-            st.markdown("---")
-            with st.container(border=True):
-                st.markdown(t("wb_override_title"))
-                st.caption(t("wb_override_caption"))
-                tab_ent, tab_rel = st.tabs([t("wb_tab_ent_override"), t("wb_tab_rel_override")])
+        # 准备工作台导出数据 (包含本体分类与深层机制注解)
+        wb_ents_list = []
+        for e in ents:
+            item = dict(e)
+            sname = e.get("standard_name")
+            annot = ent_annots.get(sname, {})
+            item["primary_type"] = annot.get("primary_type", "Uncertain")
+            item["sub_type"] = annot.get("sub_type", "")
+            item["tags"] = annot.get("tags", [])
+            item["confidence"] = annot.get("confidence", 0.0)
+            item["reasoning"] = annot.get("reasoning", "")
+            item["round"] = annot.get("round", "")
+            wb_ents_list.append(item)
 
-                with tab_ent:
-                    degrees = Counter()
-                    for r in rels:
-                        degrees[r.get("source")] += r.get("weight", 1)
-                        degrees[r.get("target")] += r.get("weight", 1)
-                    all_node_names = sorted([e.get("standard_name") for e in ents if e.get("standard_name")],
-                                            key=lambda n: degrees.get(n, 0), reverse=True)
+        wb_entities_json = json.dumps(wb_ents_list, ensure_ascii=False, indent=2)
 
-                    col_e1, col_e2 = st.columns([1, 1])
-                    with col_e1:
-                        sel_node = st.selectbox(t("wb_sel_ent_lbl"), all_node_names, key="wb_select_override_node")
-                        cur_a = ent_annots.get(sel_node, {})
-                        cur_type = cur_a.get("primary_type", "Uncertain")
-                        cur_cat_lbl = ((ent_cat_defs.get(cur_type, {}).get("en_name") or ent_cat_defs.get(cur_type, {}).get("en_label", cur_type)) if is_en else (ent_cat_defs.get(cur_type, {}).get("name") or ent_cat_defs.get(cur_type, {}).get("label", cur_type))) or cur_type
-                        st.caption(f"{t('wb_cur_cat_lbl')}: **{cur_cat_lbl}** | {t('wb_round_lbl')}: `{cur_a.get('round', 'N/A')}` | {t('wb_conf_lbl')}: `{int(cur_a.get('confidence', 0)*100)}%`")
-                        if cur_a.get("reasoning"):
-                            st.caption(f"{t('wb_reason_trace_lbl')}: {cur_a.get('reasoning')}")
+        df_wb_entities = pd.DataFrame(wb_ents_list)
+        if 'aliases' in df_wb_entities.columns:
+            df_wb_entities['aliases'] = df_wb_entities['aliases'].apply(
+                lambda x: ", ".join(x) if isinstance(x, list) else x)
+        if 'tags' in df_wb_entities.columns:
+            df_wb_entities['tags'] = df_wb_entities['tags'].apply(
+                lambda x: ", ".join(x) if isinstance(x, list) else x)
+        csv_wb_entities = df_wb_entities.to_csv(index=False).encode('utf-8')
 
-                    with col_e2:
-                        cat_keys = list(ent_cat_defs.keys())
-                        def_cat_idx = cat_keys.index(cur_type) if cur_type in cat_keys else 0
-                        def get_cat_fmt(k):
-                            cd = ent_cat_defs.get(k, {})
-                            return ((cd.get("en_name") or cd.get("en_label", k)) if is_en else (cd.get("name") or cd.get("label", k))) or k
-                        target_cat = st.selectbox(t("wb_target_cat_lbl"), cat_keys, index=def_cat_idx,
-                                                  format_func=get_cat_fmt,
-                                                  key="wb_select_target_cat")
-                        target_sub = st.text_input(t("wb_sub_type_lbl"), value=cur_a.get("sub_type", ""), key="wb_input_target_sub")
-                        target_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正", key="wb_input_target_reason")
+        wb_rels_list = []
+        for r in rels:
+            item = dict(r)
+            src = r.get("source")
+            tgt = r.get("target")
+            rel = r.get("relation", "相关")
+            k = f"{src}|{tgt}|{rel}"
+            annot = rel_annots.get(k, {})
+            item["mechanism_category"] = annot.get("mechanism_category", "")
+            item["mechanism_verb"] = annot.get("mechanism_verb", rel)
+            item["confidence"] = annot.get("confidence", 0.0)
+            item["reasoning"] = annot.get("reasoning", "")
+            item["round"] = annot.get("round", "")
+            wb_rels_list.append(item)
 
-                    if st.button(t("wb_btn_save_ent"), key="wb_btn_save_ent_override", width="stretch"):
+        df_wb_relations = pd.DataFrame(wb_rels_list)
+        csv_wb_relations = df_wb_relations.to_csv(index=False).encode('utf-8') if not df_wb_relations.empty else b""
+
+        wb_exp_col1, wb_exp_col2, wb_exp_col3, wb_exp_col4 = st.columns(4)
+        with wb_exp_col1:
+            st.download_button(t("btn_export_ent_json"), wb_entities_json, "Bio_Analysis_entities.json", "application/json",
+                               width="stretch", key="wb_dl_ent_json")
+        with wb_exp_col2:
+            st.download_button(t("btn_export_ent_csv"), csv_wb_entities, "Bio_Analysis_entities.csv", "text/csv",
+                               width="stretch", key="wb_dl_ent_csv")
+        with wb_exp_col3:
+            st.download_button(t("btn_export_rel_csv"), csv_wb_relations, "Bio_Analysis_relations.csv", "text/csv",
+                               width="stretch", key="wb_dl_rel_csv")
+        with wb_exp_col4:
+            st.download_button(t("btn_export_graph_html"), wb_html_data, "Bio_Analysis_graph.html", "text/html",
+                               width="stretch", key="wb_dl_graph_html")
+
+        if wb_html_data:
+            components.html(wb_html_data, height=800, scrolling=True)
+
+        # 6. 人工专家调换工作台 (Human-in-the-Loop)
+        st.markdown("---")
+        with st.container(border=True):
+            st.markdown(t("wb_override_title"))
+            st.caption(t("wb_override_caption"))
+            tab_ent, tab_rel = st.tabs([t("wb_tab_ent_override"), t("wb_tab_rel_override")])
+
+            with tab_ent:
+                degrees = Counter()
+                for r in rels:
+                    degrees[r.get("source")] += r.get("weight", 1)
+                    degrees[r.get("target")] += r.get("weight", 1)
+                all_node_names = sorted([e.get("standard_name") for e in ents if e.get("standard_name")],
+                                        key=lambda n: degrees.get(n, 0), reverse=True)
+
+                col_e1, col_e2 = st.columns([1, 1])
+                with col_e1:
+                    sel_node = st.selectbox(t("wb_sel_ent_lbl"), all_node_names, key="wb_select_override_node")
+                    cur_a = ent_annots.get(sel_node, {})
+                    cur_type = cur_a.get("primary_type", "Uncertain")
+                    cur_cat_lbl = ((ent_cat_defs.get(cur_type, {}).get("en_name") or ent_cat_defs.get(cur_type, {}).get("en_label", cur_type)) if is_en else (ent_cat_defs.get(cur_type, {}).get("name") or ent_cat_defs.get(cur_type, {}).get("label", cur_type))) or cur_type
+                    st.caption(f"{t('wb_cur_cat_lbl')}: **{cur_cat_lbl}** | {t('wb_round_lbl')}: `{cur_a.get('round', 'N/A')}` | {t('wb_conf_lbl')}: `{int(cur_a.get('confidence', 0)*100)}%`")
+                    if cur_a.get("reasoning"):
+                        st.caption(f"{t('wb_reason_trace_lbl')}: {cur_a.get('reasoning')}")
+
+                with col_e2:
+                    cat_keys = list(ent_cat_defs.keys())
+                    def_cat_idx = cat_keys.index(cur_type) if cur_type in cat_keys else 0
+                    def get_cat_fmt(k):
+                        cd = ent_cat_defs.get(k, {})
+                        return ((cd.get("en_name") or cd.get("en_label", k)) if is_en else (cd.get("name") or cd.get("label", k))) or k
+                    target_cat = st.selectbox(t("wb_target_cat_lbl"), cat_keys, index=def_cat_idx,
+                                              format_func=get_cat_fmt,
+                                              key="wb_select_target_cat")
+                    target_sub = st.text_input(t("wb_sub_type_lbl"), value=cur_a.get("sub_type", ""), key="wb_input_target_sub")
+                    target_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正", key="wb_input_target_reason")
+
+                if st.button(t("wb_btn_save_ent"), key="wb_btn_save_ent_override", width="stretch"):
+                    cur_state = st.session_state.get("workbench_state", {})
+                    if "entity_annotations" not in cur_state:
+                        cur_state["entity_annotations"] = {}
+                    cur_state["entity_annotations"][sel_node] = {
+                        "primary_type": target_cat,
+                        "sub_type": target_sub,
+                        "tags": cur_a.get("tags", []),
+                        "confidence": 1.0,
+                        "reasoning": target_reason,
+                        "round": "manual",
+                        "status": "resolved"
+                    }
+                    st.session_state.workbench_state = cur_state
+                    vis = GraphVisualizer()
+                    wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
+                    vis.generate_workbench_html(
+                        global_entities=ents,
+                        global_relations=rels,
+                        entity_annotations=cur_state.get("entity_annotations", {}),
+                        relation_annotations=cur_state.get("relation_annotations", {}),
+                        ontology=cur_ontology,
+                        output_file=wb_html_path,
+                        output_lang=st.session_state.get("ui_language", "zh")
+                    )
+                    save_local_vault()
+                    st.toast(f"✅ {sel_node} ➔ {target_cat} ({t('wb_toast_override_done')})", icon="✅")
+                    st.rerun()
+
+            with tab_rel:
+                edge_display_list = []
+                edge_key_map = {}
+                for r in rels:
+                    s = r.get("source")
+                    t_node = r.get("target")
+                    rel = r.get("relation", "相关")
+                    k = f"{s}|{t_node}|{rel}"
+                    label = f"{s} ➔ {t_node} ({rel})"
+                    edge_display_list.append(label)
+                    edge_key_map[label] = (s, t_node, rel, k)
+
+                if not edge_display_list:
+                    st.info(t("wb_no_rel_edges"))
+                else:
+                    col_r1, col_r2 = st.columns([1, 1])
+                    with col_r1:
+                        sel_edge_lbl = st.selectbox(t("wb_sel_rel_lbl"), edge_display_list, key="wb_select_override_edge")
+                        s, t_node, orig_rel, k = edge_key_map[sel_edge_lbl]
+                        cur_ra = rel_annots.get(k, {})
+                        cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
+                        cur_mech_lbl = ((rel_cat_defs.get(cur_mech_cat, {}).get("en_name") or rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat)) if is_en else (rel_cat_defs.get(cur_mech_cat, {}).get("name") or rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat))) or cur_mech_cat
+                        st.caption(f"{t('wb_cur_mech_lbl')}: **{cur_mech_lbl}** | {t('wb_cur_verb_lbl')}: `{cur_ra.get('mechanism_verb', orig_rel)}`")
+                        if cur_ra.get("reasoning"):
+                            st.caption(f"{t('wb_reason_trace_lbl')}: {cur_ra.get('reasoning')}")
+
+                    with col_r2:
+                        rel_keys = list(rel_cat_defs.keys())
+                        def_rel_idx = rel_keys.index(cur_mech_cat) if cur_mech_cat in rel_keys else 0
+                        def get_rel_fmt(k):
+                            rd = rel_cat_defs.get(k, {})
+                            return ((rd.get("en_name") or rd.get("en_label", k)) if is_en else (rd.get("name") or rd.get("label", k))) or k
+                        target_rel_cat = st.selectbox(t("wb_target_relcat_lbl"), rel_keys, index=def_rel_idx,
+                                                      format_func=get_rel_fmt,
+                                                      key="wb_select_target_relcat")
+                        target_verb = st.text_input(t("wb_verb_lbl"), value=cur_ra.get("mechanism_verb", orig_rel), key="wb_input_target_verb")
+                        target_rel_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正机制", key="wb_input_target_relreason")
+
+                    if st.button(t("wb_btn_save_rel"), key="wb_btn_save_rel_override", width="stretch"):
                         cur_state = st.session_state.get("workbench_state", {})
-                        if "entity_annotations" not in cur_state:
-                            cur_state["entity_annotations"] = {}
-                        cur_state["entity_annotations"][sel_node] = {
-                            "primary_type": target_cat,
-                            "sub_type": target_sub,
-                            "tags": cur_a.get("tags", []),
+                        if "relation_annotations" not in cur_state:
+                            cur_state["relation_annotations"] = {}
+                        cur_state["relation_annotations"][k] = {
+                            "mechanism_category": target_rel_cat,
+                            "mechanism_verb": target_verb,
                             "confidence": 1.0,
-                            "reasoning": target_reason,
+                            "reasoning": target_rel_reason,
                             "round": "manual",
                             "status": "resolved"
                         }
@@ -2647,398 +2884,383 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             output_lang=st.session_state.get("ui_language", "zh")
                         )
                         save_local_vault()
-                        st.toast(f"✅ {sel_node} ➔ {target_cat} ({t('wb_toast_override_done')})", icon="✅")
+                        st.toast(f"✅ {s} ➔ {t_node} : {target_verb} ({t('wb_toast_rel_override_done')})", icon="✅")
                         st.rerun()
 
-                with tab_rel:
-                    edge_display_list = []
-                    edge_key_map = {}
-                    for r in rels:
-                        s = r.get("source")
-                        t_node = r.get("target")
-                        rel = r.get("relation", "相关")
-                        k = f"{s}|{t_node}|{rel}"
-                        label = f"{s} ➔ {t_node} ({rel})"
-                        edge_display_list.append(label)
-                        edge_key_map[label] = (s, t_node, rel, k)
+    # ==========================================
+    # 7. 第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition & Modeling)
+    # ==========================================
+    st.markdown("---")
+    st.markdown(t("wb_sec2_title"))
+    st.caption(t("wb_sec2_caption"))
 
-                    if not edge_display_list:
-                        st.info(t("wb_no_rel_edges"))
-                    else:
-                        col_r1, col_r2 = st.columns([1, 1])
-                        with col_r1:
-                            sel_edge_lbl = st.selectbox(t("wb_sel_rel_lbl"), edge_display_list, key="wb_select_override_edge")
-                            s, t_node, orig_rel, k = edge_key_map[sel_edge_lbl]
-                            cur_ra = rel_annots.get(k, {})
-                            cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
-                            cur_mech_lbl = ((rel_cat_defs.get(cur_mech_cat, {}).get("en_name") or rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat)) if is_en else (rel_cat_defs.get(cur_mech_cat, {}).get("name") or rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat))) or cur_mech_cat
-                            st.caption(f"{t('wb_cur_mech_lbl')}: **{cur_mech_lbl}** | {t('wb_cur_verb_lbl')}: `{cur_ra.get('mechanism_verb', orig_rel)}`")
-                            if cur_ra.get("reasoning"):
-                                st.caption(f"{t('wb_reason_trace_lbl')}: {cur_ra.get('reasoning')}")
+    pathways_dir = os.path.join(proj_dir, "pathways")
+    manifest_path = os.path.join(pathways_dir, "pathways_manifest.json")
 
-                        with col_r2:
-                            rel_keys = list(rel_cat_defs.keys())
-                            def_rel_idx = rel_keys.index(cur_mech_cat) if cur_mech_cat in rel_keys else 0
-                            def get_rel_fmt(k):
-                                rd = rel_cat_defs.get(k, {})
-                                return ((rd.get("en_name") or rd.get("en_label", k)) if is_en else (rd.get("name") or rd.get("label", k))) or k
-                            target_rel_cat = st.selectbox(t("wb_target_relcat_lbl"), rel_keys, index=def_rel_idx,
-                                                          format_func=get_rel_fmt,
-                                                          key="wb_select_target_relcat")
-                            target_verb = st.text_input(t("wb_verb_lbl"), value=cur_ra.get("mechanism_verb", orig_rel), key="wb_input_target_verb")
-                            target_rel_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正机制", key="wb_input_target_relreason")
+    # 自动从项目专属目录载入已有通路记录
+    saved_pathways_data = None
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                saved_pathways_data = json.load(f)
+        except Exception as e:
+            print(f"⚠️ [Workbench] 载入已有通路快照失败: {e}")
 
-                        if st.button(t("wb_btn_save_rel"), key="wb_btn_save_rel_override", width="stretch"):
-                            cur_state = st.session_state.get("workbench_state", {})
-                            if "relation_annotations" not in cur_state:
-                                cur_state["relation_annotations"] = {}
-                            cur_state["relation_annotations"][k] = {
-                                "mechanism_category": target_rel_cat,
-                                "mechanism_verb": target_verb,
-                                "confidence": 1.0,
-                                "reasoning": target_rel_reason,
-                                "round": "manual",
-                                "status": "resolved"
-                            }
-                            st.session_state.workbench_state = cur_state
-                            vis = GraphVisualizer()
-                            wb_html_path = os.path.join(proj_dir, "workbench_graph.html")
-                            vis.generate_workbench_html(
-                                global_entities=ents,
-                                global_relations=rels,
-                                entity_annotations=cur_state.get("entity_annotations", {}),
-                                relation_annotations=cur_state.get("relation_annotations", {}),
-                                ontology=cur_ontology,
-                                output_file=wb_html_path,
-                                output_lang=st.session_state.get("ui_language", "zh")
-                            )
-                            save_local_vault()
-                            st.toast(f"✅ {s} ➔ {t_node} : {target_verb} ({t('wb_toast_rel_override_done')})", icon="✅")
-                            st.rerun()
+    display_pathways = st.session_state.get("decomposed_pathways")
+    if display_pathways is None and saved_pathways_data:
+        display_pathways = saved_pathways_data.get("pathways", [])
 
+    # 1. 引导输入与操作面板
+    with st.container(border=True):
+        st.markdown(f"**{t('wb_pw_input_label')}**")
+        default_query = saved_pathways_data.get("user_query", "") if saved_pathways_data else ""
+        pw_user_query = st.text_input(
+            t("wb_pw_input_label"),
+            value=st.session_state.get("pw_user_query_input", default_query),
+            placeholder=t("wb_pw_input_placeholder"),
+            key="pw_user_query_input",
+            label_visibility="collapsed"
+        )
 
-    with tab_stage2:
-        # ==========================================
-        # 第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition & Modeling)
-        # ==========================================
-        st.markdown("---")
-        st.markdown(t("wb_sec2_title"))
-        st.caption(t("wb_sec2_caption"))
+        st.caption("⚙️ " + ("子功能独立控制与配置" if not is_en else "Sub-feature Configuration"))
+        c_sw1, c_sw2, c_sw3, c_sw4, c_sw5 = st.columns([4, 3, 3, 3, 2])
+        with c_sw1:
+            pw_chk_diversity = st.checkbox(t("wb_pw_chk_diversity"), value=True, key="wb_pw_chk_diversity")
+        with c_sw2:
+            pw_chk_loops = st.checkbox(t("wb_pw_chk_loops"), value=True, key="wb_pw_chk_loops")
+        with c_sw3:
+            pw_chk_bridges = st.checkbox(t("wb_pw_chk_bridges"), value=True, key="wb_pw_chk_bridges")
+        with c_sw4:
+            pw_chk_subgraphs = st.checkbox(t("wb_pw_chk_subgraphs"), value=True, key="wb_pw_chk_subgraphs")
+        with c_sw5:
+            pw_max_count = st.slider(t("wb_pw_slider_count"), min_value=1, max_value=5, value=3, key="wb_pw_slider_count")
 
-        pathways_dir = os.path.join(proj_dir, "pathways")
-        manifest_path = os.path.join(pathways_dir, "pathways_manifest.json")
+        btn_run_label = t("wb_pw_btn_rerun") if display_pathways else t("wb_pw_btn_start")
+        btn_run_pathway = st.button(btn_run_label, type="primary", key="wb_pw_btn_start", width="stretch")
 
-        # 自动从项目专属目录载入已有通路记录
-        saved_pathways_data = None
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, "r", encoding="utf-8") as f:
-                    saved_pathways_data = json.load(f)
-            except Exception as e:
-                print(f"⚠️ [Workbench] 载入已有通路快照失败: {e}")
+    if btn_run_pathway:
+        current_key = api_key.strip() if api_key else ""
+        is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+        if not current_key and not is_local:
+            st.error(t("err_missing_api_key"))
+            st.stop()
 
-        display_pathways = st.session_state.get("decomposed_pathways")
-        if display_pathways is None and saved_pathways_data:
-            display_pathways = saved_pathways_data.get("pathways", [])
+        from LLM_SYS import BioBrainAgent
+        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
 
-        # 1. 引导输入与操作面板
-        with st.container(border=True):
-            st.markdown(f"**{t('wb_pw_input_label')}**")
-            default_query = saved_pathways_data.get("user_query", "") if saved_pathways_data else ""
-            pw_user_query = st.text_input(
-                t("wb_pw_input_label"),
-                value=st.session_state.get("pw_user_query_input", default_query),
-                placeholder=t("wb_pw_input_placeholder"),
-                key="pw_user_query_input",
-                label_visibility="collapsed"
+        pw_engine = PathwayDecompositionEngine(
+            llm_agent=llm_agent,
+            ontology=selected_preset,
+            entity_annotations=ent_annots,
+            relation_annotations=rel_annots,
+            project_dir=proj_dir,
+            canonical_papers=st.session_state.get("analyzed_files", [])
+        )
+
+        pw_p_bar = st.progress(0.0)
+        pw_status = st.empty()
+
+        def on_pw_prog(frac, msg):
+            pw_p_bar.progress(frac)
+            pw_status.info(f"⏳ {msg}")
+
+        decomposed_pathways = pw_engine.run_decomposition(
+            entities=ents,
+            relations=rels,
+            user_query=pw_user_query.strip(),
+            enable_loops=pw_chk_loops,
+            enable_bridges=pw_chk_bridges,
+            enable_subgraphs=pw_chk_subgraphs,
+            max_pathways=pw_max_count,
+            enable_diversity_penalty=pw_chk_diversity,
+            layout_mode="force",
+            language=st.session_state.get("ui_language", "zh"),
+            progress_callback=on_pw_prog
+        )
+        st.session_state.decomposed_pathways = decomposed_pathways
+        st.toast(t("wb_pw_toast_done"), icon="🎉")
+        st.rerun()
+
+    # 2. 通路结果展示 (学术极简排版 + 可收纳子图谱)
+    if display_pathways:
+        sec_header = f"已解构的核心信号通路清单 ({len(display_pathways)} 条)" if not is_en else f"Decomposed Signaling Pathways ({len(display_pathways)})"
+        col_hdr1, col_hdr2, col_hdr3 = st.columns([3, 1, 1])
+        with col_hdr1:
+            st.markdown(f"#### 📜 {sec_header}")
+        with col_hdr2:
+            all_pw_json = json.dumps(display_pathways, ensure_ascii=False, indent=2)
+            st.download_button(
+                t("wb_pw_btn_dl_all_json"),
+                data=all_pw_json,
+                file_name=f"Bio_Pathways_{proj_id}.json",
+                mime="application/json",
+                key="dl_all_pathways_json",
+                width="stretch"
             )
-
-            st.caption("⚙️ " + ("子功能独立控制与配置" if not is_en else "Sub-feature Configuration"))
-            c_sw1, c_sw2, c_sw3, c_sw4, c_sw5 = st.columns([4, 3, 3, 3, 2])
-            with c_sw1:
-                pw_chk_diversity = st.checkbox(t("wb_pw_chk_diversity"), value=True, key="wb_pw_chk_diversity")
-            with c_sw2:
-                pw_chk_loops = st.checkbox(t("wb_pw_chk_loops"), value=True, key="wb_pw_chk_loops")
-            with c_sw3:
-                pw_chk_bridges = st.checkbox(t("wb_pw_chk_bridges"), value=True, key="wb_pw_chk_bridges")
-            with c_sw4:
-                pw_chk_subgraphs = st.checkbox(t("wb_pw_chk_subgraphs"), value=True, key="wb_pw_chk_subgraphs")
-            with c_sw5:
-                pw_max_count = st.slider(t("wb_pw_slider_count"), min_value=1, max_value=5, value=3, key="wb_pw_slider_count")
-
-            btn_run_label = t("wb_pw_btn_rerun") if display_pathways else t("wb_pw_btn_start")
-            btn_run_pathway = st.button(btn_run_label, type="primary", key="wb_pw_btn_start", width="stretch")
-
-        if btn_run_pathway:
-            current_key = api_key.strip() if api_key else ""
-            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
-            if not current_key and not is_local:
-                st.error(t("err_missing_api_key"))
-                st.stop()
-
-            from LLM_SYS import BioBrainAgent
-            llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
-
-            pw_engine = PathwayDecompositionEngine(
-                llm_agent=llm_agent,
-                ontology=selected_preset,
-                entity_annotations=ent_annots,
-                relation_annotations=rel_annots,
-                project_dir=proj_dir,
-                canonical_papers=st.session_state.get("analyzed_files", [])
-            )
-
-            pw_p_bar = st.progress(0.0)
-            pw_status = st.empty()
-
-            def on_pw_prog(frac, msg):
-                pw_p_bar.progress(frac)
-                pw_status.info(f"⏳ {msg}")
-
-            decomposed_pathways = pw_engine.run_decomposition(
-                entities=ents,
-                relations=rels,
-                user_query=pw_user_query.strip(),
-                enable_loops=pw_chk_loops,
-                enable_bridges=pw_chk_bridges,
-                enable_subgraphs=pw_chk_subgraphs,
-                max_pathways=pw_max_count,
-                enable_diversity_penalty=pw_chk_diversity,
-                layout_mode="force",
-                language=st.session_state.get("ui_language", "zh"),
-                progress_callback=on_pw_prog
-            )
-            st.session_state.decomposed_pathways = decomposed_pathways
-            st.toast(t("wb_pw_toast_done"), icon="🎉")
-            st.rerun()
-
-        # 2. 通路结果展示 (学术极简排版 + 可收纳子图谱)
-        if display_pathways:
-            sec_header = f"已解构的核心信号通路清单 ({len(display_pathways)} 条)" if not is_en else f"Decomposed Signaling Pathways ({len(display_pathways)})"
-            col_hdr1, col_hdr2, col_hdr3 = st.columns([3, 1, 1])
-            with col_hdr1:
-                st.markdown(f"#### 📜 {sec_header}")
-            with col_hdr2:
-                all_pw_json = json.dumps(display_pathways, ensure_ascii=False, indent=2)
-                st.download_button(
-                    t("wb_pw_btn_dl_all_json"),
-                    data=all_pw_json,
-                    file_name=f"Bio_Pathways_{proj_id}.json",
-                    mime="application/json",
-                    key="dl_all_pathways_json",
-                    width="stretch"
-                )
-            with col_hdr3:
-                if st.button(t("wb_pw_btn_clear"), key="btn_clear_pathways_results", width="stretch"):
-                    st.session_state.decomposed_pathways = None
-                    if os.path.exists(pathways_dir):
-                        import shutil
-                        shutil.rmtree(pathways_dir, ignore_errors=True)
-                    st.toast(t("wb_pw_clear_done"), icon="🗑️")
-                    st.rerun()
-
-            for idx, pw in enumerate(display_pathways):
-                cid = pw.get("cluster_id", idx + 1)
-                title = pw.get("title", f"通路 {cid}")
-                summary = pw.get("summary", pw.get("executive_summary", ""))
-
-                with st.container(border=True):
-                    # 1. 标题 (学术命名，支持 LaTeX)
-                    st.markdown(f"##### 🧬 {t('wb_pw_card_title').format(idx=cid, title=title)}")
-
-                    # 2. 通路机制简单介绍 (如果涉及反馈循环适当分析)
-                    if summary:
-                        st.markdown(summary)
-
-                    if pw.get("is_fallback"):
-                        st.caption(f"⚠️ {t('wb_pw_fallback_warn')}")
-
-                    # 3. 标记：反馈循环 / 跨文献通路 (只做标记，不做冗余分析)
-                    badges = []
-                    if pw.get("has_feedback_loop") or pw.get("feedback_loops"):
-                        badges.append(t("wb_pw_badge_loop"))
-                    if pw.get("is_cross_paper"):
-                        badges.append(t("wb_pw_badge_cross_paper"))
-                    if badges:
-                        st.markdown(" ".join([f"`{b}`" for b in badges]))
-
-                    # 4. 可以收起的子图谱
-                    nodes = pw.get("nodes", [])
-                    rels = pw.get("relations", [])
-                    sub_label = f"🎨 {t('wb_pw_lbl_subgraph')} ({len(nodes)} {t('lbl_nodes') if not is_en else 'Nodes'}, {len(rels)} {t('lbl_relations') if not is_en else 'Edges'})"
-                    with st.expander(sub_label, expanded=False):
-                        html_rel = pw.get("html_file", "")
-                        html_abs = os.path.join(proj_dir, html_rel) if html_rel else ""
-                        pw_html_data = ""
-                        if html_abs and os.path.exists(html_abs):
-                            try:
-                                with open(html_abs, "r", encoding="utf-8") as hf:
-                                    pw_html_data = hf.read()
-                            except Exception as e:
-                                st.caption(f"⚠️ 读取子图遇到异常: {e}")
-
-                        if pw_html_data:
-                            import streamlit.components.v1 as components
-                            components.html(pw_html_data, height=480, scrolling=False)
-
-                        col_dl1, col_dl2, col_dl3 = st.columns([1, 1, 1])
-                        with col_dl1:
-                            if pw_html_data:
-                                st.download_button(
-                                    t("wb_pw_btn_dl_html"),
-                                    data=pw_html_data,
-                                    file_name=f"Pathway_{cid}_{proj_id}.html",
-                                    mime="text/html",
-                                    key=f"dl_pw_html_{cid}",
-                                    width="stretch"
-                                )
-                        with col_dl2:
-                            pw_single_json = json.dumps(pw, ensure_ascii=False, indent=2)
-                            st.download_button(
-                                t("wb_pw_btn_dl_json"),
-                                data=pw_single_json,
-                                file_name=f"Pathway_{cid}_{proj_id}.json",
-                                mime="application/json",
-                                key=f"dl_pw_json_{cid}",
-                                width="stretch"
-                            )
-                        with col_dl3:
-                            # 🧬 降级打包为独立 .biokg 工程数据，支持载入主系统二次分析
-                            from workbench_engine import PathwayDecompositionEngine
-                            biokg_data = PathwayDecompositionEngine.export_pathway_as_biokg(
-                                pathway_dict=pw,
-                                master_entities=st.session_state.get("master_entities", []),
-                                project_id=proj_id,
-                                project_name=proj_name,
-                                paper_registry=st.session_state.get("paper_registry", {}),
-                                figure_transcriptions=st.session_state.get("figure_transcriptions", {}),
-                                workbench_state=st.session_state.get("workbench_state", {})
-                            )
-                            biokg_json_bytes = json.dumps(biokg_data, ensure_ascii=False, indent=2).encode('utf-8')
-                            clean_p_title = re.sub(r'[\\/*?:"<>|$\s]', "_", str(title).strip())[:25]
-                            biokg_filename = f"BioKG_Pathway_{cid}_{clean_p_title}.biokg"
-                            st.download_button(
-                                t("wb_pw_btn_dl_biokg"),
-                                data=biokg_json_bytes,
-                                file_name=biokg_filename,
-                                mime="application/json",
-                                key=f"dl_pw_biokg_{cid}",
-                                help=t("wb_pw_help_dl_biokg"),
-                                width="stretch"
-                            )
-
-
-    with tab_stage3:
-        # ==========================================
-        # 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)
-        # ==========================================
-        st.markdown("---")
-        st.markdown(t("wb_sec3_title"))
-        st.caption(t("wb_sec3_caption"))
-
-        import hypothesis_engine
-        importlib.reload(hypothesis_engine)
-        from hypothesis_engine import HypothesisEngine
-        from WebSearcher import get_searcher
-
-        cur_db = st.session_state.get("search_database", "PubMed")
-        searcher = get_searcher(cur_db)
-
-        # 1. 探勘策略控制面板
-        with st.container(border=True):
-            col_m1, col_m2 = st.columns([2, 3])
-            with col_m1:
-                mode_options = [
-                    ("auto", t("wb_hypo_mode_auto")),
-                    ("cluster_bridge", t("wb_hypo_mode_bridge")),
-                    ("peripheral_growth", t("wb_hypo_mode_growth")),
-                    ("intent_exploration", t("wb_hypo_mode_intent"))
-                ]
-                mode_keys = [m[0] for m in mode_options]
-                mode_labels = {m[0]: m[1] for m in mode_options}
-
-                selected_hypo_mode = st.selectbox(
-                    t("wb_hypo_mode_select"),
-                    options=mode_keys,
-                    format_func=lambda k: mode_labels.get(k, k),
-                    key="wb_hypo_mode_select"
-                )
-
-            temp_engine = HypothesisEngine(
-                entities=ents,
-                relations=rels,
-                workbench_state=st.session_state.get("workbench_state", {}),
-                lang=st.session_state.get("ui_language", "zh")
-            )
-
-            with col_m2:
-                if selected_hypo_mode == "auto":
-                    auto_info = temp_engine.detect_auto_mode()
-                    st.info(f"🤖 **{auto_info['label']}** — {auto_info['reason']}")
-                elif selected_hypo_mode == "intent_exploration":
-                    hypo_intent_query = st.text_input(
-                        t("wb_hypo_intent_label"),
-                        value=st.session_state.get("wb_hypo_intent_input", ""),
-                        placeholder=t("wb_hypo_intent_placeholder"),
-                        key="wb_hypo_intent_input"
-                    )
-                elif selected_hypo_mode == "cluster_bridge":
-                    st.caption("ℹ️ " + ("算法将对不同连通子图簇的核心 Hub 与 Gateway 节点进行跨界相容性寻孔配对" if not is_en else "Mines cross-cluster gateway & hub pairs between disconnected components"))
-                else:
-                    st.caption("ℹ️ " + ("算法将识别度数较低的周界外围功能实体，向外探索合理的直接上下游薄层延伸" if not is_en else "Identifies peripheral frontier nodes and proposes direct upstream/downstream thin-layer growth"))
-
-            col_act1, col_act2 = st.columns([3, 1])
-            with col_act1:
-                btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
-            with col_act2:
-                if st.session_state.get("hypothesis_cards"):
-                    if st.button(t("wb_hypo_btn_clear"), key="wb_hypo_btn_clear", width="stretch"):
-                        st.session_state.hypothesis_cards = []
-                        st.rerun()
-
-        # 2. 触发探勘推演
-        if btn_mine:
-            current_key = api_key.strip() if api_key else ""
-            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
-            if not current_key and not is_local:
-                st.error(t("err_missing_api_key"))
-                st.stop()
-
-            from LLM_SYS import BioBrainAgent
-            llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
-
-            intent_text = st.session_state.get("wb_hypo_intent_input", "") if selected_hypo_mode == "intent_exploration" else ""
-            active_engine = HypothesisEngine(
-                entities=ents,
-                relations=rels,
-                workbench_state=st.session_state.get("workbench_state", {}),
-                agent=llm_agent,
-                searcher=searcher,
-                lang=st.session_state.get("ui_language", "zh")
-            )
-
-            with st.spinner(t("msg_generating_pathways") if is_en else "🔬 正在进行拓扑寻孔与假说机制推演..."):
-                cards = active_engine.mine_and_formulate(
-                    mode=selected_hypo_mode,
-                    intent=intent_text,
-                    top_k=5
-                )
-                st.session_state.hypothesis_cards = cards
-                st.session_state.active_hypo_mode = selected_hypo_mode
-                st.session_state.active_hypo_intent = intent_text
+        with col_hdr3:
+            if st.button(t("wb_pw_btn_clear"), key="btn_clear_pathways_results", width="stretch"):
+                st.session_state.decomposed_pathways = None
+                if os.path.exists(pathways_dir):
+                    import shutil
+                    shutil.rmtree(pathways_dir, ignore_errors=True)
+                st.toast(t("wb_pw_clear_done"), icon="🗑️")
                 st.rerun()
 
-        # 3. 假说卡片列表渲染与交互区 (两阶段解耦，按需并发核验)
-        hypo_cards = st.session_state.get("hypothesis_cards", [])
-        if hypo_cards:
-            st.markdown(t("wb_hypo_list_title").format(count=len(hypo_cards)))
+        for idx, pw in enumerate(display_pathways):
+            cid = pw.get("cluster_id", idx + 1)
+            title = pw.get("title", f"通路 {cid}")
+            summary = pw.get("summary", pw.get("executive_summary", ""))
 
-            # 批量核验操作条
-            unverified_cards = [c for c in hypo_cards if c.get("verification_status") != "verified"]
-            if unverified_cards:
-                col_b1, col_b2 = st.columns([3, 1])
-                with col_b1:
-                    if st.button(t("wb_hypo_btn_verify_batch"), key="wb_hypo_btn_verify_batch", width="stretch"):
+            with st.container(border=True):
+                # 1. 标题 (学术命名，支持 LaTeX)
+                st.markdown(f"##### 🧬 {t('wb_pw_card_title').format(idx=cid, title=title)}")
+
+                # 2. 通路机制简单介绍 (如果涉及反馈循环适当分析)
+                if summary:
+                    st.markdown(summary)
+
+                if pw.get("is_fallback"):
+                    st.caption(f"⚠️ {t('wb_pw_fallback_warn')}")
+
+                # 3. 标记：反馈循环 / 跨文献通路 (只做标记，不做冗余分析)
+                badges = []
+                if pw.get("has_feedback_loop") or pw.get("feedback_loops"):
+                    badges.append(t("wb_pw_badge_loop"))
+                if pw.get("is_cross_paper"):
+                    badges.append(t("wb_pw_badge_cross_paper"))
+                if badges:
+                    st.markdown(" ".join([f"`{b}`" for b in badges]))
+
+                # 4. 可以收起的子图谱
+                nodes = pw.get("nodes", [])
+                rels = pw.get("relations", [])
+                sub_label = f"🎨 {t('wb_pw_lbl_subgraph')} ({len(nodes)} {t('lbl_nodes') if not is_en else 'Nodes'}, {len(rels)} {t('lbl_relations') if not is_en else 'Edges'})"
+                with st.expander(sub_label, expanded=False):
+                    html_rel = pw.get("html_file", "")
+                    html_abs = os.path.join(proj_dir, html_rel) if html_rel else ""
+                    pw_html_data = ""
+                    if html_abs and os.path.exists(html_abs):
+                        try:
+                            with open(html_abs, "r", encoding="utf-8") as hf:
+                                pw_html_data = hf.read()
+                        except Exception as e:
+                            st.caption(f"⚠️ 读取子图遇到异常: {e}")
+
+                    if pw_html_data:
+                        import streamlit.components.v1 as components
+                        components.html(pw_html_data, height=480, scrolling=False)
+
+                    col_dl1, col_dl2, col_dl3 = st.columns([1, 1, 1])
+                    with col_dl1:
+                        if pw_html_data:
+                            st.download_button(
+                                t("wb_pw_btn_dl_html"),
+                                data=pw_html_data,
+                                file_name=f"Pathway_{cid}_{proj_id}.html",
+                                mime="text/html",
+                                key=f"dl_pw_html_{cid}",
+                                width="stretch"
+                            )
+                    with col_dl2:
+                        pw_single_json = json.dumps(pw, ensure_ascii=False, indent=2)
+                        st.download_button(
+                            t("wb_pw_btn_dl_json"),
+                            data=pw_single_json,
+                            file_name=f"Pathway_{cid}_{proj_id}.json",
+                            mime="application/json",
+                            key=f"dl_pw_json_{cid}",
+                            width="stretch"
+                        )
+                    with col_dl3:
+                        # 🧬 降级打包为独立 .biokg 工程数据，支持载入主系统二次分析
+                        from workbench_engine import PathwayDecompositionEngine
+                        biokg_data = PathwayDecompositionEngine.export_pathway_as_biokg(
+                            pathway_dict=pw,
+                            master_entities=st.session_state.get("master_entities", []),
+                            project_id=proj_id,
+                            project_name=proj_name,
+                            paper_registry=st.session_state.get("paper_registry", {}),
+                            figure_transcriptions=st.session_state.get("figure_transcriptions", {}),
+                            workbench_state=st.session_state.get("workbench_state", {})
+                        )
+                        biokg_json_bytes = json.dumps(biokg_data, ensure_ascii=False, indent=2).encode('utf-8')
+                        clean_p_title = re.sub(r'[\\/*?:"<>|$\s]', "_", str(title).strip())[:25]
+                        biokg_filename = f"BioKG_Pathway_{cid}_{clean_p_title}.biokg"
+                        st.download_button(
+                            t("wb_pw_btn_dl_biokg"),
+                            data=biokg_json_bytes,
+                            file_name=biokg_filename,
+                            mime="application/json",
+                            key=f"dl_pw_biokg_{cid}",
+                            help=t("wb_pw_help_dl_biokg"),
+                            width="stretch"
+                        )
+
+    # ==========================================
+    # 8. 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)
+    # ==========================================
+    st.markdown("---")
+    st.markdown(t("wb_sec3_title"))
+    st.caption(t("wb_sec3_caption"))
+
+    import hypothesis_engine
+    importlib.reload(hypothesis_engine)
+    from hypothesis_engine import HypothesisEngine
+    from WebSearcher import get_searcher
+
+    cur_db = st.session_state.get("search_database", "PubMed")
+    searcher = get_searcher(cur_db)
+
+    # 1. 探勘策略控制面板
+    with st.container(border=True):
+        col_m1, col_m2 = st.columns([2, 3])
+        with col_m1:
+            mode_options = [
+                ("auto", t("wb_hypo_mode_auto")),
+                ("cluster_bridge", t("wb_hypo_mode_bridge")),
+                ("peripheral_growth", t("wb_hypo_mode_growth")),
+                ("intent_exploration", t("wb_hypo_mode_intent"))
+            ]
+            mode_keys = [m[0] for m in mode_options]
+            mode_labels = {m[0]: m[1] for m in mode_options}
+
+            selected_hypo_mode = st.selectbox(
+                t("wb_hypo_mode_select"),
+                options=mode_keys,
+                format_func=lambda k: mode_labels.get(k, k),
+                key="wb_hypo_mode_select"
+            )
+
+        temp_engine = HypothesisEngine(
+            entities=ents,
+            relations=rels,
+            workbench_state=st.session_state.get("workbench_state", {}),
+            lang=st.session_state.get("ui_language", "zh")
+        )
+
+        with col_m2:
+            if selected_hypo_mode == "auto":
+                auto_info = temp_engine.detect_auto_mode()
+                st.info(f"🤖 **{auto_info['label']}** — {auto_info['reason']}")
+            elif selected_hypo_mode == "intent_exploration":
+                hypo_intent_query = st.text_input(
+                    t("wb_hypo_intent_label"),
+                    value=st.session_state.get("wb_hypo_intent_input", ""),
+                    placeholder=t("wb_hypo_intent_placeholder"),
+                    key="wb_hypo_intent_input"
+                )
+            elif selected_hypo_mode == "cluster_bridge":
+                st.caption("ℹ️ " + ("算法将对不同连通子图簇的核心 Hub 与 Gateway 节点进行跨界相容性寻孔配对" if not is_en else "Mines cross-cluster gateway & hub pairs between disconnected components"))
+            else:
+                st.caption("ℹ️ " + ("算法将识别度数较低的周界外围功能实体，向外探索合理的直接上下游薄层延伸" if not is_en else "Identifies peripheral frontier nodes and proposes direct upstream/downstream thin-layer growth"))
+
+        col_act1, col_act2 = st.columns([3, 1])
+        with col_act1:
+            btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
+        with col_act2:
+            if st.session_state.get("hypothesis_cards"):
+                if st.button(t("wb_hypo_btn_clear"), key="wb_hypo_btn_clear", width="stretch"):
+                    st.session_state.hypothesis_cards = []
+                    st.rerun()
+
+    # 2. 触发探勘推演
+    if btn_mine:
+        current_key = api_key.strip() if api_key else ""
+        is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+        if not current_key and not is_local:
+            st.error(t("err_missing_api_key"))
+            st.stop()
+
+        from LLM_SYS import BioBrainAgent
+        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+
+        intent_text = st.session_state.get("wb_hypo_intent_input", "") if selected_hypo_mode == "intent_exploration" else ""
+        active_engine = HypothesisEngine(
+            entities=ents,
+            relations=rels,
+            workbench_state=st.session_state.get("workbench_state", {}),
+            agent=llm_agent,
+            searcher=searcher,
+            lang=st.session_state.get("ui_language", "zh")
+        )
+
+        with st.spinner(t("msg_generating_pathways") if is_en else "🔬 正在进行拓扑寻孔与假说机制推演..."):
+            cards = active_engine.mine_and_formulate(
+                mode=selected_hypo_mode,
+                intent=intent_text,
+                top_k=5
+            )
+            st.session_state.hypothesis_cards = cards
+            st.session_state.active_hypo_mode = selected_hypo_mode
+            st.session_state.active_hypo_intent = intent_text
+            st.rerun()
+
+    # 3. 假说卡片列表渲染与交互区 (两阶段解耦，按需并发核验)
+    hypo_cards = st.session_state.get("hypothesis_cards", [])
+    if hypo_cards:
+        st.markdown(t("wb_hypo_list_title").format(count=len(hypo_cards)))
+
+        # 批量核验操作条
+        unverified_cards = [c for c in hypo_cards if c.get("verification_status") != "verified"]
+        if unverified_cards:
+            col_b1, col_b2 = st.columns([3, 1])
+            with col_b1:
+                if st.button(t("wb_hypo_btn_verify_batch"), key="wb_hypo_btn_verify_batch", width="stretch"):
+                    current_key = api_key.strip() if api_key else ""
+                    is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                    if not current_key and not is_local:
+                        st.error(t("err_missing_api_key"))
+                        st.stop()
+
+                    from LLM_SYS import BioBrainAgent
+                    llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+                    engine = HypothesisEngine(
+                        entities=ents,
+                        relations=rels,
+                        workbench_state=st.session_state.get("workbench_state", {}),
+                        agent=llm_agent,
+                        searcher=searcher,
+                        lang=st.session_state.get("ui_language", "zh")
+                    )
+                    with st.spinner("⚡ 正在多线程并发检索 PubMed 文献并由裁判大模型终审..."):
+                        updated_list = engine.verify_hypotheses_concurrent(
+                            hypotheses=hypo_cards,
+                            intent=st.session_state.get("active_hypo_intent", ""),
+                            max_workers=4
+                        )
+                        st.session_state.hypothesis_cards = updated_list
+                        st.toast("✅ 全部假说文献裁判终审已并发完成！", icon="🎉")
+                        st.rerun()
+
+        # 逐卡片呈现
+        for idx, card in enumerate(hypo_cards):
+            cid = card.get("id", f"hypo_{idx}")
+            status = card.get("verification_status", "unverified")
+            node_a = card.get("node_a", "")
+            node_b = card.get("node_b", "")
+            cat_a = card.get("category_a", "Gene_Protein")
+            cat_b = card.get("category_b", "Gene_Protein")
+
+            with st.container(border=True):
+                h_col1, h_col2 = st.columns([4, 1])
+                with h_col1:
+                    st.markdown(f"#### 假说 #{idx+1}：`{node_a}` $\\longleftrightarrow$ `{node_b}`")
+                    st.caption(f"📌 **{card.get('hypothesis_statement', '')}**")
+                with h_col2:
+                    mode_tag = card.get("mode", "bridge")
+                    if "bridge" in mode_tag:
+                        st.markdown(f"`{t('wb_hypo_badge_bridge')}`")
+                    elif "growth" in mode_tag:
+                        st.markdown(f"`{t('wb_hypo_badge_growth')}`")
+                    else:
+                        st.markdown(f"`{t('wb_hypo_badge_intent')}`")
+
+                st.markdown(f"**{t('wb_hypo_card_rationale')}** {card.get('biological_rationale', '')}")
+                st.markdown(f"**{t('wb_hypo_card_direction')}** {card.get('research_direction', '')}")
+
+                # 阶段 B：裁判核验与结果展示
+                if status != "verified":
+                    if st.button(t("wb_hypo_btn_verify_single"), key=f"btn_verify_single_{cid}"):
                         current_key = api_key.strip() if api_key else ""
                         is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
                         if not current_key and not is_local:
@@ -3055,151 +3277,97 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             searcher=searcher,
                             lang=st.session_state.get("ui_language", "zh")
                         )
-                        with st.spinner("⚡ 正在多线程并发检索 PubMed 文献并由裁判大模型终审..."):
-                            updated_list = engine.verify_hypotheses_concurrent(
-                                hypotheses=hypo_cards,
-                                intent=st.session_state.get("active_hypo_intent", ""),
-                                max_workers=4
+                        with st.spinner(f"🔬 正在检索 PubMed 并审读 `{node_a}` 与 `{node_b}` 的机制文献..."):
+                            updated_card = engine.verify_single_hypothesis(
+                                card,
+                                intent=st.session_state.get("active_hypo_intent", "")
                             )
-                            st.session_state.hypothesis_cards = updated_list
-                            st.toast("✅ 全部假说文献裁判终审已并发完成！", icon="🎉")
+                            st.session_state.hypothesis_cards[idx] = updated_card
                             st.rerun()
+                else:
+                    adj = card.get("adjudication", {}) or {}
+                    verdict = adj.get("verdict", "novel_gap")
+                    articles = card.get("retrieved_articles", [])
 
-            # 逐卡片呈现
-            for idx, card in enumerate(hypo_cards):
-                cid = card.get("id", f"hypo_{idx}")
-                status = card.get("verification_status", "unverified")
-                node_a = card.get("node_a", "")
-                node_b = card.get("node_b", "")
-                cat_a = card.get("category_a", "Gene_Protein")
-                cat_b = card.get("category_b", "Gene_Protein")
+                    st.markdown("---")
+                    if verdict == "known":
+                        st.success(f"**{t('wb_hypo_verdict_known')}** (置信度: {adj.get('confidence', 0.9):.2f})")
+                        pmid = adj.get("direct_evidence_pmid", "")
+                        if pmid:
+                            st.markdown(f"📄 **关键确证文献**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
+                        quote = adj.get("evidence_quote", "")
+                        if quote:
+                            st.caption(f"📝 *原文依据*: “{quote}”")
+                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
 
-                with st.container(border=True):
-                    h_col1, h_col2 = st.columns([4, 1])
-                    with h_col1:
-                        st.markdown(f"#### 假说 #{idx+1}：`{node_a}` $\\longleftrightarrow$ `{node_b}`")
-                        st.caption(f"📌 **{card.get('hypothesis_statement', '')}**")
-                    with h_col2:
-                        mode_tag = card.get("mode", "bridge")
-                        if "bridge" in mode_tag:
-                            st.markdown(f"`{t('wb_hypo_badge_bridge')}`")
-                        elif "growth" in mode_tag:
-                            st.markdown(f"`{t('wb_hypo_badge_growth')}`")
-                        else:
-                            st.markdown(f"`{t('wb_hypo_badge_intent')}`")
+                        # 采纳确证文献证据并触发智能拓展抽取流水线入库
+                        col_act_m, _ = st.columns([2, 2])
+                        with col_act_m:
+                            if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
+                                current_key = api_key.strip() if api_key else ""
+                                is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                                if not current_key and not is_local:
+                                    st.error(t("err_missing_api_key"))
+                                    st.stop()
 
-                    st.markdown(f"**{t('wb_hypo_card_rationale')}** {card.get('biological_rationale', '')}")
-                    st.markdown(f"**{t('wb_hypo_card_direction')}** {card.get('research_direction', '')}")
-
-                    # 阶段 B：裁判核验与结果展示
-                    if status != "verified":
-                        if st.button(t("wb_hypo_btn_verify_single"), key=f"btn_verify_single_{cid}"):
-                            current_key = api_key.strip() if api_key else ""
-                            is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
-                            if not current_key and not is_local:
-                                st.error(t("err_missing_api_key"))
-                                st.stop()
-
-                            from LLM_SYS import BioBrainAgent
-                            llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
-                            engine = HypothesisEngine(
-                                entities=ents,
-                                relations=rels,
-                                workbench_state=st.session_state.get("workbench_state", {}),
-                                agent=llm_agent,
-                                searcher=searcher,
-                                lang=st.session_state.get("ui_language", "zh")
-                            )
-                            with st.spinner(f"🔬 正在检索 PubMed 并审读 `{node_a}` 与 `{node_b}` 的机制文献..."):
-                                updated_card = engine.verify_single_hypothesis(
-                                    card,
-                                    intent=st.session_state.get("active_hypo_intent", "")
-                                )
-                                st.session_state.hypothesis_cards[idx] = updated_card
+                                with st.spinner(f"🔬 正在基于确证文献触发实体反思抽取、关系推导与知识图谱融合流水线..."):
+                                    ingest_verified_hypothesis_via_pipeline(
+                                        card=card,
+                                        api_key=current_key,
+                                        selected_model_id=selected_model_id,
+                                        base_url=base_url,
+                                        searcher=searcher
+                                    )
+                                st.toast(t("wb_hypo_toast_merged_return"), icon="🎉")
                                 st.rerun()
+
+                    elif verdict == "novel_gap":
+                        st.info(f"**{t('wb_hypo_verdict_novel')}** (创新度高)")
+                        st.markdown(f"⚖️ **裁判结论**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"🔭 **科研前瞻建议**: {adj.get('research_direction', '')}")
+                        st.caption(t("wb_hypo_novel_notice"))
+
+                        # 导出为专题独立子工程 (.biokg)
+                        col_act_sub, _ = st.columns([2, 2])
+                        with col_act_sub:
+                            sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
+                                hypothesis=card,
+                                master_entities=ents,
+                                master_relations=rels,
+                                project_id=proj_id,
+                                project_name=proj_name,
+                                workbench_state=st.session_state.get("workbench_state", {})
+                            )
+                            sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
+                            clean_fname = f"BioKG_Hypothesis_{node_a}_{node_b}.biokg"
+                            st.download_button(
+                                t("wb_hypo_btn_dl_biokg"),
+                                data=sub_bytes,
+                                file_name=clean_fname,
+                                mime="application/json",
+                                key=f"dl_hypo_sub_{cid}",
+                                width="stretch"
+                            )
+
+                    elif verdict == "cascade":
+                        st.warning(f"**{t('wb_hypo_verdict_cascade')}**")
+                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"🧭 **级联推演方向**: {adj.get('research_direction', '')}")
                     else:
-                        adj = card.get("adjudication", {}) or {}
-                        verdict = adj.get("verdict", "novel_gap")
-                        articles = card.get("retrieved_articles", [])
+                        st.info(f"**{t('wb_hypo_verdict_inconclusive')}**")
+                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
 
-                        st.markdown("---")
-                        if verdict == "known":
-                            st.success(f"**{t('wb_hypo_verdict_known')}** (置信度: {adj.get('confidence', 0.9):.2f})")
-                            pmid = adj.get("direct_evidence_pmid", "")
-                            if pmid:
-                                st.markdown(f"📄 **关键确证文献**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
-                            quote = adj.get("evidence_quote", "")
-                            if quote:
-                                st.caption(f"📝 *原文依据*: “{quote}”")
-                            st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
-
-                            # 采纳并入主图谱并返回主界面
-                            col_act_m, _ = st.columns([2, 2])
-                            with col_act_m:
-                                if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
-                                    new_rel = {
-                                        "source": node_a,
-                                        "target": node_b,
-                                        "relation": card.get("proposed_relation", "Positive_Regulation"),
-                                        "doc_source": f"PMID: {pmid}" if pmid else "PubMed Verified",
-                                        "evidence": quote or card.get("hypothesis_statement", ""),
-                                        "weight": 1
-                                    }
-                                    st.session_state.master_relations.append(new_rel)
-                                    st.session_state.master_relations = consolidate_homogeneous_relations(st.session_state.master_relations)
-                                    save_local_vault()
-                                    redraw_and_update()
-                                    st.session_state.current_view = "main"
-                                    st.toast(t("wb_hypo_toast_merged_return"), icon="🎉")
-                                    st.rerun()
-
-                        elif verdict == "novel_gap":
-                            st.info(f"**{t('wb_hypo_verdict_novel')}** (创新度高)")
-                            st.markdown(f"⚖️ **裁判结论**: {adj.get('adjudication_rationale', '')}")
-                            st.markdown(f"🔭 **科研前瞻建议**: {adj.get('research_direction', '')}")
-                            st.caption(t("wb_hypo_novel_notice"))
-
-                            # 导出为专题独立子工程 (.biokg)
-                            col_act_sub, _ = st.columns([2, 2])
-                            with col_act_sub:
-                                sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
-                                    hypothesis=card,
-                                    master_entities=ents,
-                                    master_relations=rels,
-                                    project_id=proj_id,
-                                    project_name=proj_name,
-                                    workbench_state=st.session_state.get("workbench_state", {})
-                                )
-                                sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
-                                clean_fname = f"BioKG_Hypothesis_{node_a}_{node_b}.biokg"
-                                st.download_button(
-                                    t("wb_hypo_btn_dl_biokg"),
-                                    data=sub_bytes,
-                                    file_name=clean_fname,
-                                    mime="application/json",
-                                    key=f"dl_hypo_sub_{cid}",
-                                    width="stretch"
-                                )
-
-                        elif verdict == "cascade":
-                            st.warning(f"**{t('wb_hypo_verdict_cascade')}**")
-                            st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
-                            st.markdown(f"🧭 **级联推演方向**: {adj.get('research_direction', '')}")
-                        else:
-                            st.info(f"**{t('wb_hypo_verdict_inconclusive')}**")
-                            st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
-
-                        # 文献摘要展开面板
-                        if articles:
-                            with st.expander(t("wb_hypo_articles_title").format(count=len(articles)), expanded=False):
-                                for a_idx, art in enumerate(articles):
-                                    a_pmid = art.get("pmid", "")
-                                    a_title = art.get("title", "")
-                                    a_year = art.get("year", "")
-                                    a_journal = art.get("journal", "")
-                                    a_abstract = art.get("abstract", "")
-                                    st.markdown(f"**[{a_idx+1}] {a_title}** ({a_year}, {a_journal}) [PMID: {a_pmid}](https://pubmed.ncbi.nlm.nih.gov/{a_pmid}/)")
-                                    st.caption(a_abstract[:300] + ("..." if len(a_abstract) > 300 else ""))
+                    # 文献摘要展开面板
+                    if articles:
+                        with st.expander(t("wb_hypo_articles_title").format(count=len(articles)), expanded=False):
+                            for a_idx, art in enumerate(articles):
+                                a_pmid = art.get("pmid", "")
+                                a_title = art.get("title", "")
+                                a_year = art.get("year", "")
+                                a_journal = art.get("journal", "")
+                                a_abstract = art.get("abstract", "")
+                                st.markdown(f"**[{a_idx+1}] {a_title}** ({a_year}, {a_journal}) [PMID: {a_pmid}](https://pubmed.ncbi.nlm.nih.gov/{a_pmid}/)")
+                                st.caption(a_abstract[:300] + ("..." if len(a_abstract) > 300 else ""))
 
     # 9. 底部返回按钮
     st.markdown("---")
