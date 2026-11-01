@@ -2045,3 +2045,120 @@ class PathwayDecompositionEngine:
         except Exception as e:
             print(f"⚠️ [load_manifest] 读取通路快照失败: {e}")
             return None
+
+    @staticmethod
+    def export_pathway_as_biokg(pathway_dict: Dict[str, Any],
+                                master_entities: List[Dict[str, Any]],
+                                project_id: str = "",
+                                project_name: str = "",
+                                paper_registry: Optional[Dict[str, Any]] = None,
+                                figure_transcriptions: Optional[Dict[str, Any]] = None,
+                                workbench_state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        将单条信号通路/调节回路降级打包为合法的 .biokg 独立工程字典：
+        - 节点：从 master_entities 中按标准名匹配并继承别名与文献出处
+        - 关系：直接提取自该通路的 relations（保持原汁原味的极性、证据、权重与 doc_source）
+        - 文献：自动推导该回路涉及的文献子集与 paper_registry 记录
+        - 工作台状态：继承该回路节点与边已解析的实体/关系本体标注，免除二次重复分析开销
+        """
+        import time
+        import re
+
+        cid = pathway_dict.get("cluster_id", 1)
+        raw_title = pathway_dict.get("title", f"Pathway_{cid}")
+        # 清除标题中的 LaTeX 特殊符号，作为干净的工程名
+        clean_title = re.sub(r'[\$\\]', '', raw_title).strip()
+
+        sub_pid = f"proj_pw_{cid}_{int(time.time())}"
+        sub_pname = f"{project_name} - 通路{cid}: {clean_title}" if project_name else f"通路{cid}: {clean_title}"
+
+        # 1. 匹配并提取实体列表
+        pw_nodes = set()
+        for e in pathway_dict.get("entities", []):
+            if isinstance(e, dict):
+                pw_nodes.add(e.get("standard_name", "").strip())
+            else:
+                pw_nodes.add(str(e).strip())
+        if not pw_nodes:
+            pw_nodes = set([str(n).strip() for n in pathway_dict.get("nodes", [])])
+
+        ent_lookup = {e.get("standard_name", "").strip(): e for e in master_entities if isinstance(e, dict)}
+        sub_entities = []
+        for n in sorted(list(pw_nodes)):
+            if not n:
+                continue
+            if n in ent_lookup:
+                sub_entities.append(ent_lookup[n])
+            else:
+                sub_entities.append({
+                    "standard_name": n,
+                    "aliases": [],
+                    "doc_source": "Pathway Circuit"
+                })
+
+        # 2. 提取关系列表
+        sub_relations = pathway_dict.get("relations", [])
+
+        # 3. 统计涉及的文献与注册表
+        cited_files = set()
+        for r in sub_relations:
+            ds = str(r.get("doc_source", ""))
+            for part in ds.split("|"):
+                p_clean = part.strip()
+                if p_clean and p_clean != "未知文献":
+                    cited_files.add(p_clean)
+
+        for e in sub_entities:
+            ds = str(e.get("doc_source", ""))
+            for part in ds.split("|"):
+                p_clean = part.strip()
+                if p_clean and p_clean != "未知文献":
+                    cited_files.add(p_clean)
+
+        sub_paper_registry = {}
+        if paper_registry:
+            for f in cited_files:
+                if f in paper_registry:
+                    sub_paper_registry[f] = paper_registry[f]
+
+        # 4. 继承工作台本体分析状态（实体类型与机制动词）
+        sub_wb_state = {}
+        if workbench_state and isinstance(workbench_state, dict):
+            orig_ent_ann = workbench_state.get("entity_annotations", {})
+            orig_rel_ann = workbench_state.get("relation_annotations", {})
+            sub_ent_ann = {n: orig_ent_ann[n] for n in pw_nodes if n in orig_ent_ann}
+
+            sub_rel_ann = {}
+            for r in sub_relations:
+                s = r.get("source")
+                t = r.get("target")
+                rel = r.get("relation", r.get("relation_type", "相关"))
+                ek = f"{s}|{t}|{rel}"
+                if ek in orig_rel_ann:
+                    sub_rel_ann[ek] = orig_rel_ann[ek]
+
+            sub_wb_state = {
+                "entity_annotations": sub_ent_ann,
+                "relation_annotations": sub_rel_ann,
+                "ontology": workbench_state.get("ontology", {})
+            }
+
+        biokg_dict = {
+            "version": "2.0",
+            "project_id": sub_pid,
+            "project_name": sub_pname,
+            "source_project_id": project_id,
+            "source_pathway_id": cid,
+            "pathway_metadata": {
+                "title": raw_title,
+                "summary": pathway_dict.get("summary", ""),
+                "feedback_loops": pathway_dict.get("feedback_loops", [])
+            },
+            "entities": sub_entities,
+            "relations": sub_relations,
+            "analyzed_files": sorted(list(cited_files)),
+            "paper_registry": sub_paper_registry,
+            "figure_transcriptions": figure_transcriptions or {},
+            "workbench_state": sub_wb_state
+        }
+        return biokg_dict

@@ -2175,6 +2175,11 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     import streamlit.components.v1 as components
 
     is_en = "en" in str(st.session_state.get("ui_language", "zh")).lower()
+    UI_TEXT.setdefault("wb_pw_btn_dl_biokg", {"zh": "🧬 降级导出为工程 (.biokg)", "en": "🧬 Export as Project (.biokg)"})
+    UI_TEXT.setdefault("wb_pw_help_dl_biokg", {
+        "zh": "将当前调控通路/回路打包为标准 .biokg 独立工程文件，可直接载入系统进行智能拓展、桥接等二次深度分析",
+        "en": "Package this pathway/circuit as a standard .biokg project archive, ready for secondary smart expansion, bridging, and deep analysis"
+    })
 
     # 1. 顶部返回导航栏与标题
     col_back1, col_back2 = st.columns([1, 4])
@@ -2826,7 +2831,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         import streamlit.components.v1 as components
                         components.html(pw_html_data, height=480, scrolling=False)
 
-                    col_dl1, col_dl2 = st.columns([1, 1])
+                    col_dl1, col_dl2, col_dl3 = st.columns([1, 1, 1])
                     with col_dl1:
                         if pw_html_data:
                             st.download_button(
@@ -2845,6 +2850,30 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             file_name=f"Pathway_{cid}_{proj_id}.json",
                             mime="application/json",
                             key=f"dl_pw_json_{cid}",
+                            width="stretch"
+                        )
+                    with col_dl3:
+                        # 🧬 降级打包为独立 .biokg 工程数据，支持载入主系统二次分析
+                        from workbench_engine import PathwayDecompositionEngine
+                        biokg_data = PathwayDecompositionEngine.export_pathway_as_biokg(
+                            pathway_dict=pw,
+                            master_entities=st.session_state.get("master_entities", []),
+                            project_id=proj_id,
+                            project_name=proj_name,
+                            paper_registry=st.session_state.get("paper_registry", {}),
+                            figure_transcriptions=st.session_state.get("figure_transcriptions", {}),
+                            workbench_state=st.session_state.get("workbench_state", {})
+                        )
+                        biokg_json_bytes = json.dumps(biokg_data, ensure_ascii=False, indent=2).encode('utf-8')
+                        clean_p_title = re.sub(r'[\\/*?:"<>|$\s]', "_", str(title).strip())[:25]
+                        biokg_filename = f"BioKG_Pathway_{cid}_{clean_p_title}.biokg"
+                        st.download_button(
+                            t("wb_pw_btn_dl_biokg"),
+                            data=biokg_json_bytes,
+                            file_name=biokg_filename,
+                            mime="application/json",
+                            key=f"dl_pw_biokg_{cid}",
+                            help=t("wb_pw_help_dl_biokg"),
                             width="stretch"
                         )
 
