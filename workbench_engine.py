@@ -1240,10 +1240,12 @@ class PathwayDecompositionEngine:
                 candidate_seeds.append(s_name)
                 base_scores[s_name] = s_score
 
-        # 2. 构建有向网络，计算生化动力学语义阻抗与导纳，并记录从属包含层级结构
+        # 2. 构建有向网络，计算生化动力学语义阻抗与导纳，并记录从属包含层级结构与复合物组装亚基
         G_dir = nx.DiGraph()
-        parent_map = {}  # child -> set of parents
+        parent_map = {}  # child -> set of parents (同义分类变体折叠，如 20S/26S -> proteasome)
+        complex_subunits = {}  # complex -> set of distinct protein subunits (功能多亚基组装展开，如 CRL5-SOCS4 -> CUL5, SOCS4, RNF7, ELOB/C)
         containment_edges = set()
+        complex_keywords = ["crl", "complex", "ligase", "proteasome", "复合体", "全酶", "particle"]
 
         for r in relations:
             s = str(r.get("source", "")).strip()
@@ -1270,8 +1272,13 @@ class PathwayDecompositionEngine:
                 if is_containment:
                     r_imp = 10.0
                     conductance = 0.05
-                    parent_map.setdefault(t, set()).add(s)
                     containment_edges.add((s, t))
+                    # 细分判定：是同义分类变体（应折叠）还是真实功能亚基（应展开组装）
+                    is_lexical_variant = s.lower() in t.lower() or any(w in t.lower() for w in s.lower().split() if len(w) > 3)
+                    if is_lexical_variant:
+                        parent_map.setdefault(t, set()).add(s)
+                    elif any(k in s.lower() for k in complex_keywords):
+                        complex_subunits.setdefault(s, set()).add(t)
                 elif is_causal:
                     r_imp = 1.0
                     conductance = 1.0
@@ -1279,8 +1286,17 @@ class PathwayDecompositionEngine:
                     r_imp = 2.5
                     conductance = 0.4
 
-                G_dir.add_edge(s, t, rel=r, is_regulatory=is_causal, is_containment=is_containment,
-                               impedance=r_imp, conductance=conductance, weight=r_imp)
+                # 边保真度保护：强因果调控边绝不可被后续弱相关边覆盖降级！
+                if G_dir.has_edge(s, t):
+                    if is_causal:
+                        G_dir[s][t]["is_regulatory"] = True
+                        G_dir[s][t]["impedance"] = 1.0
+                        G_dir[s][t]["conductance"] = 1.0
+                        G_dir[s][t]["weight"] = 1.0
+                        G_dir[s][t]["rel"] = r
+                else:
+                    G_dir.add_edge(s, t, rel=r, is_regulatory=is_causal, is_containment=is_containment,
+                                   impedance=r_imp, conductance=conductance, weight=r_imp)
 
         if len(G_dir) == 0:
             return []
@@ -1288,8 +1304,9 @@ class PathwayDecompositionEngine:
         deg_dict = dict(G_dir.degree())
         max_deg = max(deg_dict.values()) if deg_dict else 1
 
-        # 统计节点因果出度，上游驱动因子/中继酶更优先作为级联源头，纯终点表型后置
+        # 统计节点因果出度与入度，用于识别级联流向与中继链条
         out_causal_dict = {n: sum(1 for succ in G_dir.successors(n) if G_dir[n][succ].get("is_regulatory")) for n in G_dir}
+        in_causal_dict = {n: sum(1 for pred in G_dir.predecessors(n) if G_dir[pred][n].get("is_regulatory")) for n in G_dir}
         for s in candidate_seeds:
             out_c = out_causal_dict.get(s, 0)
             driver_factor = 1.3 if out_c > 0 else 0.75
@@ -1298,8 +1315,14 @@ class PathwayDecompositionEngine:
         candidate_seeds.sort(key=lambda x: base_scores.get(x, 1.0), reverse=True)
 
         visited_node_counts = Counter()
+        used_primary_seeds = set()
         selected_subsets = []
         seen_node_sets = []
+
+        is_disease_endpoint = lambda n: any(k in n.lower() for k in [
+            "disease", "dementia", "tauopathy", "neuron", "death", "apoptosis", "syndrome", "病", "痴呆", "凋亡", "神经元",
+            "infection", "uti", "sepsis", "cystitis", "pyelonephritis", "bacteraemia"
+        ])
 
         # 预计算全图中所有长度为 2~3 的精炼生物功能因果闭环 (Feedback Cycles)，用于后续豁免保护
         G_causal = nx.DiGraph()
@@ -1316,17 +1339,21 @@ class PathwayDecompositionEngine:
         except Exception:
             pass
 
-        # 3. 循环多轮诱导不同方向的高清因果通路 (级联主干 + 反馈闭环优先编织)
+        # 3. 循环多轮诱导不同方向的高清因果通路 (级联主干 + 生化中介必经链保全 + 死胡同叶节点清洗)
         while len(selected_subsets) < max_pathways:
-            # MMR 动态种子重排：已曝光节点得分受衰减
+            # MMR 动态种子重排：已作为主种子的实体互斥，已曝光节点得分受衰减
+            eligible_seeds = [s for s in candidate_seeds if s not in used_primary_seeds]
+            if not eligible_seeds:
+                break
+
             if enable_diversity_penalty and visited_node_counts:
                 active_seeds_order = sorted(
-                    candidate_seeds,
+                    eligible_seeds,
                     key=lambda s: base_scores.get(s, 1.0) * ((1.0 - diversity_penalty_rate) ** visited_node_counts[s]),
                     reverse=True
                 )
             else:
-                active_seeds_order = candidate_seeds
+                active_seeds_order = eligible_seeds
 
             found_new = False
             for seed in active_seeds_order:
@@ -1346,20 +1373,31 @@ class PathwayDecompositionEngine:
                     G_curr.add_edge(u, v, **d_copy)
 
                 cascade_nodes = {seed}
-                immune_nodes = set()
+                immune_nodes = {seed}
                 immune_edges = set()
 
-                # A. 确定前向因果传导主干长链 (Downstream Spine Tracing，深入 3~4 步)
+                # 0. 复合物结构展开：若主种子为蛋白质复合物，主动带入其核心功能组装亚基
+                if seed in complex_subunits:
+                    subs = sorted(list(complex_subunits[seed]))
+                    for sub in subs[:4]:
+                        cascade_nodes.add(sub)
+                        immune_nodes.add(sub)
+                        immune_edges.add((seed, sub))
+
+                # A. 确定前向因果传导主干长链 (Downstream Spine Tracing，赋予级联延续加分)
                 curr = seed
-                for _ in range(4):
+                for step in range(4):
                     causal_succs = []
                     for succ in G_curr.successors(curr):
                         if G_curr[curr][succ].get("is_regulatory") and succ not in cascade_nodes:
                             # 亚型折叠：若父复合体已在主干中，不拉入下属组分以消除局部密集团簇
                             if any(p in cascade_nodes for p in parent_map.get(succ, set())):
                                 continue
-                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[succ]) if enable_diversity_penalty else 1.0
-                            score = (1.0 + (deg_dict.get(succ, 1) / max_deg)) * vis_factor
+                            # 种子直接因果靶点免受 MMR 惩罚，确保种子生物学初衷不脱节
+                            vis_factor = 1.0 if (curr == seed) else (((1.0 - diversity_penalty_rate) ** visited_node_counts[succ]) if enable_diversity_penalty else 1.0)
+                            # 链条延续奖励：具备下游出度或为病理终点的中介分子优先被选中
+                            chain_factor = 1.5 if (out_causal_dict.get(succ, 0) > 0 or is_disease_endpoint(succ)) else 1.0
+                            score = (1.0 + (deg_dict.get(succ, 1) / max_deg)) * vis_factor * chain_factor
                             causal_succs.append((succ, score))
                     if causal_succs:
                         causal_succs.sort(key=lambda x: x[1], reverse=True)
@@ -1371,14 +1409,15 @@ class PathwayDecompositionEngine:
 
                 # B. 向上追溯上游因果触发输入 (Upstream Spine Tracing，向上 2~3 步)
                 curr = seed
-                for _ in range(3):
+                for step in range(4):
                     causal_preds = []
                     for pred in G_curr.predecessors(curr):
                         if G_curr[pred][curr].get("is_regulatory") and pred not in cascade_nodes:
                             if any(p in cascade_nodes for p in parent_map.get(pred, set())):
                                 continue
-                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[pred]) if enable_diversity_penalty else 1.0
-                            score = (1.0 + (deg_dict.get(pred, 1) / max_deg)) * vis_factor
+                            vis_factor = 1.0 if (curr == seed) else (((1.0 - diversity_penalty_rate) ** visited_node_counts[pred]) if enable_diversity_penalty else 1.0)
+                            chain_factor = 1.5 if in_causal_dict.get(pred, 0) > 0 else 1.0
+                            score = (1.0 + (deg_dict.get(pred, 1) / max_deg)) * vis_factor * chain_factor
                             causal_preds.append((pred, score))
                     if causal_preds:
                         causal_preds.sort(key=lambda x: x[1], reverse=True)
@@ -1388,9 +1427,24 @@ class PathwayDecompositionEngine:
                     else:
                         break
 
-                # C. 打通到未被充分探索的高优先级代表元的最短路径
-                target_peers = [o for o in active_seeds_order if o != seed and o in G_curr]
-                for other in target_peers[:6]:
+                # C. 生化中介必经链保全机制 (Path-Mediator Protection，防断流)
+                # 若主干中存在 A 与 C，且图谱中有直接因果中介 A ➔ M ➔ C (如 proteasome ➔ Tau fragment ➔ Tau aggregate)
+                # 必须将生化功能中介 M 纳入并赋予绝对豁免权，绝不允许剪枝切断！
+                for u in list(cascade_nodes):
+                    for m in G_dir.successors(u):
+                        if G_dir[u][m].get("is_regulatory") and m not in cascade_nodes:
+                            if any(p in cascade_nodes for p in parent_map.get(m, set())):
+                                continue
+                            for v in G_dir.successors(m):
+                                if v in cascade_nodes and v != u and G_dir[m][v].get("is_regulatory"):
+                                    cascade_nodes.add(m)
+                                    immune_nodes.add(m)
+                                    immune_edges.add((u, m))
+                                    immune_edges.add((m, v))
+
+                # D. 打通到未被充分探索的高优先级代表元的最短路径
+                target_peers = [o for o in active_seeds_order if o != seed and o in G_curr and o not in cascade_nodes]
+                for other in target_peers[:4]:
                     if len(cascade_nodes) >= 8:
                         break
                     if any(p in cascade_nodes for p in parent_map.get(other, set())):
@@ -1398,35 +1452,51 @@ class PathwayDecompositionEngine:
                     try:
                         if nx.has_path(G_curr, seed, other):
                             p = nx.shortest_path(G_curr, seed, other, weight="weight")
-                            if len(p) <= 4:
+                            if len(p) <= 3:
                                 cascade_nodes.update(p)
                         elif nx.has_path(G_curr, other, seed):
                             p = nx.shortest_path(G_curr, other, seed, weight="weight")
-                            if len(p) <= 4:
+                            if len(p) <= 3:
                                 cascade_nodes.update(p)
                     except Exception:
                         pass
 
-                # D. 反馈闭环优先检测与绝对豁免保护 (Feedback Loop Immunity，保留与主干耦合的闭环)
+                # 再次执行中介链扫描（覆盖新增的同行路径）
+                for u in list(cascade_nodes):
+                    for m in G_dir.successors(u):
+                        if G_dir[u][m].get("is_regulatory") and m not in cascade_nodes:
+                            if any(p in cascade_nodes for p in parent_map.get(m, set())):
+                                continue
+                            for v in G_dir.successors(m):
+                                if v in cascade_nodes and v != u and G_dir[m][v].get("is_regulatory"):
+                                    cascade_nodes.add(m)
+                                    immune_nodes.add(m)
+                                    immune_edges.add((u, m))
+                                    immune_edges.add((m, v))
+
+                # E. 反馈闭环温和检测与豁免 (适度保留与主干深度绑定的 1 个关键闭环，防止宏观闭环吞噬主干)
                 matched_cycles = []
                 for c in all_cycles:
                     c_set = set(c)
-                    overlap = len(c_set.intersection(cascade_nodes))
-                    if overlap >= 1:
-                        matched_cycles.append((c, overlap))
+                    if seed in c_set:
+                        matched_cycles.append((c, 10))
+                    else:
+                        overlap = len(c_set.intersection(cascade_nodes))
+                        if overlap >= 2:
+                            matched_cycles.append((c, overlap))
                 matched_cycles.sort(key=lambda x: (x[1], -len(x[0])), reverse=True)
 
-                for c, _ in matched_cycles[:2]:
-                    c_set = set(c)
-                    if len(cascade_nodes.union(c_set)) <= 11:
-                        cascade_nodes.update(c_set)
-                        immune_nodes.update(c_set)
-                        for i in range(len(c)):
-                            u = c[i]
-                            v = c[(i + 1) % len(c)]
+                if matched_cycles and len(cascade_nodes) <= 9:
+                    best_c = matched_cycles[0][0]
+                    if len(cascade_nodes.union(best_c)) <= 11:
+                        cascade_nodes.update(best_c)
+                        immune_nodes.update(best_c)
+                        for i in range(len(best_c)):
+                            u = best_c[i]
+                            v = best_c[(i + 1) % len(best_c)]
                             immune_edges.add((u, v))
 
-                # E. 连通性保全修剪 (确保 100% 连通图，保护割点桥梁分子，杜绝游离孤岛)
+                # F. 连通性保全修剪 (确保 100% 连通图，保护割点桥梁分子，杜绝游离孤岛)
                 G_sub_undir = nx.Graph()
                 for n in cascade_nodes:
                     G_sub_undir.add_node(n)
@@ -1440,7 +1510,20 @@ class PathwayDecompositionEngine:
                     cascade_nodes = set(seed_comp)
                     G_sub_undir = G_sub_undir.subgraph(cascade_nodes).copy()
 
-                # 超限节点精炼修剪：绝不可裁切割点桥梁与豁免闭环节点！
+                # G. 死胡同叶节点清洗 (Dangling Leaf Pruning)
+                # 剔除无下游效应的辅助沉淀节点 (如入度为 1 且出度为 0 的非病理辅助化学小分子 ATP)
+                for n in list(cascade_nodes):
+                    if n != seed and n not in immune_nodes:
+                        in_c = sum(1 for p in G_dir.predecessors(n) if p in cascade_nodes and G_dir[p][n].get("is_regulatory"))
+                        out_c = sum(1 for s in G_dir.successors(n) if s in cascade_nodes and G_dir[n][s].get("is_regulatory"))
+                        if in_c == 1 and out_c == 0 and not is_disease_endpoint(n):
+                            cascade_nodes.remove(n)
+                            G_sub_undir.remove_node(n)
+                        elif out_c == 1 and in_c == 0 and n != seed:
+                            cascade_nodes.remove(n)
+                            G_sub_undir.remove_node(n)
+
+                # H. 超限节点精炼修剪：绝不可裁切割点桥梁、豁免闭环节点与生化中介！
                 max_limit = 10
                 while len(cascade_nodes) > max_limit:
                     articulation_points = set(nx.articulation_points(G_sub_undir))
@@ -1458,7 +1541,7 @@ class PathwayDecompositionEngine:
                     cascade_nodes.remove(node_to_remove)
                     G_sub_undir.remove_node(node_to_remove)
 
-                # F. 边的高质量筛选 (因果骨干 + 闭环回路 + 结构包含，稀疏化旁路冗余弱相关)
+                # I. 边的高质量筛选 (因果骨干 + 闭环回路 + 结构包含，稀疏化旁路冗余弱相关)
                 sub_rels = []
                 for r in relations:
                     src = str(r.get("source", "")).strip()
@@ -1475,17 +1558,17 @@ class PathwayDecompositionEngine:
                             sub_rels.append(r)
 
                 if len(cascade_nodes) >= 3 and len(sub_rels) >= 2:
-                    # 检查 Jaccard 相似度，多样性模式下阈值收紧至 0.45
                     jaccard_max = 0.0
                     for existing in seen_node_sets:
                         jacc = len(cascade_nodes.intersection(existing)) / max(1, len(cascade_nodes.union(existing)))
                         if jacc > jaccard_max:
                             jaccard_max = jacc
 
-                    sim_threshold = 0.45 if enable_diversity_penalty else 0.65
+                    sim_threshold = 0.50 if enable_diversity_penalty else 0.65
                     if jaccard_max < sim_threshold:
                         seen_node_sets.append(cascade_nodes)
                         visited_node_counts.update(cascade_nodes)
+                        used_primary_seeds.add(seed)
                         selected_subsets.append({
                             "cluster_id": len(selected_subsets) + 1,
                             "seed_nodes": [seed],
@@ -1652,6 +1735,7 @@ class PathwayDecompositionEngine:
                                      feedback_loops: List[Dict[str, Any]],
                                      cross_paper_info: Dict[str, Any],
                                      user_query: str = "",
+                                     seed_node: str = "",
                                      language: str = "zh") -> Dict[str, Any]:
         """
         大模型驱动的极简学术命名与机制解读 (Scholarly Naming & Concise Mechanistic Narrative)
@@ -1704,9 +1788,20 @@ class PathwayDecompositionEngine:
             except Exception as e:
                 print(f"⚠️ [PathwayDecompositionEngine] LLM 机制叙事委托调用异常: {e}")
 
-        # 确定性拓扑降级保底 (无 LLM 或 LLM 故障时的稳定兜底)
-        first_node = subgraph_nodes[0] if subgraph_nodes else "NodeA"
-        last_node = subgraph_nodes[-1] if len(subgraph_nodes) > 1 else first_node
+        # 确定性拓扑降级保底 (无 LLM 或 LLM 故障时的稳定兜底：基于通路主种子 Seed 与终点 Sink 命名)
+        g_temp = nx.DiGraph()
+        for r in subgraph_relations:
+            u_src = r.get("source")
+            v_tgt = r.get("target")
+            if u_src in subgraph_nodes and v_tgt in subgraph_nodes and u_src != v_tgt:
+                g_temp.add_edge(u_src, v_tgt)
+
+        sources = [n for n in subgraph_nodes if g_temp.in_degree(n) == 0 and g_temp.out_degree(n) > 0]
+        sinks = [n for n in subgraph_nodes if g_temp.out_degree(n) == 0 and g_temp.in_degree(n) > 0]
+
+        first_node = seed_node if (seed_node and seed_node in subgraph_nodes) else (sources[0] if sources else (subgraph_nodes[0] if subgraph_nodes else "NodeA"))
+        disease_nodes = [n for n in subgraph_nodes if any(k in n.lower() for k in ["disease", "dementia", "tauopathy", "neuron", "death", "aggregate", "病", "痴呆", "凋亡", "神经元", "聚集"]) and n != first_node]
+        last_node = disease_nodes[-1] if disease_nodes else (sinks[0] if sinks and sinks[0] != first_node else (subgraph_nodes[-1] if len(subgraph_nodes) > 1 else first_node))
         default_title = f"{first_node} ➔ {last_node} 信号调控通路" if not is_en else f"{first_node} to {last_node} Signaling Pathway"
 
         loop_text = ""
@@ -1830,6 +1925,7 @@ class PathwayDecompositionEngine:
                 feedback_loops=loops,
                 cross_paper_info=bridges,
                 user_query=user_query,
+                seed_node=sub.get("seed_nodes", [""])[0],
                 language=language
             )
 
