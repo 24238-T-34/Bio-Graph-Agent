@@ -40,4 +40,8 @@ start_wsl.bat
 
 # 项目工程本地归档库与记忆库文件
 projects/
-*.biokg
+*.biokg
+
+# 本地规则库与本体预设配置目录
+ontology_presets/
+rules/
