@@ -6,7 +6,7 @@
 
 # 🧬 Bio-Graph Agent
 
-**A Cross-Literature Incremental Biological Knowledge Graph, Multimodal Mechanism Discovery & Graph-Theoretic Circuit Decomposition Engine (v2.0)**
+**A Cross-Literature Incremental Biological Knowledge Graph & Multimodal Mechanism Discovery Engine (v2.0)**
 
 [![Multi-LLM Powered](https://img.shields.io/badge/LLM_Engine-Multi--Model_Ecosystem-blue.svg)](#)
 [![Graph Theory Engine](https://img.shields.io/badge/Graph_Theory-Pathway_Decomposition-orange.svg)](#)
@@ -15,23 +15,22 @@
 
 </div>
 
-This project addresses long-text structured extraction, top-tier multimodal mechanism pathway transcription, multi-scale authoritative scientific ontology categorization, and graph-theoretic regulatory circuit decomposition for biomedical research. Leveraging the context understanding, multimodal vision transcription, and rigorous reasoning capabilities of modern Large Language Models (LLMs) alongside classical graph theory algorithms, we built a **Bio-Knowledge Graph LLM Agent** that extracts information from literature (PDFs), performs dual-layer reflective audits, transcribes upfront pathway diagrams multimodally, aligns cross-literature semantics, classifies hierarchical ontologies, and achieves **high-cohesion signaling pathway decomposition and secondary downstream analysis**.
+This project focuses on addressing long-text structural extraction, top-tier multimodal mechanism pathway transcription, and scientific knowledge grounding in the biomedical domain. Leveraging the long-text context understanding, multimodal vision transcription, and rigorous reasoning capabilities of modern Large Language Models (LLMs), we built a **Bio-Knowledge Graph LLM Agent** that automatically extracts information from literature (PDFs), performs dual-layer reflective quality audits, transcribes upfront pathway diagrams multimodally, aligns cross-literature semantics, and generates highly interactive dynamic network topology graphs.
 
 ---
 
 ## 🎯 Project Motivation & Scientific Value (Why this project?)
 
-A classic pain point in biomedical research is: **How do we uncover highly valuable novel research topics within an ocean of literature?**
+A classic pain point in biomedical research is: **How do we find highly valuable novel research topics in a vast sea of literature?**
 
-In biology, it is common that "Molecule A regulates Protein B" and "Protein B regulates Biological Phenotype/Physiological System C" exist as isolated findings published in different years and distinct journals. However, **proving the regulatory cascade pathway "A mediates and influences C via B" is often a research topic of immense scientific value—one that can directly support a major grant proposal or breakthrough study.**
+In biology, it is common that "Molecule A regulates Protein B" and "Protein B regulates Biological Phenotype/Physiological System C" are isolated findings scattered across papers from different years and journals. However, **proving the regulatory cascade pathway "A mediates and influences C via B" is often a research topic of immense scientific value—one that can directly support a major grant proposal or breakthrough study.**
 
-Relying on manual reading to piece together such cross-literature cascades is exceedingly slow and error-prone. Moreover, generic LLMs easily hallucinate false biological interactions or invert causal directions.
+Relying on manual reading to piece together such cross-literature cascade relationships is exceedingly slow and prone to oversight.
 
-**Bio-Graph Agent** was engineered precisely to conquer this challenge as an "intelligent scientific research counselor":
+**Bio-Graph Agent** was created precisely to conquer this challenge as an "intelligent scientific research counselor":
 1. **Multi-Paper Ingestion**: Rapidly and accurately parses complex, long academic papers, sniffing and multimodally transcribing Graphical Abstracts and core pathway figures upfront.
 2. **Bridging Knowledge Silos**: Through AI semantic alignment and online PubMed/PMID validation, entities (molecules, proteins, physiological systems) and their hidden relations across disparate papers are cross-linked into a unified network.
 3. **Intuitive Topological Rendering**: Automatically generates scientifically standardized dynamic regulatory topologies, enabling researchers to discover latent `A ➔ B ➔ C` cascade pathways at a single glance.
-4. **Graph-Theoretic Pathway Decomposition**: Deconstructs massive, tangled whole-graph networks into discrete, cohesive, and causally sound **signaling pathways and autoregulatory circuits**, enabling researchers to export them as independent sub-projects for secondary targeted deep-dives.
 
 ---
 
@@ -41,10 +40,10 @@ This system strictly follows biomedical regulatory network standards for visual 
 * **🟢 Green Solid Line + Arrow**: Positive regulation / Activation / Promotion ($A \to B$).
 * **🔴 Red Solid Line + Arrow**: Negative regulation / Inhibition / Downregulation ($A \dashv B$).
 * **⚪ Gray Solid Line**: General correlation / Undirected association ($A \sim B$).
-* **⚠️ Gray Dashed Line (---)**: Mechanism shortcut edges (condensed macro pathways; transparently isolated during circuit decomposition to expose granular cascades).
+* **⚠️ Gray Dashed Line (---)**: Mechanism shortcut edges (condensed macro pathways).
 * **🟣 Purple Solid Line**: Hierarchical containment / Subunit / Family membership ($A \subset B$).
 * **🔮 Dynamic Node Popularity**: Node radius scales dynamically with its degree centrality across papers. Hovering over any node reveals cross-literature aliases, supporting textual evidence, and exact literature provenance.
-* **🔀 Dual Layout Engines**: Seamlessly toggle between **ForceAtlas2 Physics Layout** (ideal for macro cluster self-organization) and **Hierarchical Left-to-Right DAG Layout** (aligning with Nature/Cell standards where cascades flow strictly from upstream to downstream).
+* **🔀 Dual Layout Engines**: Seamlessly toggle between **ForceAtlas2 Physics Layout** and **Hierarchical Left-to-Right DAG Layout** (aligning with Nature/Cell standards where cascades flow from upstream to downstream).
 
 ---
 
@@ -105,47 +104,23 @@ In high-impact journals (Nature, Science, Cell), the densest regulatory conclusi
 * **High-Throughput Concurrency**: Built upon `concurrent.futures.ThreadPoolExecutor`, processing chunks and figures in parallel to achieve 5-10x parsing acceleration.
 
 ### 📊 IX. Graph Analysis Workbench & Three-Tier Classification
-To satisfy the rigorous needs of domain specialists for granular entity taxonomy classification and deep mechanism verb distillation (e.g. catalytic phosphorylation, competitive binding, transcriptional activation), the system provides an independent second-stage workbench:
-* **Bidirectional Seamless Routing**: Click `📊 Go to Graph Analysis Workbench ➔` beneath the main canvas for instant transit. Sticky return buttons on the top and bottom preserve 100% of the session state.
-* **6 Built-in Authoritative Ontology Schemas & Interdisciplinary Support**:
-  1. `universal_biored`: NIH/NLM BioRED authoritative benchmark (6+1 entity types, 6 mechanism types);
-  2. `molecular_signaling`: Intracellular signaling cascades, kinases, and post-translational modifications;
-  3. `pharmacology_target`: Drug molecules, druggable targets, MoA mechanisms, and clinical indications;
-  4. `immunology_tme`: Immune cell subsets, tumor microenvironment, and immune checkpoint signaling;
-  5. `ecology_ecosystem`: Ecosystem science, trophic feeding, biogeochemical cycles, and environmental drivers;
-  6. `ethology_behavior`: Animal behavior, neuroendocrine drivers, sign stimuli/releasers, and social tradeoffs.
-* **Rule Folder Management Console**:
-  - Click `📁 Open Rules Folder` to directly reveal the `ontology_presets/` directory in your OS file manager;
-  - Includes bilingual specification guides (`README_RULE_FRAMEWORK_GUIDE_EN.txt` and `请先读我_规则框架构建指南_ZH.txt`);
-  - Drop any custom `.json` rule file into the folder and click `🔄 Refresh Presets` for instantaneous hot-loading.
-* **Sparse Dynamic Dashboard**: Only renders categories with `count > 0`, featuring expandable accordions for interactive drill-down into constituent nodes and rationales.
-* **Scholar Manual Override Console (Human-in-the-Loop)**: Allows researchers to interactively reclassify entities or modify mechanism verbs with instant cache updates and visual re-rendering.
+As an advanced auxiliary analytical platform, it decouples from the primary builder canvas with smooth bidirectional navigation, dedicated to granular entity taxonomy classification and deep mechanism verb distillation (e.g. catalytic phosphorylation, competitive binding, transcriptional activation):
+* **Three-Tier Escalation Architecture**:
+  - **Tier 1 (0-Token Rule Pre-Filter)**: Leverages INN pharmaceutical suffixes (`-mab`, `-nib`, `-stat`), kinase/enzyme patterns (`-ase`, `-kinase`), ncRNA naming conventions, and canonical gene databases for sub-millisecond classification without spending any LLM tokens (40%+ resolution rate on standard graphs);
+  - **Tier 2 (Micro-Context Reasoning & Targeted In-Paper Grounding)**: Gathers node aliases, connected triples, and local edge evidence for compact, high-precision prompting. If ambiguous (`Uncertain`), scans the raw PDF using targeted regex to retrieve only sentences containing the entity and its neighbors;
+  - **Tier 3 (Biomedical World Knowledge Fallback & Human-in-the-Loop Override)**: Resolves edge cases via global domain knowledge, paired with a **Scholar Manual Override Console** allowing researchers to interactively reclassify entities or modify mechanism verbs with instant cache update and visual re-rendering.
+* **6 Built-in Authoritative Ontology Presets & Cross-Disciplinary Schemas**: Built-in NIH BioRED universal benchmark (6+1 entity types, 6 mechanism types), alongside molecular signaling, pharmacology targets, tumor microenvironment, ecosystem science, and ethology schemas; click `📁 Open Rules Folder` to inspect bilingual specification guides or hot-load custom `.json` rules.
+* **Sparse Dynamic Dashboard & Conditional Rendering**: Renders metrics, canvas, and override consoles only when graph analysis results exist, showing exclusively categories with `count > 0` and interactive accordions.
 * **Scientific Multi-Shape Categorical Topology & Bilingual Legend**: Maps entity types to distinct geometric shapes and colors, featuring an embedded, semi-transparent, collapsible bilingual legend overlay.
 
 ### 🔬 X. Signaling Pathway & Autoregulatory Circuit Decomposition (Stage 2)
-Macro-level biological knowledge graphs often contain hundreds of interconnected nodes forming a tangled "spiderweb" network. The **Pathway Decomposition Module** leverages a hybrid of graph theory and LLM scientific reasoning to distill high-cohesion, causal regulatory sub-pathways:
-
-#### 📖 Operational Step-by-Step Guide:
-1. **Accessing the Module**: In the Graph Analysis Workbench, scroll down to the `🔬 Signaling Pathway & Autoregulation Circuit Decomposition` control console.
-2. **Specifying Research Focus Prompt (Optional)**:
-   - In the "Research Academic Focus (Prompt)" input box, specify targeted exploration axes, for example: `Focus on the causal link between mitochondrial dysfunction and Tau protein aggregation` or `Investigate neuroprotective mechanisms mediated by the CRL5-SOCS4 E3 ubiquitin ligase complex`;
-   - If left blank, the algorithm operates on pure graph-theoretic topology (degree centrality, betweenness, clustering coefficients) to unearth dominant causal backbones autonomously.
-3. **Setting Pathway Count**: Select the number of pathways to decompose (default is 3, range 1-10).
-4. **Triggering Decomposition**: Click `⚡ Start Pathway & Circuit Decomposition`. Within seconds, the system executes hybrid seed scoring, master graph subgraph induction, kinetic impedance MMR traversal, cycle mining, and leaf pruning.
-5. **Examining Pathway Cards**:
-   - **Scholarly Title & Mechanism Summary**: Review domain-specific pathway titles and mechanistic narratives derived strictly from topological connections;
-   - **Autoregulatory Feedback Loop Diagnostics**: Automatically highlights identified causal loops, such as negative homeostatic feedback ($A \to B \to C \dashv A$) or positive feedback spirals ($A \to B \to C \to A$);
-   - **Interactive Canvas with Dual Layouts**:
-     - Toggle between **Hierarchical Left-to-Right DAG Layout** (causal directional cascade) and **ForceAtlas2 Layout** (physics self-organization);
-     - Green arrows denote activation/promotion, red flatheads/arrows denote inhibition/suppression, with explicit biochemical verbs labeled on edges;
-     - Hover over nodes for cross-literature aliases; hover over edges for exact textual evidence and paper provenance.
-6. **Export Options & Secondary Downstream Analysis**:
-   - `🌐 Export Standalone Webpage (HTML)`: Download self-contained interactive visualization pages for conference presentations or manuscript supplements;
-   - `📋 Export Topology Data (JSON)`: Extract structured graph data containing nodes, edges, polarities, mechanisms, and literature evidence;
-   - `🧬 Export as Project (.biokg)` (**Core Highlight**):
-     - Packages the selected pathway into a standard BioKG 2.0 independent project archive (e.g., `BioKG_Pathway_1_ROS_proteasome.biokg`);
-     - **Complete State Inheritance**: Inherits all entities, genuine relations, cited literature registries, and **preserves existing workbench ontology annotations**;
-     - **Secondary Deep Dives**: Navigate to the main builder workspace, click "📥 Load History Project (.biokg)", and open this sub-pathway as a dedicated mini-project to perform targeted smart expansion, bridging, or further experimental design!
+As an auxiliary module for downstream causal extraction and secondary analysis, it leverages graph theory algorithms and LLM research focus prompts to distill cohesive local signaling pathways from complex macro networks:
+* **Workflow**:
+  1. Click `📊 Go to Graph Analysis Workbench ➔` from the main canvas, and scroll down to the `🔬 Signaling Pathway & Autoregulation Circuit Decomposition` console;
+  2. (Optional) Enter your research focus prompt (e.g., *"Focus on mitochondrial dysfunction and Tau aggregation"*), or leave blank for pure graph-theoretic backbone mining;
+  3. Specify the target pathway count (default 3, range 1-10), and click `⚡ Start Pathway & Circuit Decomposition`;
+  4. Review each decomposed pathway card displaying AI-generated biochemical titles, mechanistic summaries, autoregulatory feedback loop diagnostics, and interactive canvases (supporting both Hierarchical LR DAG and ForceAtlas2 layouts);
+  5. **Export & Secondary Downstream Analysis**: Export standalone interactive webpages (`HTML`), structured graph data (`JSON`), or **`🧬 Export as Project (.biokg)`**—which packages the circuit's nodes, edges, cited literature, and inherited ontology annotations, ready to be re-loaded into the main workspace as an independent sub-project for targeted autopilot expansion and bridging!
 
 ---
 
@@ -160,11 +135,11 @@ Rather than using LLMs as mere "text summarizers," this system builds an autonom
                                             │
        ┌────────────────────────────┬───────┴────────────────────┬───────────────────────┐
        ▼                            ▼                            ▼                       ▼
-【Phase 1: Ingestion & Vision】 【Phase 2: Audit & Alignment】 【Phase 3: Topology Pruning】 【Phase 4: Ontology & Decomposition】
- 1. Long-Context Ingestion Hub   3. Dual-Layer Reflection Insp. 5. Topology Pruning Expert    9. Ontology & Mechanism Architect
- 2. Multimodal Figure Transcrib. 4. Cross-Literature Align Judge 6. Symmetric & Loop Resolver  10. Pathway & Circuit Mining Expert
-                                                                7. Web Exploration & Bridging
-                                                                8. Vault Self-Healing Auditor
+【Phase 1: Ingestion & Vision】 【Phase 2: Audit & Alignment】 【Phase 3: Topology Pruning】 【Phase 4: Auxiliary Analysis】
+ 1. Long-Context Ingestion Hub   3. Dual-Layer Reflection Insp. 5. Topology Pruning Expert    7. Web Exploration & Bridging
+ 2. Multimodal Figure Transcrib. 4. Cross-Literature Align Judge 6. Symmetric & Loop Resolver  8. Vault Self-Healing Auditor
+                                                                                              9. Ontology & Mechanism Architect
+                                                                                              10. Pathway & Circuit Mining Expert
 ```
 
 ### 1. Long-Context Ingestion Hub
@@ -195,87 +170,24 @@ Tracks literature via SHA-256 physical cryptographic hashes, aligns papers with 
 Orchestrates the three-tier classification architecture across zero-token rule filters, micro-context reasoning, in-paper sentence re-fetching, and domain knowledge fallbacks to elevate coarse graphs into fine-grained scientific mechanism networks.
 
 ### 10. Pathway & Circuit Mining Expert
-Combines graph-theoretic mathematics (degree distribution, betweenness centrality, cycle detection) with LLM scientific adjudication to induce cohesive subgraphs, isolate shortcut edges, and produce peer-review-grade causal pathway reports.
+Combines graph-theoretic algorithms with LLM scientific reasoning to induce compact subgraphs, isolate shortcut edges, and produce peer-review-grade causal pathway reports.
 
 ---
 
 ## 🌟 Core Technical Highlights
 
-### ⭐ Major Highlight 1: Three-Tier Rule-LLM Hybrid Classification Engine
-
-Traditional LLM classification either relies entirely on prompts (high token costs, long latency, category drift) or rigid dictionaries (inability to handle rare entities and polysemous terms). Bio-Graph Agent introduces an innovative **Three-Tier Classification Architecture**:
-
-```mermaid
-flowchart TD
-    Node["Candidate Entity / Relation Triple"] --> Tier1{"Tier 1: 0-Token Rule Pre-Filter<br/>(INN Stems / Enzyme Suffixes / ncRNA / Organelles)"}
-    Tier1 -->|Definitive Regex Match| Done1["✅ Instant Match (0 Tokens, <1ms)"]
-    Tier1 -->|Unmatched / Ambiguous| Tier2{"Tier 2: Micro-Context & In-Paper Grounding"}
-    Tier2 -->|Triple & Edge Evidence Confident| Done2["✅ Compact Context Adjudication"]
-    Tier2 -->|Uncertain / Sparse Context| Tier2B["📄 Target In-Paper Sentence Re-fetch"] --> Done2B["✅ In-Paper Grounded Match"]
-    Tier2B -->|Stubborn Concepts| Tier3{"Tier 3: Domain Commonsense & Human-in-the-Loop"}
-    Tier3 -->|LLM World Biomedical Knowledge| Done3["✅ Authoritative Knowledge Fallback"]
-    Tier3 -->|Expert Manual Override| Done3B["🛠️ Real-Time Interactive Canvas Re-render"]
-```
-
-1. **Tier 1: Deterministic 0-Token Rule Pre-Filter**
-   - Implements high-precision regex patterns based on biomedical nomenclature standards (e.g., INN drug stems `-mab` monoclonal antibodies, `-nib` kinase inhibitors, `-stat` enzyme inhibitors; enzyme suffixes `-ase`, kinases `-kinase`; ncRNA standards `miR-`, `lncRNA-`; subcellular organelles; standard model organisms);
-   - Delivers **instant sub-millisecond matching at zero token cost**. Benchmark evaluations show over 40% of canonical nodes are definitively resolved in Tier 1.
-2. **Tier 2: Micro-Context & Targeted In-Paper Literature Grounding**
-   - For unresolved entities, extracts local topological micro-contexts (aliases, 1-hop neighbor triples, extracted textual evidence) for compact, high-precision LLM reasoning;
-   - If ambiguity persists (`Uncertain`), the system scans the underlying raw PDF using targeted regex to **extract only sentences containing the entity and its neighbors**, bypassing expensive whole-paper re-reads.
-3. **Tier 3: Domain Commonsense Fallback & Human-in-the-Loop Override**
-   - Resolves edge cases by consulting the LLM's comprehensive biomedical world knowledge;
-   - **Scholar Manual Override Console**: Equips researchers with an interactive UI to modify entity classifications or fine-tune mechanism verbs (e.g., reclassifying "downregulation" to "catalytic ubiquitination-mediated degradation"), automatically synchronizing to cache and re-rendering the topology.
-
----
-
-### ⭐ Major Highlight 2: Graph-Theoretic Pathway Decomposition & Autoregulation Circuit Mining
-
-Allowing LLMs to hallucinate pathways from an entire graph often leads to inverted causality and fictitious edges. Bio-Graph Agent couples **rigorous graph theory constraints** with **LLM semantic adjudication**:
-
-```mermaid
-flowchart LR
-    Master["Master Knowledge Graph"] --> Step1["1. Graph Metrics + LLM<br/>Hybrid Seed Scoring"]
-    Step1 --> Step2["2. Backbone Tracing &<br/>MMR Kinetic Impedance"]
-    Step2 --> Step3["3. Genuine Master Subgraph Induction<br/>(Subgraph Invariance - 0 Hallucinations)"]
-    Step3 --> Step4["4. Shortcut Isolation &<br/>Mediator/Subunit Immune Pruning"]
-    Step4 --> Step5["5. Johnson/Tarjan Algorithms<br/>Strict Circuit Loop Mining"]
-    Step5 --> Step6["6. Nature-Grade DAG Rendering<br/>+ .biokg Sub-Project Export"]
-```
-
-1. **LLM-Graph Hybrid Seed Scoring**
-   - Blends topological centrality metrics (Degree Centrality, Betweenness Centrality, Local Clustering Coefficients) with LLM scientific priority scores guided by the user's research prompt.
-   - Accurately identifies pivotal biological "seeds" possessing both network centrality and clinical/mechanistic exploration value.
-2. **Strict Subgraph Invariance (Zero Fictitious Edges)**
-   - Subgraphs are strictly induced from `master_entities` and `master_relations`;
-   - Every single node and edge 100% originates from the verified master graph, preserving raw polarities, weights, and verbatim literature evidence. Zero hallucinated connections.
-3. **Backbone Spine Tracing & Kinetic Impedance MMR Exploration**
-   - Traverses directional regulatory cascades (promotions, inhibitions, catalytic conversions) upstream and downstream;
-   - Implements a Maximal Marginal Relevance (MMR) kinetic impedance model: penalizes previously explored nodes to dynamically steer subsequent pathways toward unmapped mechanistic axes, guaranteeing diversity across decomposed circuits.
-4. **Strict Autoregulatory Cycle / Feedback Loop Mining**
-   - Executes Johnson / Tarjan strongly connected component cycle detection algorithms to pinpoint closed causal loops;
-   - Distinguishes **negative homeostatic feedback** ($A \to B \to C \dashv A$) from **positive feedback loops / vicious cycles** ($A \to B \to C \to A$ or double negative inhibition $A \dashv B \dashv A$).
-5. **Shortcut Edge Isolation & Mediator/Subunit Immune Pruning**
-   - **Shortcut Isolation**: Filters out macro jump-edges (e.g. bypassing intermediate kinases) to expose granular, multi-step regulatory mechanisms;
-   - **Topological Immunity Protection**: Grants pruning immunity to critical path mediators, feedback loop participants, and multi-protein complex subunits during leaf compaction, safeguarding biological mechanism continuity.
-6. **Sub-Project Downgrade Packaging & Secondary Analysis (`.biokg` Export)**
-   - Decomposed pathways can be exported as standard BioKG 2.0 independent project archives;
-   - Automatically subsets entities, genuine edges, cited literature registries, and **inherits existing ontology annotations**, ready to be re-loaded into the primary workspace for secondary expansion and hypothesis generation.
-
----
-
-### Additional Core System Highlights
-
-3. **Long-Document Structured Extraction**: Ingests multi-page biomedical PDFs directly to produce structured JSON containing standard names, aliases, interaction types, and verbatim evidence.
-4. **First-of-its-Kind Agent Dual-Layer Reflection**: An independent quality auditor checks every extraction against the source text, discarding unsupported claims.
-5. **Cross-Literature Alignment & Automatic Online PMID Renaming**: Dynamically meshes multi-paper graphs and automatically renames literature files into standard `PMID: XXXXXXXX | Title.pdf` formats via PubMed/DOI.
-6. **Dynamic Topological Visualization**: Powered by Pyvis, featuring degree-centrality node scaling and consensus-weighted edge boldening without external network dependencies.
-7. **Intelligent Pruning, Symmetric Folding & Intent Cleaning**: Diagnoses graph topology, folds bidirectional correlation lines, resolves containment deadlocks, and strips off-topic nodes via natural language prompts.
-8. **Autonomous Expansion & Hidden Path Bridging**: Expands peripheral nodes in autopilot mode and mines multi-step cascade pathways between unlinked targets.
-9. **Micro-Context Biological Interpretation**: Select any node or edge to feed its evidence and citation provenance to the LLM, producing grant-ready mechanism reports.
-10. **Project Isolation & Central Memory Vault**: Workspace-level physical isolation with cross-project SHA-256 deduplication and one-click self-healing for missing files.
-11. **Chunk-Centric Localized Pipeline & Multi-Threading**: Independent chunk extraction eliminates global hallucination contamination while concurrency boosts throughput by 5-10x.
-12. **Spatial Clustering & Balanced Vector Pathway Extraction**: Disjoint-set clustering merges fragmented image slices into pristine mechanism figures, while balanced vector thresholds accommodate both posters and papers.
+1. **Long-Document Structured Extraction**: Ingests multi-page biomedical PDFs directly to produce structured JSON containing standard names, aliases, interaction types, and verbatim evidence.
+2. **First-of-its-Kind Agent Dual-Layer Reflection**: An independent quality auditor checks every extraction against the source text, discarding unsupported claims.
+3. **Cross-Literature Alignment & Automatic Online PMID Renaming**: Dynamically meshes multi-paper graphs and automatically renames literature files into standard `PMID: XXXXXXXX | Title.pdf` formats via PubMed/DOI.
+4. **Dynamic Topological Visualization**: Powered by Pyvis, featuring degree-centrality node scaling and consensus-weighted edge boldening without external network dependencies.
+5. **Intelligent Pruning, Symmetric Folding & Intent Cleaning**: Diagnoses graph topology, folds bidirectional correlation lines, resolves containment deadlocks, and strips off-topic nodes via natural language prompts.
+6. **Autonomous Expansion & Hidden Path Bridging**: Expands peripheral nodes in autopilot mode and mines multi-step cascade pathways between unlinked targets.
+7. **Micro-Context Biological Interpretation**: Select any node or edge to feed its evidence and citation provenance to the LLM, producing grant-ready mechanism reports.
+8. **Project Isolation & Central Memory Vault**: Workspace-level physical isolation with cross-project SHA-256 deduplication and one-click self-healing for missing files.
+9. **Chunk-Centric Localized Pipeline & Multi-Threading**: Independent chunk extraction eliminates global hallucination contamination while concurrency boosts throughput by 5-10x.
+10. **Spatial Clustering & Balanced Vector Pathway Extraction**: Disjoint-set clustering merges fragmented image slices into pristine mechanism figures, while balanced vector thresholds accommodate both posters and papers.
+11. **Three-Tier Rule-LLM Hybrid Classification (Workbench)**: Fuses a 0-token rule pre-filter (sub-millisecond regex matching of INN stems, enzyme suffixes, and ncRNAs) with micro-context reasoning, targeted in-paper grounding, and scholar manual overrides, cutting token consumption and latency by 40%+.
+12. **Graph-Theoretic Pathway Decomposition & Circuit Mining**: Combines topological centrality metrics with LLM research-guided scoring, strictly guarantees subgraph invariance (zero hallucinated connections), applies MMR kinetic impedance to ensure exploration breadth, identifies closed autoregulatory feedback loops using Johnson/Tarjan algorithms, and supports exporting `.biokg` sub-projects for secondary deep dives.
 
 ---
 
@@ -284,20 +196,8 @@ flowchart LR
 ```text
 ├── app.py                      # Streamlit frontend UI (workspaces, project switching, analysis workbench)
 ├── back_logic.py               # Central execution pipeline (chunk-centric concurrency & vision workflow)
-├── workbench_engine.py         # Graph Analysis Workbench engine:
-│                               #   ├── RulePreFilter (0-Token regex pre-filter)
-│                               #   ├── OntologyManager (Dynamic preset scanning & manager)
-│                               #   ├── WorkbenchAnalysisEngine (4-tier escalation scheduler)
-│                               #   └── PathwayDecompositionEngine (Graph-theoretic pathway mining & .biokg export)
-├── ontology_presets/           # Authoritative biomedical ontology presets:
-│   ├── universal_biored.json   #   ├── NIH/NLM BioRED universal benchmark (6+1 entities / 6 mechanisms)
-│   ├── molecular_signaling.json#   ├── Molecular signaling & post-translational modifications
-│   ├── pharmacology_target.json#   ├── Pharmacology & drug target MoA evaluation
-│   ├── immunology_tme.json     #   ├── Tumor microenvironment & immune communication networks
-│   ├── ecology_ecosystem.json  #   ├── Ecosystem trophic feeding & biogeochemical cycles
-│   ├── ethology_behavior.json  #   ├── Ethology, neuroendocrine drivers & behavioral repertoires
-│   ├── README_RULE_FRAMEWORK_GUIDE_EN.txt # Rule framework specifications & templates
-│   └── 请先读我_规则框架构建指南_ZH.txt
+├── workbench_engine.py         # Graph Analysis Workbench engine (rule pre-filters, ontology management, pathway mining)
+├── ontology_presets/           # Authoritative biomedical ontology presets (NIH BioRED, signaling, ecology, ethology)
 ├── LLM_SYS.py                  # LLM Agent core (reflection, symmetric pruning, alignment, transcription)
 ├── IO_SYS.py                   # Infrastructure layer (PyMuPDF spatial clustering, vector rendering, workbench Pyvis visualizer)
 ├── WebSearcher.py              # Web retrieval module (PubMed / Semantic Scholar search & PMID lookup)
@@ -306,10 +206,7 @@ flowchart LR
 │       ├── project.biokg       # Single source of truth (BioKG 2.0 standard archive)
 │       ├── graph_state.json    # Backward-compatible persistence state
 │       ├── papers/             # Bound physical PDF files
-│       └── pathways/           # Pathway decomposition persistence snapshot directory:
-│           ├── pathways_manifest.json # Pathway metadata, titles, summaries, and loops
-│           ├── pathway_*.html  # Standalone interactive HTML visualizations
-│           └── pathway_*_topology.json # Structured topology JSON datasets
+│       └── pathways/           # Pathway decomposition persistence snapshot directory
 ├── vault/                      # Central Memory Vault:
 │   └── literature_registry.json# Global SHA-256 fingerprint & metadata registry
 ├── requirements.txt            # Project dependencies
