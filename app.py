@@ -2111,6 +2111,11 @@ with st.sidebar:
 
 #    st.markdown("---")
 
+UI_TEXT.setdefault("wb_enter_pruning_tip", {
+    "zh": "💡 **建议提示**：在进入并使用【图谱分析工作台】前，强烈建议先使用主界面的【🧹 智能洗树 (Pruning)】模块对全图进行去噪、同义词折叠与冗余剪枝，以获得最高质量的本体分类、通路聚类与假说推演效果。",
+    "en": "💡 **Tip**: Before entering and using the [Graph Analysis Workbench], it is strongly recommended to use the [🧹 Smart Pruning] module on the main page to denoise, fold synonyms, and prune redundant nodes, ensuring optimal ontology classification, pathway clustering, and hypothesis deduction."
+})
+
 
 
 def get_project_paper_full_texts(project_id: str) -> dict:
@@ -2406,6 +2411,30 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "wb_hypo_badge_bridge": {"zh": "🔗 跨簇桥接", "en": "🔗 Cluster Bridge"},
         "wb_hypo_badge_growth": {"zh": "🌱 周界生长", "en": "🌱 Peripheral Growth"},
         "wb_hypo_badge_intent": {"zh": "🎯 意向探究", "en": "🎯 Intent Exploration"},
+        "wb_enter_pruning_tip": {
+            "zh": "💡 **建议提示**：在进入并使用【图谱分析工作台】前，强烈建议先使用主界面的【🧹 智能洗树 (Pruning)】模块对全图进行去噪、同义词折叠与冗余剪枝，以获得最高质量的本体分类、通路聚类与假说推演效果。",
+            "en": "💡 **Tip**: Before entering and using the [Graph Analysis Workbench], it is strongly recommended to use the [🧹 Smart Pruning] module on the main page to denoise, fold synonyms, and prune redundant nodes, ensuring optimal ontology classification, pathway clustering, and hypothesis deduction."
+        },
+        "wb_pw_fallback_warning": {
+            "zh": "⚠️ **检测到尚未运行【阶段一：功能分类分析】**：\n\n信号通路解构与级联诱导算法高度依赖阶段一的生物学本体分类与调控关系数据。若直接跳过阶段一，系统将**降级**为纯图论拓扑与粗粒度规则保底模式运行，通路识别的生物学准确度可能受到影响。\n\n💡 **强烈建议**：请先在上方执行【🚀 启动/更新图谱分析工作台】完成功能分类分析！若您仍需以保底模式体验，请点击下方确认继续。",
+            "en": "⚠️ **Stage 1 Functional Classification Not Detected**:\n\nPathway decomposition strongly relies on ontology and mechanism annotations from Stage 1. Skipping Stage 1 will cause the system to **fall back** to pure graph topology and coarse rules, which may reduce biological accuracy.\n\n💡 **Recommendation**: Please run [Stage 1: Functional Classification] above first! If you still wish to proceed in fallback mode, confirm below."
+        },
+        "wb_hypo_fallback_warning": {
+            "zh": "⚠️ **检测到尚未运行【阶段一：功能分类分析】**：\n\n智能假说推演与微型机制模体挖掘（短路捷径、瓶颈加固、稳态闭环等）深度依赖阶段一的本体语义流场与调控极性。若直接跳过阶段一，系统将**降级**为基础词缀规则初筛保底模式，候选模体的语义丰富度与推荐精度可能会降低。\n\n💡 **强烈建议**：请先在上方执行【🚀 启动/更新图谱分析工作台】完成功能分类分析！若您仍需以保底模式体验，请点击下方确认继续。",
+            "en": "⚠️ **Stage 1 Functional Classification Not Detected**:\n\nHypothesis inference and micro-circuit mining (shortcuts, bottlenecks, homeostasis loops) deeply rely on Stage 1 ontology semantic flow fields. Skipping Stage 1 will **fall back** to basic lexical rule screening, which may reduce candidate precision.\n\n💡 **Recommendation**: Please run [Stage 1: Functional Classification] above first! If you still wish to proceed in fallback mode, confirm below."
+        },
+        "wb_fallback_btn_confirm": {
+            "zh": "⚠️ 仍要降级运行 (再次确认)",
+            "en": "⚠️ Proceed with Fallback (Confirm)"
+        },
+        "wb_fallback_btn_confirm_hypo": {
+            "zh": "⚠️ 仍要降级推演 (再次确认)",
+            "en": "⚠️ Proceed with Fallback (Confirm)"
+        },
+        "wb_fallback_btn_cancel": {
+            "zh": "🔙 取消并前往运行阶段一",
+            "en": "🔙 Cancel & Run Stage 1"
+        },
     })
 
     # 1. 顶部返回导航栏与标题
@@ -2426,6 +2455,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     rels = st.session_state.get("master_relations", [])
 
     st.info(t("wb_project_info").format(name=proj_name, id=proj_id, ents=len(ents), rels=len(rels)))
+    st.caption(t("wb_enter_pruning_tip"))
 
     if len(ents) == 0:
         st.warning(t("wb_warn_no_data"))
@@ -2946,7 +2976,32 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         btn_run_label = t("wb_pw_btn_rerun") if display_pathways else t("wb_pw_btn_start")
         btn_run_pathway = st.button(btn_run_label, type="primary", key="wb_pw_btn_start", width="stretch")
 
+    has_stage1 = bool(ent_annots and len(ent_annots) > 0)
+
     if btn_run_pathway:
+        if not has_stage1:
+            st.session_state.pending_pw_run = True
+            st.rerun()
+        else:
+            st.session_state.do_pw_run = True
+            st.rerun()
+
+    if st.session_state.get("pending_pw_run"):
+        with st.container(border=True):
+            st.warning(t("wb_pw_fallback_warning"))
+            col_cf1, col_cf2 = st.columns([1, 1])
+            with col_cf1:
+                if st.button(t("wb_fallback_btn_confirm"), type="primary", key="btn_confirm_pw_fallback", width="stretch"):
+                    st.session_state.pending_pw_run = False
+                    st.session_state.do_pw_run = True
+                    st.rerun()
+            with col_cf2:
+                if st.button(t("wb_fallback_btn_cancel"), key="btn_cancel_pw_fallback", width="stretch"):
+                    st.session_state.pending_pw_run = False
+                    st.rerun()
+
+    if st.session_state.get("do_pw_run"):
+        st.session_state.do_pw_run = False
         current_key = api_key.strip() if api_key else ""
         is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
         if not current_key and not is_local:
@@ -3174,8 +3229,31 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
         btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
 
-    # 2. 触发探勘推演
     if btn_mine:
+        if not has_stage1:
+            st.session_state.pending_hypo_run = True
+            st.rerun()
+        else:
+            st.session_state.do_hypo_run = True
+            st.rerun()
+
+    if st.session_state.get("pending_hypo_run"):
+        with st.container(border=True):
+            st.warning(t("wb_hypo_fallback_warning"))
+            col_hcf1, col_hcf2 = st.columns([1, 1])
+            with col_hcf1:
+                if st.button(t("wb_fallback_btn_confirm_hypo"), type="primary", key="btn_confirm_hypo_fallback", width="stretch"):
+                    st.session_state.pending_hypo_run = False
+                    st.session_state.do_hypo_run = True
+                    st.rerun()
+            with col_hcf2:
+                if st.button(t("wb_fallback_btn_cancel"), key="btn_cancel_hypo_fallback", width="stretch"):
+                    st.session_state.pending_hypo_run = False
+                    st.rerun()
+
+    # 2. 触发探勘推演
+    if st.session_state.get("do_hypo_run"):
+        st.session_state.do_hypo_run = False
         current_key = api_key.strip() if api_key else ""
         is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
         if not current_key and not is_local:
@@ -6068,6 +6146,7 @@ if len(st.session_state.get("master_entities", [])) > 0:
     st.markdown("---")
     cb_nav1, cb_nav2, cb_nav3 = st.columns([1, 3, 1])
     with cb_nav2:
+        st.info(t("wb_enter_pruning_tip"))
         if st.button(t("wb_nav_bottom_btn"), type="primary", key="btn_bottom_to_wb", width="stretch"):
             st.session_state.current_view = "workbench"
             st.rerun()
