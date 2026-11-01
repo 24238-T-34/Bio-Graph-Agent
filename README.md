@@ -253,10 +253,8 @@ pip install -r requirements.txt
 * [x] **多模态机制通路图文解析架构 (Multimodal Vision Figure Extraction)**：突破纯文本局限，引入空间邻近聚类、平衡适度矢量图检测及 Gemini/Qwen-VL 并发视觉转译与拓扑融合。（✅ **v2.0 已完成并合入主分支**）
 * [x] **专属课题工程隔离与 Memory Vault 文献自愈机制**：实现多课题物理工作区隔离、SHA-256 全局文献注册去重、在线权威 PMID 规范重命名与缺失文献物理自愈回填。（✅ **v2.0 已完成并合入主分支**）
 * [x] **对称关系无向折叠与循环包含死锁化解**：洗树模块引入双向相关合并与层次纠偏，消除图谱逻辑死锁。（✅ **v2.0 已完成并合入主分支**）
-* [x] **图谱分析工作台与三层分类机制 (Graph Analysis Workbench & 3-Tier Classification)**：独立二级研判工作台，支持 0-Token 规则预分流、微上下文推理、文献正则精准回溯与人工覆写。（✅ **v2.0 已完成并合入主分支**）
+* [x] **图谱分析工作台与多维本体拓扑着色 (Graph Analysis Workbench & Multi-Attribute Topological Coloring)**：独立二级研判工作台，支持 0-Token 规则预分流、微上下文推理、文献正则精准回溯与人工覆写，按生物学属性赋予多几何形态与分类语义色彩。（✅ **v2.0 已完成并合入主分支**）
 * [x] **信号通路与自调控回路图论拆解研判 (Graph-Theoretic Pathway Decomposition & Circuit Mining)**：结合混合种子评分、严格子图诱导、MMR 动能阻抗勘探、Johnson/Tarjan 环路挖掘与捷径边过滤，并支持 `.biokg` 降级导出与二次深度分析。（✅ **v2.0 已完成并合入主分支**）
 * [x] **跨学科多尺度规则体系预设库扩展 (Cross-Disciplinary Rules Extension)**：补充宏观生态系统科学与动物行为学标准分类与正则预设。（✅ **v2.0 已完成并合入主分支**）
-* [ ] **多维拓扑着色 (Multi-Attribute Topological Coloring)**：基于节点生物学属性（如基因、疾病、化合物、表型）自动赋予分类色彩，宏观网络直觉感知更强。
-* [ ] **智能模型路由引擎 (LLM Dynamic Routing Engine / MoE)**：构建大小模型协同架构，基础清洗交由极速小模型，语义对齐、机制推演与视觉解析交由顶尖大模型。
 * [ ] **灵感与写作双模工作台 (Hypothesis & Writing Copilot)**：向“AI 驱动的科学发现引擎”演进，独立全新 AIGC 写作舱，自主寻找图谱结构洞并一键生成基金开题初稿。
 * [ ] **边属性元数据与实验条件约束气泡 (Edge Metadata & Biological Conditions)**：引入细胞系、突变状态、实验环境等生物学条件元数据并在连线气泡中展示，区分文献事实（实线）与拓扑推演假说（虚线）。
