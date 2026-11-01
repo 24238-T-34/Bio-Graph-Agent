@@ -122,11 +122,40 @@ As an auxiliary module for downstream causal extraction and secondary analysis, 
   4. Review each decomposed pathway card displaying AI-generated biochemical titles, mechanistic summaries, autoregulatory feedback loop diagnostics, and interactive canvases (supporting both Hierarchical LR DAG and ForceAtlas2 layouts);
   5. **Export & Secondary Downstream Analysis**: Export standalone interactive webpages (`HTML`), structured graph data (`JSON`), or **`🧬 Export as Project (.biokg)`**—which packages the circuit's nodes, edges, cited literature, and inherited ontology annotations, ready to be re-loaded into the main workspace as an independent sub-project for targeted autopilot expansion and bridging!
 
+
+### 💡 XI. Hypothesis Deduction & Scientific Discovery Copilot (Stage 3)
+As the core engine elevating the platform from "static knowledge extraction" to "autonomous scientific discovery," the system integrates a **Graph Message Passing and Micro-Circuit Discovery Framework**, directly assisting researchers in uncovering high-value latent mechanisms and grant-ready proposals:
+* **Graph Message Passing & 3-4 Node Micro-Circuit Engine**:
+  Transcends simplistic two-node direct link heuristics by executing multi-hop message passing flows across the global network, identifying cohesive 3-to-4 node micro-circuits covering mediator regulation, cascades, and homeostatic control.
+* **6 Scientific Exploration Modes**:
+  1. 🤖 **Auto Portfolio**: Adaptively generates an ensemble portfolio (2 shortcuts + 1 bottleneck bridge + 1 homeostasis loop + 1 frontier cascade), establishing an instant panoramic hypothesis matrix;
+  2. ⚡ **Detour Shortcut**: Reverses coarse macro regulatory edges ($A \to C$) to discover critical intermediary mediators $B$ ($A \to B \to C$) and hidden biochemical cascades;
+  3. 🌉 **Cluster Bridge**: Spans distinct network communities and topological islands to connect critical disease phenotypes with novel upstream molecules;
+  4. 🔄 **Feedback / Homeostasis**: Mines closed self-regulatory loops maintained by alternating activation and inhibition mechanisms;
+  5. 🚀 **Peripheral Growth**: Extrapolates outward from peripheral hub nodes into uncharted scientific frontiers, inspiring exploratory research directions;
+  6. 🎯 **Intent Exploration**: Accepts natural language hypotheses or research focus prompts (e.g., *"Focus on microglia phagocytosis dysfunction"*), directionally guiding micro-circuit deduction.
+* **Autonomous Literature Referee & 4-Class Adjudication**:
+  Automatically queries PubMed and Semantic Scholar online literature pools to adjudicate candidate hypotheses against current scientific consensus:
+  - 🟢 **Known Science Fact**: Empirically documented in literature, backed by confidence scoring and citations;
+  - 🚀 **Novel Scientific Gap**: Rigorously validated as an unaddressed, high-potential research hypothesis with zero direct literature precedent;
+  - 🔗 **Cascade Pathway**: Indirect multi-step cascade substantiated across disparate papers, clarifying mediator transmission;
+  - ❓ **Inconclusive / Disputed**: Lacking sufficient published evidence or subject to conflicting findings.
+* **Deep Literature Expansion & Re-Adjudication**:
+  For Inconclusive or Novel Gap cards, a single click on `📚 Deep Literature Expansion & Re-Adjudication` triggers concurrent full-text retrieval and analysis of 8-10 papers, breaking through single-query retrieval limits to definitively resolve disputes and research voids.
+* **Smart Bridging Ingestion & Master Graph Integration**:
+  Clicking "Adopt Hypothesis & Merge to Master Graph" triggers the automated Smart Bridging pipeline, seamlessly merging newly deduced intermediary nodes, regulatory edges, and biological annotations into the master graph with instant cache synchronization.
+* **Independent Sub-Project Export (`.biokg`)**:
+  Export any hypothesis micro-circuit as a standalone `.biokg` project archive, ready to be loaded in the main workspace for dedicated follow-up research.
+* **Workbench Safety Fallbacks & Bilingual Robustness**:
+  - **Pruning Guidance**: Persistent entrance banners guide researchers to prune noise nodes first to maximize graph purity;
+  - **Fallback Confirmation Dialogs**: Explicit warnings and confirmation popovers guard Functions 2 and 3 if invoked before Function 1 (Ontology Categorization);
+  - **Full-Width UI & Zero KeyError State Guards**: Full-width button styling (`width="stretch"`) and comprehensive reverse-lookup dictionary guards ensure seamless, 100% crash-free English/Chinese language toggling.
+
 ---
 
 ## 🤖 The Core Role of the Multi-Agent System Across the Lifecycle
 
-Rather than using LLMs as mere "text summarizers," this system builds an autonomous multi-agent framework tailored for rigorous biomedical research across model ecosystems (supporting Gemini, DeepSeek, GLM, Qwen, Tencent Hunyuan, and local private Ollama). Ten specialized agents coordinate across the graph lifecycle:
+Rather than using LLMs as mere "text summarizers," this system builds an autonomous multi-agent framework tailored for rigorous biomedical research across model ecosystems (supporting Gemini, DeepSeek, GLM, Qwen, Tencent Hunyuan, and local private Ollama). Eleven specialized agents coordinate across the graph lifecycle:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -140,6 +169,7 @@ Rather than using LLMs as mere "text summarizers," this system builds an autonom
  2. Multimodal Figure Transcrib. 4. Cross-Literature Align Judge 6. Symmetric & Loop Resolver  8. Vault Self-Healing Auditor
                                                                                               9. Ontology & Mechanism Architect
                                                                                               10. Pathway & Circuit Mining Expert
+                                                                                              11. Hypothesis Deduction Copilot
 ```
 
 ### 1. Long-Context Ingestion Hub
@@ -172,6 +202,9 @@ Orchestrates the three-tier classification architecture across zero-token rule f
 ### 10. Pathway & Circuit Mining Expert
 Combines graph-theoretic algorithms with LLM scientific reasoning to induce compact subgraphs, isolate shortcut edges, and produce peer-review-grade causal pathway reports.
 
+### 11. Hypothesis Deduction & Scientific Discovery Copilot
+Transcends simplistic two-node bounds by executing multi-hop message passing flows across the global network to identify 3-to-4 node micro-circuits, coordinating 6 exploration modes, orchestrating online literature referees for 4-class adjudication, and driving deep literature expansion and smart bridging integration.
+
 ---
 
 ## 🌟 Core Technical Highlights
@@ -188,6 +221,7 @@ Combines graph-theoretic algorithms with LLM scientific reasoning to induce comp
 10. **Spatial Clustering & Balanced Vector Pathway Extraction**: Disjoint-set clustering merges fragmented image slices into pristine mechanism figures, while balanced vector thresholds accommodate both posters and papers.
 11. **Three-Tier Rule-LLM Hybrid Classification (Workbench)**: Fuses a 0-token rule pre-filter (sub-millisecond regex matching of INN stems, enzyme suffixes, and ncRNAs) with micro-context reasoning, targeted in-paper grounding, and scholar manual overrides, cutting token consumption and latency by 40%+.
 12. **Graph-Theoretic Pathway Decomposition & Circuit Mining**: Combines topological centrality metrics with LLM research-guided scoring, strictly guarantees subgraph invariance (zero hallucinated connections), applies MMR kinetic impedance to ensure exploration breadth, identifies closed autoregulatory feedback loops using Johnson/Tarjan algorithms, and supports exporting `.biokg` sub-projects for secondary deep dives.
+13. **Graph Message Passing Hypothesis Engine & Autonomous Literature Referee**: Transcends two-node link heuristics by running graph message passing flows to detect 3-4 node micro-circuits, supporting 6 discovery modes (Auto Portfolio, Detour Shortcut, Cluster Bridge, Feedback Loop, Frontier Growth, Intent-Driven); leverages online PubMed/Semantic Scholar literature refereeing for 4-class adjudication (Known Fact / Novel Gap / Cascade / Inconclusive), backed by 8-10 paper deep literature expansion and one-click smart bridging master graph ingestion to directly inspire top-tier grant proposals.
 
 ---
 
@@ -197,6 +231,7 @@ Combines graph-theoretic algorithms with LLM scientific reasoning to induce comp
 ├── app.py                      # Streamlit frontend UI (workspaces, project switching, analysis workbench)
 ├── back_logic.py               # Central execution pipeline (chunk-centric concurrency & vision workflow)
 ├── workbench_engine.py         # Graph Analysis Workbench engine (rule pre-filters, ontology management, pathway mining)
+├── hypothesis_engine.py        # Hypothesis deduction & discovery engine (message passing flow, micro-circuits, referee & expansion)
 ├── ontology_presets/           # Authoritative biomedical ontology presets (NIH BioRED, signaling, ecology, ethology)
 ├── LLM_SYS.py                  # LLM Agent core (reflection, symmetric pruning, alignment, transcription)
 ├── IO_SYS.py                   # Infrastructure layer (PyMuPDF spatial clustering, vector rendering, workbench Pyvis visualizer)
@@ -256,5 +291,5 @@ Open the Streamlit interface in your browser, enter your API Key in the sidebar 
 * [x] **Graph Analysis Workbench & Multi-Attribute Topological Coloring**: Second-stage scientific workbench with 0-token pre-filtering, micro-context reasoning, targeted in-paper grounding, manual override consoles, and categorical visual coloring based on biological attributes. (✅ **v2.0 Completed & Merged**)
 * [x] **Graph-Theoretic Pathway Decomposition & Autoregulation Circuit Mining**: Blends hybrid seed scoring, master subgraph induction, kinetic impedance MMR traversal, cycle mining, shortcut filtering, and `.biokg` secondary project export. (✅ **v2.0 Completed & Merged**)
 * [x] **Cross-Disciplinary Multi-Scale Ontology Expansion**: Built-in rules and regex patterns for ecosystem science and ethology. (✅ **v2.0 Completed & Merged**)
-* [ ] **Hypothesis & Writing Copilot**: Multi-page AIGC writing bay capable of autonomous structural hole exploration and one-click grant background draft generation.
+* [x] **Hypothesis Deduction & Scientific Discovery Copilot (Stage 3)**: Mines 3-4 node micro-circuits via graph message passing flow across 6 exploration modes (Auto Portfolio, Shortcut, Bridge, Homeostasis, Growth, Intent), integrated with online PubMed/Semantic Scholar literature refereeing (Known Fact / Novel Gap / Cascade / Inconclusive), 8-10 paper deep literature expansion, and one-click smart bridging master graph ingestion. (✅ **v2.0 Completed & Merged**)
 * [ ] **Edge Metadata & Biological Conditions**: Conditional constraints (cell lines, mutations, experimental parameters) attached to edges as hover tooltips, separating empirical facts from topological hypotheses.
