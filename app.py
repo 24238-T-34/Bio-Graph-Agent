@@ -1362,8 +1362,8 @@ UI_TEXT = {
     "doc_file_missing": {"zh": "未在本地文件库中找到源文件", "en": "Source file not found in local vault"},
     "upload_project": {"zh": "📥 载入历史工程文件 (.biokg / .json)", "en": "📥 Load History Project (.biokg / .json)"},
     "btn_confirm_load": {"zh": "🚀 确认载入该工程", "en": "🚀 Confirm Load Project"},
-    "help_confirm_load": {"zh": "载入该记忆库文件并直接替换当前活动工程的图谱内容与文献", "en": "Load this memory bank file and directly overwrite current active project's graph and papers"},
-    "toast_load_success": {"zh": "工程【{name}】已成功载入并替换当前工程！", "en": "Project [{name}] successfully loaded and replaced current project!"},
+    "help_confirm_load": {"zh": "载入该工程档案；若工程ID不同将作为独立工程载入，绝不影响当前工程", "en": "Load project archive; loads as an independent project if ID differs, safeguarding current project"},
+    "toast_load_success": {"zh": "工程【{name}】已成功载入！", "en": "Project [{name}] successfully loaded!"},
     "missing_docs_section_title": {"zh": "🛠️ 缺失文献快捷补全", "en": "🛠️ Missing Literature Replenishment"},
     "err_load_project": {"zh": "解析工程文件失败，请检查文件格式是否正确。报错信息: {e}", "en": "Failed to parse project file. Check format. Error: {e}"},
     "project_name_label": {"zh": "🏷️ 项目课题名称", "en": "🏷️ Project Topic Name"},
@@ -3327,8 +3327,15 @@ with right_col:
             stored_pname = loaded_data.get("project_name", file_stem)
 
             if st.button(t("btn_confirm_load"), type="primary", use_container_width=True, help=t("help_confirm_load")):
-                # 🔄 直接替换覆盖当前活动工程
-                matched_pid = get_current_project_id()
+                cur_pid = get_current_project_id()
+                # 🛡️ 步骤 1：若载入的是不同工程（如导出的独立通路子工程），先自动保存当前活动工程，确保父工程绝对安全
+                if stored_pid and stored_pid != cur_pid:
+                    save_local_vault()
+                    matched_pid = stored_pid
+                    st.session_state.current_project_id = matched_pid
+                else:
+                    matched_pid = cur_pid
+
                 # 🔄 智能文献映射与哈希自愈
                 loaded_data = reconcile_loaded_vault(matched_pid, loaded_data)
 
@@ -3337,6 +3344,7 @@ with right_col:
                 st.session_state.master_entities = loaded_data.get("entities", [])
                 st.session_state.master_relations = loaded_data.get("relations", [])
                 st.session_state.figure_transcriptions = loaded_data.get("figure_transcriptions", {})
+                st.session_state.workbench_state = loaded_data.get("workbench_state", {})
                 loaded_files = loaded_data.get("analyzed_files", [])
 
                 # 文件夹对齐与老文献挂载/合并 (严禁同目录自拷贝克隆旧文件)
