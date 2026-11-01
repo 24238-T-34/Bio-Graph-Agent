@@ -413,9 +413,41 @@ class HypothesisEngine:
 
         hypothesis["query"] = query
 
-        # 2. 检索前沿文献摘要 (Top 3 篇即可支撑严谨裁判)
+        # 2. 检索前沿文献摘要 (多级容灾降级检索 + 完整抓取真实摘要文本)
+        clean_a = re.sub(r'[\(\)\[\]]', '', node_a).strip()
+        clean_b = re.sub(r'[\(\)\[\]]', '', node_b).strip()
+        articles = []
         try:
+            # 策略一：尝试模型生成的精细检索式
             articles = self.searcher.search_articles(query, max_results=3)
+
+            # 策略二降级：若精细检索式未召回文献，降级为核心实体 Title/Abstract 双词布尔约束
+            if not articles:
+                fallback_query_1 = f'("{clean_a}"[Title/Abstract] AND "{clean_b}"[Title/Abstract])'
+                if fallback_query_1.lower() != query.lower():
+                    articles = self.searcher.search_articles(fallback_query_1, max_results=3)
+                    if articles:
+                        hypothesis["query"] = fallback_query_1
+
+            # 策略三降级：若仍未召回，降级为核心实体全局自由布尔检索
+            if not articles:
+                fallback_query_2 = f'("{clean_a}" AND "{clean_b}")'
+                if fallback_query_2.lower() != query.lower() and fallback_query_2.lower() != fallback_query_1.lower():
+                    articles = self.searcher.search_articles(fallback_query_2, max_results=3)
+                    if articles:
+                        hypothesis["query"] = fallback_query_2
+
+            # 核心强化：确保每篇检索到的文献都具备真实摘要文本，供裁判大模型细读
+            for art in articles:
+                if not art.get("abstract"):
+                    pmid = art.get("pmid", "")
+                    if pmid and hasattr(self.searcher, "fetch_abstract"):
+                        try:
+                            fetched_ab = self.searcher.fetch_abstract(pmid)
+                            if fetched_ab:
+                                art["abstract"] = fetched_ab
+                        except Exception as fe:
+                            print(f"⚠️ [HypothesisEngine] 摘要获取失败 (PMID: {pmid}): {fe}")
         except Exception as e:
             print(f"⚠️ [HypothesisEngine] 文献检索调用异常: {e}")
             articles = []

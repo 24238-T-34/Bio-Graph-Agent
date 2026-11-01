@@ -15,11 +15,12 @@ class PubMedSearcher:
         self.email = email
         self.session = requests.Session()  # 使用 Session 保持连接，提升请求速度
 
-    def search_articles(self, query: str, max_results: int = 10):
+    def search_articles(self, query: str, max_results: int = 10, sort: str = "relevance", **kwargs):
         """
         根据检索词搜索 PubMed，返回前 N 篇文献的元数据（标题、年份、作者、DOI、PMID）
+        默认采用 relevance（相关度）排序，确保核心前沿文献优先召回
         """
-        print(f"🔍 [WebSearcher] 正在 PubMed 中搜索: {query} ...")
+        print(f"🔍 [WebSearcher] 正在 PubMed 中搜索: {query} (排序: {sort}) ...")
 
         # 第一步：调用 esearch 获取文献的 PMID 列表
         search_url = f"{self.base_url}esearch.fcgi"
@@ -28,6 +29,7 @@ class PubMedSearcher:
             "term": query,
             "retmode": "json",
             "retmax": max_results,
+            "sort": sort,
             "email": self.email
         }
 
@@ -135,7 +137,7 @@ class SemanticScholarSearcher:
         q = re.sub(r'\s+', ' ', q).strip()
         return q
 
-    def search_articles(self, query: str, max_results: int = 10):
+    def search_articles(self, query: str, max_results: int = 10, **kwargs):
         clean_q = self._clean_query(query)
         print(f"🔍 [WebSearcher] S2 正在查询: {clean_q} ...")
 
@@ -219,15 +221,15 @@ class SmartSearchRouter:
         self.s2 = SemanticScholarSearcher()
         self.current_engine = self.s2 if "Semantic Scholar" in preferred_db else self.pubmed
 
-    def search_articles(self, query: str, max_results: int = 10):
+    def search_articles(self, query: str, max_results: int = 10, **kwargs):
         try:
             # 尝试用首选引擎搜索
-            return self.current_engine.search_articles(query, max_results)
+            return self.current_engine.search_articles(query, max_results, **kwargs)
         except Exception as e:
             if self.current_engine == self.s2:
                 print("🔄 [容灾系统] Semantic Scholar 崩溃或限流，正在紧急自动降级至 PubMed 检索！")
                 self.current_engine = self.pubmed  # 永久切换本轮实例的引擎为 PubMed
-                return self.current_engine.search_articles(query, max_results)
+                return self.current_engine.search_articles(query, max_results, **kwargs)
             return []
 
     def fetch_abstract(self, pmid: str):

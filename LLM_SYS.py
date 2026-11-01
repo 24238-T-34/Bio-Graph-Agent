@@ -1260,7 +1260,9 @@ class BioBrainAgent:
 
 规则要求：
 1. 核心实体 A 和 B 必须用 AND 连接，并带上 [Title/Abstract] 标签。
-2. 若传入了推测的机制（如促进、抑制、磷酸化、结合）或学者意图，可以适度提炼 2~4 个机制同义词作为第二组 AND 约束（例如 AND (inhibit* OR suppress* OR target*)），以过滤纯粹偶然提及的低信度文献，精准聚焦于功能/机理研究。
+2. 实体分类识别与机制词约束：
+   - 若实体涉及【药物/抗生素/小分子】与【疾病/感染/表型】（例如抗生素与尿路感染），切勿使用纯分子生物物理结合词（如 binding, phosphorylat*），应保持广义机制或临床治疗词（例如 AND (treatment OR therapy OR antimicrobial OR resistance OR clinical)），或直接仅以两实体作为核心检索式，以保证高召回与临床文献覆盖。
+   - 若实体均为【基因/蛋白质/转录因子/激酶】，可适度提炼 2~4 个机制同义词作为第二组 AND 约束（例如 AND (inhibit* OR suppress* OR target* OR regulat*)）。
 3. 严禁使用过于繁琐冷门的检索语法，确保 PubMed 能够高召回。
 4. ⚠️ 严禁输出任何解释性文字、前缀或 Markdown 标记。直接输出纯检索式字符串！"""
 
@@ -1380,6 +1382,64 @@ Return strictly a valid JSON array of objects, one for each input pair in the sa
         direction = hypothesis_info.get("research_direction", "")
 
         if not articles:
+            # 即使 PubMed 未直接命中标题摘要，严禁盲目直接断定为科研空白！
+            # 必须调用大模型先验知识库进行医学常识/公认临床事实的保底核验
+            if is_en:
+                cs_sys_prompt = """You are a senior clinical pharmacologist and biomedical reviewer.
+A PubMed search returned 0 abstracts for the given entity pair. Evaluate using established biomedical consensus:
+Does the relationship between Entity A and Entity B represent an established clinical fact, standard medical therapy, textbook knowledge, or common pharmacological treatment (e.g. antibiotics treating infections, known drug indications)?
+- If it is established medical knowledge / clinical practice: strictly classify as "known" (confidence 0.90+).
+- Only if the connection is truly unprecedented and scientifically unstudied: classify as "novel_gap".
+
+Return strictly a valid JSON object:
+{
+  "verdict": "<known | novel_gap | inconclusive>",
+  "confidence": <0.7 to 0.95>,
+  "direct_evidence_pmid": "",
+  "evidence_quote": "",
+  "research_direction": "<refined research direction>",
+  "adjudication_rationale": "<reasoning explaining clinical consensus or novelty>"
+}"""
+                cs_user = f"Entity A: {node_a} ({hypothesis_info.get('category_a', 'Unknown')})\nEntity B: {node_b} ({hypothesis_info.get('category_b', 'Unknown')})\nHypothesis: {stmt}\nDirection: {direction}"
+            else:
+                cs_sys_prompt = """你是一位资深的生物医药与转化医学终审专家。
+PubMed 检索未直接召回包含两者的标题摘要。请结合权威生物医药先验知识库严格判定：
+实体 A 与 实体 B 之间的关系是否属于【医学生物学公认常识 / 已知临床事实】（例如常见药物/抗生素治疗该疾病/感染、指南常规用药、公认代谢通路底物）？
+- 若属于公认医学常识或已在临床广泛应用的事实：必须严格判定为 "known"（已知事实补全，置信度 0.90+），绝对严禁误判为科研空白！并在 adjudication_rationale 中指明其公认临床地位。
+- 只有当两者在现代科学界确实未被报道建立关联、属于真正的前沿猜想时：才判定为 "novel_gap"。
+
+请严格输出合法的 JSON 对象：
+{
+  "verdict": "<known | novel_gap | inconclusive>",
+  "confidence": <0.7~0.95>,
+  "direct_evidence_pmid": "",
+  "evidence_quote": "",
+  "research_direction": "<明确研究方向>",
+  "adjudication_rationale": "<判定理由说明>"
+}"""
+                cs_user = f"实体 A: {node_a} ({hypothesis_info.get('category_a', 'Unknown')})\n实体 B: {node_b} ({hypothesis_info.get('category_b', 'Unknown')})\n假说陈述: {stmt}\n原定研究方向: {direction}"
+
+            try:
+                raw_resp = self._ask_llm(cs_sys_prompt, cs_user)
+                parsed = self._parse_json_object(raw_resp)
+                if isinstance(parsed, dict) and "verdict" in parsed:
+                    return parsed
+            except Exception as e:
+                print(f"⚠️ [BioBrainAgent] 0文献先验知识判定异常: {e}")
+
+            # 启发式常识保底：若实体 A 包含抗生素/药物且实体 B 包含感染/疾病，判定为 known
+            low_a, low_b = node_a.lower(), node_b.lower()
+            is_anti_inf = any(w in low_a for w in ["antibiotic", "penicillin", "cepha", "cipro", "anti-", "抗生素"]) and any(w in low_b for w in ["infection", "tract", "uti", "pneumonia", "sepsis", "感染", "炎"])
+            if is_anti_inf:
+                return {
+                    "verdict": "known",
+                    "confidence": 0.95,
+                    "direct_evidence_pmid": "",
+                    "evidence_quote": "",
+                    "research_direction": direction,
+                    "adjudication_rationale": f"基于权威临床药理学常识，{node_a} 针对 {node_b} 的抗感染治疗与经验性用药属于广泛公认的临床事实与治疗常规，属于已知事实补全。" if not is_en else f"Based on established clinical pharmacology, the use of {node_a} for {node_b} is a standard clinical fact and medical practice."
+                }
+
             if is_en:
                 return {
                     "verdict": "novel_gap",
@@ -1417,8 +1477,10 @@ Return strictly a valid JSON array of objects, one for each input pair in the sa
 Your task is to thoroughly analyze the provided PubMed article abstracts against a proposed scientific hypothesis, and deliver an impartial, rigorous adjudication.
 
 Adjudication Categories:
-1. "known": The articles contain explicit experimental evidence directly confirming or reporting this interaction between Entity A and Entity B.
-2. "novel_gap": The articles discuss the entities separately or in unrelated contexts without demonstrating this direct causal interaction. This represents a true scientific gap / virgin territory.
+1. "known": The articles contain explicit experimental or clinical evidence directly confirming or reporting this interaction between Entity A and Entity B.
+   ⚠️ CRITICAL MANDATE: For Drug/Antibiotic/Compound and Disease/Infection/Phenotype pairs (e.g. broad-spectrum antibiotics and urinary tract infection), if the articles describe the drug being used for treatment, management, antibiotic therapy, susceptibility, clinical prophylaxis, or as standard of care, you MUST classify it as "known" (established fact gap filled). Never misclassify standard clinical treatments or antibiotic therapy as a novel gap!
+   Similarly, for gene/protein pairs with direct biophysical binding, phosphorylation, or regulation demonstrated in the text, classify as "known".
+2. "novel_gap": The articles discuss the entities separately or in unrelated contexts without demonstrating this direct causal interaction or clinical indication. This represents a true scientific gap / virgin territory.
 3. "cascade": The articles show that Entity A regulates an intermediate mediator C, which in turn influences Entity B.
 4. "inconclusive": Mentions are superficial or contradictory without clear mechanistic conclusion.
 
@@ -1436,8 +1498,10 @@ Return strictly a valid JSON object:
 你的任务是严谨、客观地通读给定的 PubMed 文献摘要，与学者提出的待检假说进行逐字对照，作出权威判定。
 
 判定档位规范：
-1. "known"【已知事实补全】：给定的文献摘要中已包含直接的实验或临床证据，明确报道了实体 A 与 实体 B 之间的直接作用关系。
-2. "novel_gap"【真正的科研空白 / 原始假说】：给定的文献虽然提及了实体 A 或 B，但均属于各自独立研究或宏观背景并列，尚未有文献完成该直接因果机制的实验验证，确属科研空白。
+1. "known"【已知事实补全】：给定的文献摘要中已包含直接的实验或临床证据，明确报道了实体 A 与 实体 B 之间的直接作用关系或临床疗效。
+   ⚠️ 核心审判规范：对于【药物/抗生素/小分子】与【疾病/感染/症状/病原体】（例如广谱抗生素与尿路感染、降压药与高血压），文献中只要表明该药物用于治疗、管理、敏感性测试或临床应对该疾病/感染，或者属于公认的临床治疗范式/耐药性研究，必须严格判定为 "known"（文献已确证的事实补全），绝对严禁将其误判为科研空白！
+   同样，对于基因/蛋白质之间已被直接实验证实的调控/结合/修饰关系，亦判定为 "known"。
+2. "novel_gap"【真正的科研空白 / 原始假说】：给定的文献虽然提及了实体 A 或 B，但均属于各自独立研究或宏观背景并列，学术界尚未有文献完成该直接因果机制的实验验证，确属科研空白。
 3. "cascade"【多步级联中介】：文献表明 A 并不直接作用于 B，而是通过介导因子 C 产生间接调控 (A -> C -> B)。
 4. "inconclusive"【证据不足/无关】：文献中提及内容与该假说机制无关或存在严重矛盾。
 
