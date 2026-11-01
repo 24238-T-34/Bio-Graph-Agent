@@ -2403,6 +2403,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             for n in ents:
                 sname = n.get("standard_name")
                 cat = ent_annots.get(sname, {}).get("primary_type", "Uncertain")
+                if cat not in ent_cat_defs or cat == "Uncertain":
+                    cat = "Uncertain"
                 cat_to_nodes.setdefault(cat, []).append(sname)
 
             sorted_cats = sorted(cat_to_nodes.items(), key=lambda x: len(x[1]), reverse=True)
@@ -2431,6 +2433,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 rel = r.get("relation", "相关")
                 k = f"{src}|{tgt}|{rel}"
                 mech_cat = rel_annots.get(k, {}).get("mechanism_category", "未分析" if not is_en else "Unanalyzed")
+                if mech_cat not in rel_cat_defs and mech_cat not in ["未分析", "Unanalyzed"]:
+                    mech_cat = "Association_Correlation" if "Association_Correlation" in rel_cat_defs else ("未分析" if not is_en else "Unanalyzed")
                 mech_to_edges.setdefault(mech_cat, []).append((src, tgt, rel, k))
 
             sorted_mechs = sorted(mech_to_edges.items(), key=lambda x: len(x[1]), reverse=True)

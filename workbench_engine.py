@@ -262,6 +262,134 @@ class WorkbenchAnalysisEngine:
 
         return matched_sentences
 
+    def _get_allowed_entity_ids(self) -> List[str]:
+        """获取当前生效本体预设的合法实体分类 ID 列表（包含 Uncertain）"""
+        cats = list(self.ontology.get("entity_categories", {}).keys())
+        if "Uncertain" not in cats:
+            cats.append("Uncertain")
+        return cats
+
+    def _get_allowed_relation_ids(self) -> List[str]:
+        """获取当前生效本体预设的合法关系机制分类 ID 列表"""
+        return list(self.ontology.get("relation_categories", {}).keys())
+
+    def canonicalize_entity_category(self, raw_cat: str) -> Tuple[str, bool]:
+        """
+        智能规范化实体类别：
+        1. 清洗反引号、引号、换行符、首尾空白与括号备注
+        2. 精确匹配 valid_cats 的 key
+        3. 忽略大小写比对 key
+        4. 容错比对各分类声明的中英文 label / name / en_label / en_name 全称
+        5. 分词语义重合比对（例如将 '基因/蛋白/RNA'、'细菌'、'Bacteria' 智能对齐至标准分类）
+        6. 若匹配到合法且非 Uncertain 的类别，返回 (valid_key, True)
+        7. 若无法对齐或为 Uncertain，统一返回 ('Uncertain', False)
+        """
+        if not raw_cat:
+            return "Uncertain", False
+        clean = str(raw_cat).replace("`", "").replace("'", "").replace('"', '').strip()
+        # 消除类似 "Disease_Phenotype (疾病/病理表型)" 的附加备注
+        clean = re.sub(r'[\(（].*?[\)）]', '', clean).strip()
+
+        valid_cats = self.ontology.get("entity_categories", {})
+        if not valid_cats:
+            return "Uncertain", False
+
+        # 1. 精确匹配
+        if clean in valid_cats:
+            if clean == "Uncertain":
+                return "Uncertain", False
+            return clean, True
+
+        def _norm(s: str) -> str:
+            return re.sub(r'[\s/／\-_]+', '', str(s).lower())
+
+        clean_norm = _norm(clean)
+        if not clean_norm:
+            return "Uncertain", False
+
+        # 2. 大小写与连接符无关匹配
+        for k in valid_cats.keys():
+            if _norm(k) == clean_norm:
+                if k == "Uncertain":
+                    return "Uncertain", False
+                return k, True
+
+        # 3. 标签与多语言全称完整匹配
+        for k, v in valid_cats.items():
+            if not isinstance(v, dict):
+                continue
+            candidates = [
+                v.get("label", ""),
+                v.get("name", ""),
+                v.get("en_label", ""),
+                v.get("en_name", "")
+            ]
+            for cand in candidates:
+                if cand and _norm(cand) == clean_norm:
+                    if k == "Uncertain":
+                        return "Uncertain", False
+                    return k, True
+
+        # 4. 关键分词重合度匹配 (容错复合标签与子词)
+        in_tokens = set([p.strip().lower() for p in re.split(r'[\s/／,，、;；|_\-]+', clean) if len(p.strip()) >= 2])
+        if in_tokens:
+            for k, v in valid_cats.items():
+                if not isinstance(v, dict):
+                    continue
+                combined_desc = " ".join([k, v.get("label", ""), v.get("en_label", ""), v.get("name", ""), v.get("en_name", "")])
+                cat_tokens = set([p.strip().lower() for p in re.split(r'[\s/／,，、;；|_\-]+', combined_desc) if len(p.strip()) >= 2])
+                overlap = in_tokens.intersection(cat_tokens)
+                if len(overlap) >= 2 or (len(overlap) == 1 and len(in_tokens) == 1 and list(overlap)[0] not in ["cell", "gene", "protein", "disease", "factor", "pathway"]):
+                    if k == "Uncertain":
+                        return "Uncertain", False
+                    return k, True
+
+        # 5. 框架外自创新词（如不在当前预设中的词汇）一律拦截为未分类
+        return "Uncertain", False
+
+    def canonicalize_relation_category(self, raw_cat: str) -> str:
+        """
+        智能规范化关系机制类别：
+        1. 清洗反引号、引号、换行与空白
+        2. 精确与大小写匹配当前生效机制类别
+        3. 标签容错匹配
+        4. 若不在框架内，安全降级为当前预设的首选默认机制（如 Association_Correlation）
+        """
+        valid_rels = self.ontology.get("relation_categories", {})
+        if not valid_rels:
+            return "Association_Correlation"
+
+        default_rel = "Association_Correlation" if "Association_Correlation" in valid_rels else list(valid_rels.keys())[0]
+
+        if not raw_cat:
+            return default_rel
+
+        clean = str(raw_cat).replace("`", "").replace("'", "").replace('"', '').strip()
+        clean = re.sub(r'[\(（].*?[\)）]', '', clean).strip()
+
+        if clean in valid_rels:
+            return clean
+
+        clean_lower = clean.lower()
+        for k in valid_rels.keys():
+            if k.lower() == clean_lower:
+                return k
+
+        for k, v in valid_rels.items():
+            if not isinstance(v, dict):
+                continue
+            candidates = [
+                v.get("label", ""),
+                v.get("name", ""),
+                v.get("en_label", ""),
+                v.get("en_name", "")
+            ]
+            for cand in candidates:
+                if cand and (cand.strip().lower() == clean_lower or cand.strip() == clean):
+                    return k
+
+        return default_rel
+
     def _format_ontology_categories(self, language: str = "zh") -> str:
         """格式化实体候选类别清单供 Prompt 注入 (支持中英双语候选描述适配)"""
         cats = self.ontology.get("entity_categories", {})
@@ -304,14 +432,19 @@ class WorkbenchAnalysisEngine:
         return None
 
     def _llm_classify_entity_round1(self, node_name: str, micro_ctx: Dict[str, Any], language: str = "zh") -> Dict[str, Any]:
-        """Round 1: 依据局部网络微上下文分类单节点 (严格适配系统语言)"""
+        """Round 1: 依据局部网络微上下文分类单节点 (严格约束枚举白名单与零容忍负向惩罚)"""
         is_en = "en" in str(language).lower()
         cat_str = self._format_ontology_categories(language=language)
+        allowed_ids = self._get_allowed_entity_ids()
+        allowed_ids_str = json.dumps(allowed_ids, ensure_ascii=False)
 
         if is_en:
             system_prompt = (
                 "You are a senior computational biologist and biomedical ontology curator. Your task is to rigorously classify biomedical entities based on local graph topological micro-context.\n"
-                "If the context provides sufficient evidence, classify the entity into one of the designated candidate categories. If evidence is insufficient, ambiguous, or lacks confidence, you MUST directly set primary_type to \"Uncertain\"."
+                f"【CRITICAL RESTRICTION - ZERO TOLERANCE FOR NEW CATEGORIES】:\n"
+                f"1. You MUST choose primary_type strictly from this allowed ID list (case-sensitive): {allowed_ids_str}.\n"
+                "2. You are STRICTLY FORBIDDEN from inventing, creating, or translating ANY new category names (e.g. DO NOT create 'Bacteria', 'Pathogen', 'Microorganism', 'Organism', 'Receptor', etc.).\n"
+                "3. If evidence is insufficient, ambiguous, or the entity does not strictly fit any candidate category, you MUST set primary_type to \"Uncertain\"."
             )
             neighbors_str = "\n".join(micro_ctx["neighbors"]) if micro_ctx["neighbors"] else "No direct records"
             evidence_str = "\n".join(micro_ctx["evidence"]) if micro_ctx["evidence"] else "No direct literature micro-evidence"
@@ -322,10 +455,11 @@ class WorkbenchAnalysisEngine:
                 f"【Network Neighbor Relations】:\n{neighbors_str}\n"
                 f"【Local Literature Evidence】:\n{evidence_str}\n\n"
                 f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                f"【STRICT CANDIDATE ENUMERATION - primary_type MUST be one of】:\n{allowed_ids_str}\n\n"
                 "【Output Instructions】:\n"
-                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English. Do not add markdown or explanation outside the JSON:\n"
+                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English. Do not invent any new category:\n"
                 "{\n"
-                "  \"primary_type\": \"<Candidate Category ID or Uncertain>\",\n"
+                "  \"primary_type\": \"<Exact Category ID from enumeration, or Uncertain>\",\n"
                 "  \"sub_type\": \"<Specific functional subtype or role in English>\",\n"
                 "  \"tags\": [\"<Tag1>\", \"<Tag2>\"],\n"
                 "  \"confidence\": 0.85,\n"
@@ -335,7 +469,11 @@ class WorkbenchAnalysisEngine:
         else:
             system_prompt = (
                 "你是一位资深的计算生物学与生物信息学本体专家。你的任务是根据图谱局部微上下文对生物医学实体进行严谨分类。\n"
-                "若上下文证据足以判断，请归类到指定类别之一；若信息不足、缺乏把握或无法明确判定，务必直接输出 primary_type 为 \"Uncertain\"。"
+                "【绝对硬性约束 / CRITICAL RESTRICTION - 零容忍自创新分类】:\n"
+                f"1. 字段 primary_type 的取值必须且只能严格从以下合法候选 ID 列表中选取（必须一字不差精确匹配）：\n"
+                f"   {allowed_ids_str}\n"
+                "2. 严禁擅自创造、发明或衍生任何列表之外的新分类名称（绝对禁止自创如: Bacteria, Pathogen, Microorganism, Organism, Receptor 等）！\n"
+                "3. 若该实体在当前预设中找不到对应分类或把握不足，你【必须且只能】将 primary_type 设为 \"Uncertain\"！绝不允许自立门户新增分类！"
             )
             neighbors_str = "\n".join(micro_ctx["neighbors"]) if micro_ctx["neighbors"] else "无直接记录"
             evidence_str = "\n".join(micro_ctx["evidence"]) if micro_ctx["evidence"] else "无直接原文微证据"
@@ -346,10 +484,11 @@ class WorkbenchAnalysisEngine:
                 f"【网络邻居关系】:\n{neighbors_str}\n"
                 f"【局部文献证据】:\n{evidence_str}\n\n"
                 f"【候选实体类别集合】:\n{cat_str}\n\n"
+                f"【唯一允许选取的 primary_type 严格白名单】:\n{allowed_ids_str}\n\n"
                 "【输出要求】:\n"
-                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文:\n"
+                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文，严禁自创分类:\n"
                 "{\n"
-                "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
+                "  \"primary_type\": \"<严格白名单中的ID或Uncertain>\",\n"
                 "  \"sub_type\": \"<细分子类别或具体生物学功能>\",\n"
                 "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
                 "  \"confidence\": 0.85,\n"
@@ -374,24 +513,30 @@ class WorkbenchAnalysisEngine:
         }
 
     def _llm_classify_entity_round2(self, node_name: str, matched_sentences: List[str], language: str = "zh") -> Dict[str, Any]:
-        """Round 2: 根据正则精准回溯原文语句进行判定 (严格适配系统语言)"""
+        """Round 2: 根据正则精准回溯原文语句进行判定 (严格约束枚举白名单与零容忍负向惩罚)"""
         is_en = "en" in str(language).lower()
         cat_str = self._format_ontology_categories(language=language)
+        allowed_ids = self._get_allowed_entity_ids()
+        allowed_ids_str = json.dumps(allowed_ids, ensure_ascii=False)
         sents_str = "\n".join([f"- {s}" for s in matched_sentences])
 
         if is_en:
             system_prompt = (
                 "You are a senior biomedical researcher. The previous round could not determine this entity's type due to weak context. Targeted regex search from the original paper full text retrieved the following sentences.\n"
-                "Re-evaluate and classify this entity based on these genuine literature sentences. If evidence remains insufficient or ambiguous, you MUST set primary_type to \"Uncertain\"."
+                f"【CRITICAL RESTRICTION - ZERO TOLERANCE FOR NEW CATEGORIES】:\n"
+                f"1. You MUST choose primary_type strictly from this allowed ID list (case-sensitive): {allowed_ids_str}.\n"
+                "2. You are STRICTLY FORBIDDEN from inventing, creating, or translating ANY new category names (e.g. DO NOT create 'Bacteria', 'Pathogen', 'Microorganism', 'Organism', 'Receptor', etc.).\n"
+                "3. If evidence remains insufficient or ambiguous, you MUST set primary_type to \"Uncertain\"."
             )
             user_content = (
                 f"【Entity to Classify】: {node_name}\n"
                 f"【Sentences Retrieved from Original Paper】:\n{sents_str}\n\n"
                 f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                f"【STRICT CANDIDATE ENUMERATION - primary_type MUST be one of】:\n{allowed_ids_str}\n\n"
                 "【Output Instructions】:\n"
-                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English:\n"
+                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English. Do not invent any new category:\n"
                 "{\n"
-                "  \"primary_type\": \"<Candidate Category ID or Uncertain>\",\n"
+                "  \"primary_type\": \"<Exact Category ID from enumeration, or Uncertain>\",\n"
                 "  \"sub_type\": \"<Specific subtype in English>\",\n"
                 "  \"tags\": [\"<Tag1>\", \"<Tag2>\"],\n"
                 "  \"confidence\": 0.85,\n"
@@ -401,16 +546,21 @@ class WorkbenchAnalysisEngine:
         else:
             system_prompt = (
                 "你是一位资深的生物医学专家。前轮分析因上下文微弱无法断定该实体类型，现通过原文献正则精准检索到以下关键句子。\n"
-                "请根据这些真实文献语句再次进行分类。若依然缺乏把握或证据不足，请将 primary_type 设为 \"Uncertain\"。"
+                "【绝对硬性约束 / CRITICAL RESTRICTION - 零容忍自创新分类】:\n"
+                f"1. 字段 primary_type 的取值必须且只能严格从以下合法候选 ID 列表中选取（必须一字不差精确匹配）：\n"
+                f"   {allowed_ids_str}\n"
+                "2. 严禁擅自创造、发明或衍生任何列表之外的新分类名称（绝对禁止自创如: Bacteria, Pathogen, Microorganism, Organism, Receptor 等）！\n"
+                "3. 若依然缺乏把握或证据不足，你【必须且只能】将 primary_type 设为 \"Uncertain\"！"
             )
             user_content = (
                 f"【待分析实体】: {node_name}\n"
                 f"【从原文精准检索出的上下文语句】:\n{sents_str}\n\n"
                 f"【候选实体类别集合】:\n{cat_str}\n\n"
+                f"【唯一允许选取的 primary_type 严格白名单】:\n{allowed_ids_str}\n\n"
                 "【输出要求】:\n"
-                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文:\n"
+                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文，严禁自创分类:\n"
                 "{\n"
-                "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
+                "  \"primary_type\": \"<严格白名单中的ID或Uncertain>\",\n"
                 "  \"sub_type\": \"<细分子类别>\",\n"
                 "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
                 "  \"confidence\": 0.85,\n"
@@ -435,22 +585,29 @@ class WorkbenchAnalysisEngine:
         }
 
     def _llm_classify_entity_round3(self, node_name: str, language: str = "zh") -> Dict[str, Any]:
-        """Round 3: 兜底通用生物知识判定 (严格适配系统语言)"""
+        """Round 3: 兜底通用生物知识判定 (严格约束枚举白名单与零容忍负向惩罚)"""
         is_en = "en" in str(language).lower()
         cat_str = self._format_ontology_categories(language=language)
+        allowed_ids = self._get_allowed_entity_ids()
+        allowed_ids_str = json.dumps(allowed_ids, ensure_ascii=False)
 
         if is_en:
             system_prompt = (
                 "You are a senior bioinformatics expert. The entity has limited context in the literature.\n"
-                "Adjudicate its category using your biomedical domain world knowledge. If confident, assign the proper candidate category; if it is an internal project code or unidentifiable, honestly output \"Uncertain\"."
+                "Adjudicate its category using your biomedical domain world knowledge.\n"
+                f"【CRITICAL RESTRICTION - ZERO TOLERANCE FOR NEW CATEGORIES】:\n"
+                f"1. You MUST choose primary_type strictly from this allowed ID list (case-sensitive): {allowed_ids_str}.\n"
+                "2. You are STRICTLY FORBIDDEN from inventing, creating, or translating ANY new category names (e.g. DO NOT create 'Bacteria', 'Pathogen', 'Microorganism', 'Organism', 'Receptor', etc.).\n"
+                "3. If confident, assign the proper candidate category from the list; if it is unidentifiable or outside the list, honestly output \"Uncertain\"."
             )
             user_content = (
                 f"【Biomedical Entity Name】: {node_name}\n\n"
                 f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                f"【STRICT CANDIDATE ENUMERATION - primary_type MUST be one of】:\n{allowed_ids_str}\n\n"
                 "【Output Instructions】:\n"
-                "Strictly output a single valid JSON object in English:\n"
+                "Strictly output a single valid JSON object in English. Do not invent any new category:\n"
                 "{\n"
-                "  \"primary_type\": \"<Candidate Category ID or Uncertain>\",\n"
+                "  \"primary_type\": \"<Exact Category ID from enumeration, or Uncertain>\",\n"
                 "  \"sub_type\": \"<Specific subtype in English>\",\n"
                 "  \"tags\": [\"<Tag1>\"],\n"
                 "  \"confidence\": 0.70,\n"
@@ -460,15 +617,21 @@ class WorkbenchAnalysisEngine:
         else:
             system_prompt = (
                 "你是一位资深的生物信息学专家。该实体在文献局部和原文语句中信息均不足。\n"
-                "请仅根据你在通用生物医学领域的常识进行最终研判。如果你确信其属于某个类别，请输出对应类别；若该词汇为课题自命名代号或无法确认，请坦率输出 \"Uncertain\"。"
+                "请仅根据你在通用生物医学领域的常识进行最终研判。\n"
+                "【绝对硬性约束 / CRITICAL RESTRICTION - 零容忍自创新分类】:\n"
+                f"1. 字段 primary_type 的取值必须且只能严格从以下合法候选 ID 列表中选取（必须一字不差精确匹配）：\n"
+                f"   {allowed_ids_str}\n"
+                "2. 严禁擅自创造、发明或衍生任何列表之外的新分类名称（绝对禁止自创如: Bacteria, Pathogen, Microorganism, Organism, Receptor 等）！\n"
+                "3. 若属于列表中的分类请准确归纳；若词汇无法确认或不在列表范畴，请坦率输出 \"Uncertain\"！"
             )
             user_content = (
                 f"【待分析生物医学实体名】: {node_name}\n\n"
                 f"【候选实体类别集合】:\n{cat_str}\n\n"
+                f"【唯一允许选取的 primary_type 严格白名单】:\n{allowed_ids_str}\n\n"
                 "【输出要求】:\n"
-                "请严格以合法 JSON 输出，所有文本字段（sub_type, tags, reasoning）务必使用中文:\n"
+                "请严格以合法 JSON 输出，所有文本字段（sub_type, tags, reasoning）务必使用中文，严禁自创分类:\n"
                 "{\n"
-                "  \"primary_type\": \"<候选类别ID或Uncertain>\",\n"
+                "  \"primary_type\": \"<严格白名单中的ID或Uncertain>\",\n"
                 "  \"sub_type\": \"<细分子类别>\",\n"
                 "  \"tags\": [\"<标签1>\"],\n"
                 "  \"confidence\": 0.70,\n"
@@ -493,16 +656,23 @@ class WorkbenchAnalysisEngine:
         }
 
     def _llm_classify_relation(self, source: str, target: str, orig_rel: str, evidence: str, language: str = "zh") -> Dict[str, Any]:
-        """对单条关系进行深层机制分类与机制动词归纳 (严格适配系统语言)"""
+        """对单条关系进行深层机制分类与机制动词归纳 (严格枚举白名单与动词解耦约束)"""
         is_en = "en" in str(language).lower()
         rel_cat_str = self._format_relation_categories(language=language)
+        allowed_rel_ids = self._get_allowed_relation_ids()
+        allowed_rel_ids_str = json.dumps(allowed_rel_ids, ensure_ascii=False)
+
         src_type = self.entity_annotations.get(source, {}).get("primary_type", "Unknown" if is_en else "未知")
         tgt_type = self.entity_annotations.get(target, {}).get("primary_type", "Unknown" if is_en else "未知")
 
         if is_en:
             system_prompt = (
                 "You are a molecular mechanism biologist. Your task is to classify biomedical knowledge graph relationships into deep mechanism categories "
-                "and distill a precise, concise English mechanism verb (e.g., 'Phosphorylates', 'Competitively inhibits', 'Transcriptional activation', 'Targeted degradation', 'Binds', 'Infects')."
+                "and distill a precise, concise English mechanism verb.\n"
+                "【CRITICAL RESTRICTION - MECHANISM CATEGORY ENUMERATION】:\n"
+                f"1. mechanism_category MUST strictly be one of: {allowed_rel_ids_str}.\n"
+                "2. Specific action verbs (e.g. 'Phosphorylates', 'Inhibits', 'Binds', 'Degrades') MUST be written in mechanism_verb, NEVER as mechanism_category!\n"
+                "3. You are strictly forbidden from creating new category IDs."
             )
             user_content = (
                 f"【Subject Entity】: {source} (Classified as: {src_type})\n"
@@ -510,10 +680,11 @@ class WorkbenchAnalysisEngine:
                 f"【Original Relation Predicate】: {orig_rel}\n"
                 f"【Original Literature Evidence】: {evidence if evidence else 'No direct sentence available'}\n\n"
                 f"【Candidate Mechanism Categories】:\n{rel_cat_str}\n\n"
+                f"【STRICT ENUMERATION - mechanism_category MUST be one of】:\n{allowed_rel_ids_str}\n\n"
                 "【Output Instructions】:\n"
-                "Strictly output a single valid JSON object. All field values (mechanism_verb, reasoning) MUST be in English:\n"
+                "Strictly output a single valid JSON object. All field values MUST be in English:\n"
                 "{\n"
-                "  \"mechanism_category\": \"<Exact Candidate Category ID>\",\n"
+                "  \"mechanism_category\": \"<Exact Candidate Category ID from enumeration>\",\n"
                 "  \"mechanism_verb\": \"<Precise concise English mechanism verb, 1-3 words>\",\n"
                 "  \"confidence\": 0.90,\n"
                 "  \"reasoning\": \"<Concise mechanism rationale in English, under 40 words>\"\n"
@@ -522,7 +693,11 @@ class WorkbenchAnalysisEngine:
         else:
             system_prompt = (
                 "你是一位分子机制生物学家。你的任务是对生物知识图谱中的关系进行深层机制分类，"
-                "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解、受体识别、感染宿主等）。"
+                "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解、受体识别、感染宿主等）。\n"
+                "【绝对硬性约束 - 关系机制分类枚举限制】:\n"
+                f"1. mechanism_category 的取值必须且只能严格从以下合法候选类别中选取：\n"
+                f"   {allowed_rel_ids_str}\n"
+                "2. 严禁自创机制大类！具体的机制动作（如：抑制、激活、结合、磷酸化等）请填写在 mechanism_verb 字段中，不要将动词当作类别填入 mechanism_category！"
             )
             user_content = (
                 f"【主体实体】: {source} (已分类为: {src_type})\n"
@@ -530,10 +705,11 @@ class WorkbenchAnalysisEngine:
                 f"【原始关系谓词】: {orig_rel}\n"
                 f"【文献原文证据】: {evidence if evidence else '无具体原文句子'}\n\n"
                 f"【候选关系机制类别】:\n{rel_cat_str}\n\n"
+                f"【唯一允许选取的 mechanism_category 严格白名单】:\n{allowed_rel_ids_str}\n\n"
                 "【输出要求】:\n"
                 "请严格以合法 JSON 输出，不要包含任何多余文字，mechanism_verb 与 reasoning 务必使用中文:\n"
                 "{\n"
-                "  \"mechanism_category\": \"<候选类别ID>\",\n"
+                "  \"mechanism_category\": \"<严格白名单中的类别ID>\",\n"
                 "  \"mechanism_verb\": \"<精准精炼的机制动词，10字以内>\",\n"
                 "  \"confidence\": 0.90,\n"
                 "  \"reasoning\": \"<简明归类依据，50字以内>\"\n"
@@ -548,12 +724,43 @@ class WorkbenchAnalysisEngine:
         except Exception as e:
             print(f"⚠️ [Relation LLM Error] {source} -> {target}: {e}")
 
+        default_cat = "Association_Correlation" if "Association_Correlation" in allowed_rel_ids else (allowed_rel_ids[0] if allowed_rel_ids else "Association_Correlation")
         return {
-            "mechanism_category": "Association_Correlation",
+            "mechanism_category": default_cat,
             "mechanism_verb": orig_rel,
             "confidence": 0.5,
             "reasoning": "Analysis defaulted to general correlation" if is_en else "分析降级至默认关联"
         }
+
+    def _heal_inconsistent_cache(self) -> Tuple[int, int]:
+        """
+        自动体检并愈合缓存中与当前生效本体预设不一致的脏数据：
+        1. 扫描 self.entity_annotations：若其 primary_type 无法在当前预设中识别，
+           强制重置为 primary_type: 'Uncertain', status: 'uncertain'，解除 resolved 锁死并排入分析队列；
+        2. 扫描 self.relation_annotations：若其 mechanism_category 不属于当前预设，
+           将其移出已解析缓存，强制重新分析；
+        返回: (healed_entities_count, healed_relations_count)
+        """
+        healed_ents = 0
+        for n, ann in list(self.entity_annotations.items()):
+            cur_type = ann.get("primary_type", "")
+            canon_type, is_valid = self.canonicalize_entity_category(cur_type)
+            if not is_valid or canon_type == "Uncertain":
+                if ann.get("status") == "resolved" or (cur_type and cur_type != "Uncertain"):
+                    self.entity_annotations[n]["primary_type"] = "Uncertain"
+                    self.entity_annotations[n]["status"] = "uncertain"
+                    self.entity_annotations[n]["round"] = 0
+                    healed_ents += 1
+
+        healed_rels = 0
+        valid_rels = set(self.ontology.get("relation_categories", {}).keys())
+        for ek, r_ann in list(self.relation_annotations.items()):
+            cur_mech = r_ann.get("mechanism_category", "")
+            if valid_rels and cur_mech not in valid_rels:
+                del self.relation_annotations[ek]
+                healed_rels += 1
+
+        return healed_ents, healed_rels
 
     def run_analysis(self,
                      entities: List[Dict[str, Any]],
@@ -599,6 +806,24 @@ class WorkbenchAnalysisEngine:
         if enable_entities and total_nodes > 0:
             log(f"📊 Entity queue ready ({total_nodes} entities), sorted by degree centrality." if is_en else f"📊 实体分析队列已就绪，共计 {total_nodes} 个实体，已按拓扑中心度降序排列。")
 
+            # === 缓存一致性自动体检与愈合 (Auto-Healing Cache Inconsistencies) ===
+            healed_ents, healed_rels = self._heal_inconsistent_cache()
+            if healed_ents > 0 or healed_rels > 0:
+                log(f"🧹 [Cache Healing] Reset {healed_ents} out-of-ontology entities and {healed_rels} relations for active preset." if is_en else f"🧹 [缓存一致性自动体检] 发现并重置了 {healed_ents} 个非当前预设实体与 {healed_rels} 条非规范机制连线，已将其纳入重审队列。")
+
+            # 确保全图所有候选实体在分析启动前均具备有效状态（未解析者赋予 uncertain）
+            for n in sorted_nodes:
+                if force_reanalyze or n not in self.entity_annotations:
+                    self.entity_annotations[n] = {
+                        "primary_type": "Uncertain",
+                        "sub_type": "",
+                        "tags": [],
+                        "confidence": 0.0,
+                        "reasoning": "待进一步分级判断" if not is_en else "Pending analysis",
+                        "round": 0,
+                        "status": "uncertain"
+                    }
+
             # === Round 0: 快速规则匹配 (0 Token, 极速预过滤) ===
             r0_hits = 0
             if enable_round0_rules:
@@ -606,7 +831,8 @@ class WorkbenchAnalysisEngine:
                 for idx, node in enumerate(sorted_nodes):
                     if not force_reanalyze and node in self.entity_annotations:
                         cur = self.entity_annotations[node]
-                        if cur.get("status") == "resolved":
+                        c_type, is_v = self.canonicalize_entity_category(cur.get("primary_type", ""))
+                        if cur.get("status") == "resolved" and is_v and c_type != "Uncertain":
                             continue
 
                     aliases = []
@@ -659,15 +885,17 @@ class WorkbenchAnalysisEngine:
                                     f"Topology Reasoning ({r1_done}/{total_r1}): {node}" if is_en else f"局部拓扑推理 ({r1_done}/{total_r1}): {node}"
                                 )
                             cat = res.get("primary_type")
-                            valid_cats = self.ontology.get("entity_categories", {})
-                            if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
+                            canon_cat, is_valid = self.canonicalize_entity_category(cat)
+                            if is_valid and canon_cat != "Uncertain":
                                 self.entity_annotations[node] = {
                                     **res,
+                                    "primary_type": canon_cat,
                                     "round": 1,
                                     "status": "resolved"
                                 }
                                 self.stats["round1_hits"] += 1
                             else:
+                                # 不在框架内的类一律识别为未分类，赋予 status: "uncertain" 以流入 Round 2 / Round 3 兜底
                                 self.entity_annotations[node] = {
                                     **res,
                                     "primary_type": "Uncertain",
@@ -706,10 +934,11 @@ class WorkbenchAnalysisEngine:
                                 )
                             if had_sents and res:
                                 cat = res.get("primary_type")
-                                valid_cats = self.ontology.get("entity_categories", {})
-                                if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
+                                canon_cat, is_valid = self.canonicalize_entity_category(cat)
+                                if is_valid and canon_cat != "Uncertain":
                                     self.entity_annotations[node] = {
                                         **res,
+                                        "primary_type": canon_cat,
                                         "round": 2,
                                         "status": "resolved"
                                     }
@@ -749,10 +978,11 @@ class WorkbenchAnalysisEngine:
                                     f"Domain Knowledge ({r3_done}/{total_r3}): {node}" if is_en else f"领域先验研判 ({r3_done}/{total_r3}): {node}"
                                 )
                             cat = res.get("primary_type")
-                            valid_cats = self.ontology.get("entity_categories", {})
-                            if cat and cat != "Uncertain" and (not valid_cats or cat in valid_cats):
+                            canon_cat, is_valid = self.canonicalize_entity_category(cat)
+                            if is_valid and canon_cat != "Uncertain":
                                 self.entity_annotations[node] = {
                                     **res,
+                                    "primary_type": canon_cat,
                                     "round": 3,
                                     "status": "resolved"
                                 }
@@ -772,6 +1002,7 @@ class WorkbenchAnalysisEngine:
         # ----------------------------------------------------
         if enable_relations and total_rels > 0 and self.llm_agent:
             target_relations = []
+            valid_rels = set(self.ontology.get("relation_categories", {}).keys())
             for rel in relations:
                 src = rel.get("source")
                 tgt = rel.get("target")
@@ -779,7 +1010,7 @@ class WorkbenchAnalysisEngine:
                 edge_key = f"{src}|{tgt}|{orig_rel}"
                 if not force_reanalyze and edge_key in self.relation_annotations:
                     cur = self.relation_annotations[edge_key]
-                    if cur.get("status") == "resolved":
+                    if cur.get("status") == "resolved" and cur.get("mechanism_category") in valid_rels:
                         continue
                 target_relations.append(rel)
 
@@ -809,8 +1040,11 @@ class WorkbenchAnalysisEngine:
                                 0.75 + 0.25 * (rel_done / max(1, total_rc)),
                                 f"Analyzing Relation Mechanism ({rel_done}/{total_rc})" if is_en else f"关系机制分析 ({rel_done}/{total_rc})"
                             )
+                        mech_cat = res.get("mechanism_category", "")
+                        canon_mech = self.canonicalize_relation_category(mech_cat)
                         self.relation_annotations[edge_key] = {
                             **res,
+                            "mechanism_category": canon_mech,
                             "round": 1,
                             "status": "resolved"
                         }
@@ -821,8 +1055,11 @@ class WorkbenchAnalysisEngine:
         # ----------------------------------------------------
         # 阶段 C: 统计与指标计算
         # ----------------------------------------------------
-        resolved_cnt = sum(1 for a in self.entity_annotations.values() if a.get("status") == "resolved")
-        uncertain_cnt = sum(1 for a in self.entity_annotations.values() if a.get("status") == "uncertain" or a.get("primary_type") == "Uncertain")
+        valid_cats = set(self.ontology.get("entity_categories", {}).keys())
+        resolved_cnt = sum(1 for a in self.entity_annotations.values() if a.get("status") == "resolved" and a.get("primary_type") in valid_cats and a.get("primary_type") != "Uncertain")
+        uncertain_cnt = total_nodes - resolved_cnt
+        self.stats["resolved_nodes"] = resolved_cnt
+        self.stats["uncertain_nodes"] = uncertain_cnt
         self.stats["resolved_nodes"] = resolved_cnt
         self.stats["uncertain_nodes"] = uncertain_cnt
 
