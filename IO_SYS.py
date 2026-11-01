@@ -1049,6 +1049,11 @@ class GraphVisualizer:
             if not src or not tgt or src == tgt:
                 continue
 
+            # 🛡️ 捷径边在通路独立精简子图中不作为连线绘制
+            raw_sc = r.get("is_shortcut", False)
+            if (str(raw_sc).lower() == "true") or (raw_sc is True):
+                continue
+
             # 保底补充缺失节点
             for nd in [src, tgt]:
                 if nd not in entity_info_map:

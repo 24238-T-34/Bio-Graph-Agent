@@ -1105,6 +1105,12 @@ class PathwayDecompositionEngine:
         if not relations:
             return []
 
+        # 0. 🛡️ 捷径边不视为有效关系：洗树/人工标记为捷径边的关系在通路拆解中直接忽略
+        relations = [
+            r for r in relations
+            if not ((r.get("is_shortcut") is True) or (str(r.get("is_shortcut", "")).lower() == "true"))
+        ]
+
         G = nx.DiGraph()
         for r in relations:
             s = str(r.get("source", "")).strip()
@@ -1223,6 +1229,12 @@ class PathwayDecompositionEngine:
         """
         if not relations or not seeds:
             return []
+
+        # 0. 🛡️ 捷径边不视为有效关系：洗树/人工标记为捷径边的关系在通路拆解中直接忽略
+        relations = [
+            r for r in relations
+            if not ((r.get("is_shortcut") is True) or (str(r.get("is_shortcut", "")).lower() == "true"))
+        ]
 
         from collections import Counter
 
@@ -1856,6 +1868,12 @@ class PathwayDecompositionEngine:
             log("⚠️ 当前工程缺乏关系连线数据，无法拆解通路。" if not is_en else "⚠️ Insufficient relations to decompose pathways.")
             prog(1.0, "分析完成 (无有效通路)" if not is_en else "Completed (No relations)")
             return []
+
+        # 0. 🛡️ 捷径边在通路建模全流程中不视为有效关系
+        relations = [
+            r for r in relations
+            if not ((r.get("is_shortcut") is True) or (str(r.get("is_shortcut", "")).lower() == "true"))
+        ]
 
         # 1. 种子节点多维打分与挑选 (大模型语义与图论混合双轨)
         if user_query and self.llm_agent:
