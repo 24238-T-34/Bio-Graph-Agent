@@ -2373,7 +2373,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         },
         "wb_hypo_mode_select": {"zh": "🧭 选择探勘策略模式", "en": "🧭 Select Discovery Strategy Mode"},
         "wb_hypo_mode_auto": {"zh": "🤖 自动感知智能推荐 (Auto Mode)", "en": "🤖 Auto-Perception Smart Recommendation"},
+        "wb_hypo_mode_shortcut": {"zh": "⚡ 高维语义隐性捷径 (Detour Shortcuts)", "en": "⚡ High-Dimensional Detour Shortcuts"},
         "wb_hypo_mode_bridge": {"zh": "🔗 跨簇孤岛自主桥接 (Cluster Bridging)", "en": "🔗 Autonomous Cluster Bridging"},
+        "wb_hypo_mode_homeostasis": {"zh": "⚖️ 逆向稳态闭环探索 (Homeostatic Feedback)", "en": "⚖️ Homeostatic Feedback Loops"},
         "wb_hypo_mode_growth": {"zh": "🌱 周界边缘薄层生长 (Peripheral Growth)", "en": "🌱 Peripheral Thin-Layer Growth"},
         "wb_hypo_mode_intent": {"zh": "🎯 学者科研意向定向探究 (Intent Exploration)", "en": "🎯 Intent-Driven Directional Exploration"},
         "wb_hypo_intent_label": {"zh": "🎯 输入学者的科研关注点 / 探索意向 Prompt", "en": "🎯 Enter Research Intent / Focus Prompt"},
@@ -2395,6 +2397,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "wb_hypo_novel_notice": {"zh": "ℹ️ 依据科研严谨性规范，未经验证的科学空白假说留作专享选题灵感，不污染主图谱事实库；学者可导出为独立子工程深挖。", "en": "ℹ️ By scientific standards, unverified gaps remain as research inspiration without polluting factual graph; export as subproject to investigate."},
         "wb_hypo_articles_title": {"zh": "📚 裁判检索审阅的 PubMed 文献摘要 ({count} 篇)", "en": "📚 Reviewed PubMed Abstracts ({count} items)"},
         "wb_hypo_badge_auto": {"zh": "🤖 自动感知模式", "en": "🤖 Auto Mode"},
+        "wb_hypo_badge_shortcut": {"zh": "⚡ 捷径短路模体", "en": "⚡ Detour Shortcut"},
+        "wb_hypo_badge_bottleneck": {"zh": "🛡️ 瓶颈加固模体", "en": "🛡️ Bottleneck Reinforce"},
+        "wb_hypo_badge_homeostasis": {"zh": "⚖️ 稳态闭环模体", "en": "⚖️ Homeostasis Loop"},
+        "wb_hypo_badge_frontier": {"zh": "🌿 周界前沿级联", "en": "🌿 Frontier Cascade"},
         "wb_hypo_badge_bridge": {"zh": "🔗 跨簇桥接", "en": "🔗 Cluster Bridge"},
         "wb_hypo_badge_growth": {"zh": "🌱 周界生长", "en": "🌱 Peripheral Growth"},
         "wb_hypo_badge_intent": {"zh": "🎯 意向探究", "en": "🎯 Intent Exploration"},
@@ -3121,7 +3127,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         with col_m1:
             mode_options = [
                 ("auto", t("wb_hypo_mode_auto")),
+                ("detour_shortcut", t("wb_hypo_mode_shortcut")),
                 ("cluster_bridge", t("wb_hypo_mode_bridge")),
+                ("feedback_homeostasis", t("wb_hypo_mode_homeostasis")),
                 ("peripheral_growth", t("wb_hypo_mode_growth")),
                 ("intent_exploration", t("wb_hypo_mode_intent"))
             ]
@@ -3153,10 +3161,14 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     placeholder=t("wb_hypo_intent_placeholder"),
                     key="wb_hypo_intent_input"
                 )
+            elif selected_hypo_mode == "detour_shortcut":
+                st.caption("ℹ️ " + ("基于消息传递向量流场，识别高维语义极近但拓扑必须绕远路（3~4步）的节点对，推演直接跨越的隐性机制捷径" if not is_en else "Identifies semantically proximal nodes separated by multi-step topological detours, hypothesizing direct regulatory shortcuts"))
             elif selected_hypo_mode == "cluster_bridge":
-                st.caption("ℹ️ " + ("算法将对不同连通子图簇的核心 Hub 与 Gateway 节点进行跨界相容性寻孔配对" if not is_en else "Mines cross-cluster gateway & hub pairs between disconnected components"))
+                st.caption("ℹ️ " + ("识别模块化社区或独立子簇间的脆弱瓶颈与结构洞，推演建立跨簇核心冗余调控桥梁" if not is_en else "Identifies fragile bottlenecks and structural holes between communities, hypothesizing reinforced cross-cluster bridges"))
+            elif selected_hypo_mode == "feedback_homeostasis":
+                st.caption("ℹ️ " + ("针对多步正向级联单向驱动链，依据对称平衡与对偶补全原理，推演缺失的负反馈自抑回路以维持动态稳态" if not is_en else "Identifies unidirectional activation cascades and hypothesizes missing negative feedback loops for homeostatic balance"))
             else:
-                st.caption("ℹ️ " + ("算法将识别度数较低的周界外围功能实体，向外探索合理的直接上下游薄层延伸" if not is_en else "Identifies peripheral frontier nodes and proposes direct upstream/downstream thin-layer growth"))
+                st.caption("ℹ️ " + ("识别周界外围低度数实体，推演通过已知中介节点与核心中枢深入级联的薄层生长" if not is_en else "Identifies peripheral frontier nodes and hypothesizes cascade growth towards core network hubs"))
 
         col_act1, col_act2 = st.columns([3, 1])
         with col_act1:
@@ -3248,16 +3260,41 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             with st.container(border=True):
                 h_col1, h_col2 = st.columns([4, 1])
                 with h_col1:
-                    st.markdown(f"#### 假说 #{idx+1}：`{node_a}` $\\longleftrightarrow$ `{node_b}`")
+                    h_title_prefix = "Hypothesis" if is_en else "假说"
+                    st.markdown(f"#### {h_title_prefix} #{idx+1}：`{node_a}` $\\longleftrightarrow$ `{node_b}`")
                     st.caption(f"📌 **{card.get('hypothesis_statement', '')}**")
                 with h_col2:
-                    mode_tag = card.get("mode", "bridge")
-                    if "bridge" in mode_tag:
-                        st.markdown(f"`{t('wb_hypo_badge_bridge')}`")
-                    elif "growth" in mode_tag:
-                        st.markdown(f"`{t('wb_hypo_badge_growth')}`")
-                    else:
-                        st.markdown(f"`{t('wb_hypo_badge_intent')}`")
+                    motif_lbl = card.get("motif_label", "")
+                    if not motif_lbl:
+                        mode_tag = card.get("mode", "")
+                        if "shortcut" in mode_tag:
+                            motif_lbl = t("wb_hypo_badge_shortcut")
+                        elif "bridge" in mode_tag or "bottleneck" in mode_tag:
+                            motif_lbl = t("wb_hypo_badge_bottleneck")
+                        elif "homeostasis" in mode_tag or "feedback" in mode_tag:
+                            motif_lbl = t("wb_hypo_badge_homeostasis")
+                        elif "growth" in mode_tag or "frontier" in mode_tag:
+                            motif_lbl = t("wb_hypo_badge_frontier")
+                        else:
+                            motif_lbl = t("wb_hypo_badge_intent")
+                    st.markdown(f"`{motif_lbl}`")
+
+                # 微型机制模体路径展示 (3~4节点：已知中介路径背景 + 待证实假说链路)
+                circuit_edges = card.get("circuit_edges", [])
+                if circuit_edges:
+                    edge_pills = []
+                    for ce in circuit_edges:
+                        s_name = ce.get("source", "")
+                        t_name = ce.get("target", "")
+                        rel_name = ce.get("relation", "")
+                        is_hypo = (ce.get("status") == "hypothesized")
+                        if is_hypo:
+                            hypo_prefix = "To Verify" if is_en else "待证实"
+                            edge_pills.append(f"**`{s_name}`** ──┄*({hypo_prefix}: {rel_name})*┄──▶ **`{t_name}`**")
+                        else:
+                            known_prefix = "Known" if is_en else "已知"
+                            edge_pills.append(f"`{s_name}` ──*({known_prefix}: {rel_name})*──▶ `{t_name}`")
+                    st.info(" ｜ ".join(edge_pills))
 
                 st.markdown(f"**{t('wb_hypo_card_rationale')}** {card.get('biological_rationale', '')}")
                 st.markdown(f"**{t('wb_hypo_card_direction')}** {card.get('research_direction', '')}")
