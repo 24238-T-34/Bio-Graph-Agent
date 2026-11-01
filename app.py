@@ -3032,9 +3032,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     st.markdown(" ".join([f"`{b}`" for b in badges]))
 
                 # 4. 可以收起的子图谱
-                nodes = pw.get("nodes", [])
-                rels = pw.get("relations", [])
-                sub_label = f"🎨 {t('wb_pw_lbl_subgraph')} ({len(nodes)} {t('lbl_nodes') if not is_en else 'Nodes'}, {len(rels)} {t('lbl_relations') if not is_en else 'Edges'})"
+                pw_nodes = pw.get("nodes", [])
+                pw_rels = pw.get("relations", [])
+                sub_label = f"🎨 {t('wb_pw_lbl_subgraph')} ({len(pw_nodes)} {t('lbl_nodes') if not is_en else 'Nodes'}, {len(pw_rels)} {t('lbl_relations') if not is_en else 'Edges'})"
                 with st.expander(sub_label, expanded=False):
                     html_rel = pw.get("html_file", "")
                     html_abs = os.path.join(proj_dir, html_rel) if html_rel else ""
@@ -3111,6 +3111,10 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     cur_db = st.session_state.get("search_database", "PubMed")
     searcher = get_searcher(cur_db)
 
+    # 显式采用顶层 Master 全局图谱数据，彻底防御局部变量混淆
+    master_ents = st.session_state.get("master_entities", [])
+    master_rels = st.session_state.get("master_relations", [])
+
     # 1. 探勘策略控制面板
     with st.container(border=True):
         col_m1, col_m2 = st.columns([2, 3])
@@ -3132,8 +3136,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             )
 
         temp_engine = HypothesisEngine(
-            entities=ents,
-            relations=rels,
+            entities=master_ents,
+            relations=master_rels,
             workbench_state=st.session_state.get("workbench_state", {}),
             lang=st.session_state.get("ui_language", "zh")
         )
@@ -3176,8 +3180,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
         intent_text = st.session_state.get("wb_hypo_intent_input", "") if selected_hypo_mode == "intent_exploration" else ""
         active_engine = HypothesisEngine(
-            entities=ents,
-            relations=rels,
+            entities=master_ents,
+            relations=master_rels,
             workbench_state=st.session_state.get("workbench_state", {}),
             agent=llm_agent,
             searcher=searcher,
@@ -3215,8 +3219,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     from LLM_SYS import BioBrainAgent
                     llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
                     engine = HypothesisEngine(
-                        entities=ents,
-                        relations=rels,
+                        entities=master_ents,
+                        relations=master_rels,
                         workbench_state=st.session_state.get("workbench_state", {}),
                         agent=llm_agent,
                         searcher=searcher,
@@ -3270,8 +3274,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         from LLM_SYS import BioBrainAgent
                         llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
                         engine = HypothesisEngine(
-                            entities=ents,
-                            relations=rels,
+                            entities=master_ents,
+                            relations=master_rels,
                             workbench_state=st.session_state.get("workbench_state", {}),
                             agent=llm_agent,
                             searcher=searcher,
@@ -3332,8 +3336,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         with col_act_sub:
                             sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
                                 hypothesis=card,
-                                master_entities=ents,
-                                master_relations=rels,
+                                master_entities=master_ents,
+                                master_relations=master_rels,
                                 project_id=proj_id,
                                 project_name=proj_name,
                                 workbench_state=st.session_state.get("workbench_state", {})

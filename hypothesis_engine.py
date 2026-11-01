@@ -47,15 +47,27 @@ class HypothesisEngine:
 
     def _build_graph(self):
         """构建底层无向图以进行连通分量与拓扑中心度计算"""
+        alias_map = {}
         for ent in self.entities:
             name = ent.get("standard_name", "").strip()
             if name:
                 self.G.add_node(name, **ent)
+                alias_map[name.lower()] = name
+                for alias in ent.get("aliases", []):
+                    if alias and isinstance(alias, str):
+                        alias_map[alias.strip().lower()] = name
 
         for rel in self.relations:
-            src = rel.get("source", "").strip()
-            tgt = rel.get("target", "").strip()
-            if src and tgt and src in self.G and tgt in self.G:
+            src_raw = rel.get("source", "").strip()
+            tgt_raw = rel.get("target", "").strip()
+            if not src_raw or not tgt_raw:
+                continue
+
+            # 别名与大小写归一化对齐
+            src = src_raw if src_raw in self.G else alias_map.get(src_raw.lower(), src_raw)
+            tgt = tgt_raw if tgt_raw in self.G else alias_map.get(tgt_raw.lower(), tgt_raw)
+
+            if src in self.G and tgt in self.G:
                 w = rel.get("weight", 1)
                 if self.G.has_edge(src, tgt):
                     self.G[src][tgt]["weight"] = self.G[src][tgt].get("weight", 1) + w
@@ -116,27 +128,63 @@ class HypothesisEngine:
     def detect_auto_mode(self) -> Dict[str, str]:
         """
         拓扑自感知算法：
-        自动评估网络连通性，智能推荐最契合的探勘策略。
+        自动评估网络连通性、主连通集团、次级知识孤岛与游离单点，智能推荐最契合的探勘策略。
         """
+        is_en = (self.lang == "en")
         if len(self.G) < 2:
             return {
                 "mode": "peripheral_growth",
-                "label": "周界边缘生长",
-                "reason": "当前网络节点较少，推荐向外进行周界边缘薄层延展。"
+                "label": "周界边缘生长" if not is_en else "Peripheral Growth",
+                "reason": "当前网络节点较少，推荐向外进行周界边缘薄层延展。" if not is_en else "Graph has few nodes; peripheral expansion recommended."
             }
 
-        n_comp = nx.number_connected_components(self.G)
-        if n_comp >= 2:
+        components = sorted(list(nx.connected_components(self.G)), key=len, reverse=True)
+        total_nodes = len(self.G)
+        giant = components[0]
+        giant_size = len(giant)
+        giant_ratio = giant_size / max(1, total_nodes)
+
+        # 区分：真实知识子簇 (多节点连通子图 >= 2) 与 孤立游离单点 (单点 == 1)
+        sub_clusters = [c for c in components[1:] if len(c) >= 2]
+        singletons = [c for c in components if len(c) == 1]
+
+        # 场景 1：存在真实独立知识子簇（例如多个独立研究模块互不连通）
+        if len(sub_clusters) >= 1:
+            if not is_en:
+                cluster_sizes_str = ", ".join([f"{len(c)}节点" for c in sub_clusters[:3]])
+                if len(sub_clusters) > 3:
+                    cluster_sizes_str += f" 等共 {len(sub_clusters)} 个子簇"
+                single_info = f"，另有 {len(singletons)} 个游离单点" if singletons else ""
+                reason_str = f"检测到图谱呈现分块聚集态：包含 1 个核心主体网络（{giant_size} 节点）与 {len(sub_clusters)} 个独立知识孤岛/子簇（{cluster_sizes_str}{single_info}）。算法推荐优先寻找跨孤岛深层调控桥梁。"
+            else:
+                reason_str = f"Detected partitioned topology: 1 main component ({giant_size} nodes) and {len(sub_clusters)} disconnected sub-clusters (with {len(singletons)} singletons). Cluster bridging recommended."
+
             return {
                 "mode": "cluster_bridge",
-                "label": "跨簇孤岛桥接",
-                "reason": f"检测到图谱存在 {n_comp} 个互不连通的知识孤岛，算法推荐优先寻找跨孤岛深层调控桥梁。"
+                "label": "跨簇孤岛桥接" if not is_en else "Cluster Bridging",
+                "reason": reason_str
+            }
+
+        # 场景 2：不存在次级知识子簇，核心主体占据绝对主导（含 100% 强连通，或仅有少量游离单点）
+        if len(singletons) == 0:
+            return {
+                "mode": "peripheral_growth",
+                "label": "周界边缘生长" if not is_en else "Peripheral Growth",
+                "reason": (
+                    f"图谱呈现全局强连通态（100% 节点互联互通，共覆盖全域 {total_nodes} 个实体）。算法推荐围绕周界低度数功能实体探索合理的直接上下游薄层延展。"
+                    if not is_en else
+                    f"Graph is fully connected (100% of {total_nodes} nodes). Peripheral growth recommended around boundary functional nodes."
+                )
             }
         else:
             return {
                 "mode": "peripheral_growth",
-                "label": "周界边缘生长",
-                "reason": "图谱呈现全局强连通态，算法推荐围绕周界高价值节点探索合理的上下游薄层延展。"
+                "label": "周界边缘生长" if not is_en else "Peripheral Growth",
+                "reason": (
+                    f"图谱呈现核心主体高度连通态（核心网络覆盖 {giant_size}/{total_nodes} 节点，占比 {giant_ratio*100:.1f}%；另有 {len(singletons)} 个游离单点）。算法推荐围绕周界高价值节点探索薄层延展，或引导游离单点并入核心通路。"
+                    if not is_en else
+                    f"Graph is predominantly connected ({giant_size}/{total_nodes} nodes, {giant_ratio*100:.1f}%; {len(singletons)} singletons). Peripheral growth recommended."
+                )
             }
 
     def _get_node_category(self, node: str) -> str:
@@ -170,49 +218,113 @@ class HypothesisEngine:
 
     def _mine_cluster_bridges(self, top_k: int = 5) -> List[Dict[str, Any]]:
         """
-        模式一：跨簇孤岛桥接
-        识别不同连通子图中的核心 Hub 与 Gateway 节点，构建高相容性跨岛桥梁候选对。
+        模式一：跨簇孤岛/跨社区桥接
+        1. 若存在多节点次级连通分量 (知识孤岛)：提取各独立孤岛核心 Hub 对撞；
+        2. 若图谱为主连通集团 (连通率极高)：利用贪婪模块度社区划分 (Greedy Modularity Communities)，寻找功能模块间的结构洞 (Structural Holes) 进行跨社区桥接；
+        3. 若存在游离单点：将游离单点与核心网络的 Hub 节点进行并网桥接推演。
         """
         if len(self.G) < 2:
             return []
 
         components = sorted(list(nx.connected_components(self.G)), key=len, reverse=True)
-        if len(components) < 2:
-            # 若本身连通，平滑回落为寻找具有高介数中心度的分割瓶颈点对
-            return self._mine_peripheral_growth(top_k=top_k)
-
-        # 提取各主要簇的 Hub 候选
-        cluster_hubs = []
-        for comp in components[:4]:
-            subgraph = self.G.subgraph(comp)
-            degrees = dict(subgraph.degree())
-            sorted_nodes = sorted(degrees.keys(), key=lambda n: degrees[n], reverse=True)
-            # 取各簇度数最高的前 2 名作为 Hub
-            top_nodes = sorted_nodes[:2]
-            cluster_hubs.append(top_nodes)
+        sub_clusters = [c for c in components[1:] if len(c) >= 2]
+        singletons = [list(c)[0] for c in components if len(c) == 1]
+        giant = components[0]
 
         candidate_pairs = []
-        # 跨簇两两配对打分
-        for i in range(len(cluster_hubs)):
-            for j in range(i + 1, len(cluster_hubs)):
-                for u in cluster_hubs[i]:
-                    for v in cluster_hubs[j]:
-                        if self.G.has_edge(u, v):
-                            continue
-                        cat_u = self._get_node_category(u)
-                        cat_v = self._get_node_category(v)
-                        compat = self._calc_compatibility_score(cat_u, cat_v)
-                        deg_score = (self.G.degree(u) + self.G.degree(v)) * 0.5
 
-                        total_score = compat * 2.0 + deg_score
-                        candidate_pairs.append({
-                            "node_a": u,
-                            "category_a": cat_u,
-                            "node_b": v,
-                            "category_b": cat_v,
-                            "score": total_score,
-                            "rationale_hint": f"跨孤岛核心 Hub 对撞：{u}(度数 {self.G.degree(u)}) 与 {v}(度数 {self.G.degree(v)})"
-                        })
+        # 情况 A：存在真实的次级知识孤岛 (规模 >= 2)
+        if sub_clusters:
+            all_comps = [giant] + sub_clusters
+            cluster_hubs = []
+            for comp in all_comps[:4]:
+                subgraph = self.G.subgraph(comp)
+                degrees = dict(subgraph.degree())
+                sorted_nodes = sorted(degrees.keys(), key=lambda n: degrees[n], reverse=True)
+                cluster_hubs.append(sorted_nodes[:2])
+
+            for i in range(len(cluster_hubs)):
+                for j in range(i + 1, len(cluster_hubs)):
+                    for u in cluster_hubs[i]:
+                        for v in cluster_hubs[j]:
+                            if self.G.has_edge(u, v):
+                                continue
+                            cat_u = self._get_node_category(u)
+                            cat_v = self._get_node_category(v)
+                            compat = self._calc_compatibility_score(cat_u, cat_v)
+                            deg_score = (self.G.degree(u) + self.G.degree(v)) * 0.5
+                            candidate_pairs.append({
+                                "node_a": u,
+                                "category_a": cat_u,
+                                "node_b": v,
+                                "category_b": cat_v,
+                                "score": compat * 2.0 + deg_score,
+                                "rationale_hint": f"跨孤岛核心 Hub 对撞：{u}(度数 {self.G.degree(u)}) 与 {v}(度数 {self.G.degree(v)})"
+                            })
+
+        # 情况 B：若网络以单一核心网络为主（或完全连通），利用社区发现探索结构洞 (跨功能社区 Hub 桥接)
+        elif len(giant) >= 4:
+            try:
+                import networkx.algorithms.community as nx_comm
+                giant_sub = self.G.subgraph(giant)
+                communities = sorted(list(nx_comm.greedy_modularity_communities(giant_sub)), key=len, reverse=True)
+            except Exception:
+                communities = []
+
+            if len(communities) >= 2:
+                comm_hubs = []
+                for c_idx, comm in enumerate(communities[:4]):
+                    sub = self.G.subgraph(comm)
+                    degs = dict(sub.degree())
+                    sorted_nodes = sorted(degs.keys(), key=lambda n: degs[n], reverse=True)
+                    comm_hubs.append((c_idx + 1, sorted_nodes[:2]))
+
+                for i in range(len(comm_hubs)):
+                    for j in range(i + 1, len(comm_hubs)):
+                        c_i, hubs_i = comm_hubs[i]
+                        c_j, hubs_j = comm_hubs[j]
+                        for u in hubs_i:
+                            for v in hubs_j:
+                                if self.G.has_edge(u, v):
+                                    continue
+                                cat_u = self._get_node_category(u)
+                                cat_v = self._get_node_category(v)
+                                compat = self._calc_compatibility_score(cat_u, cat_v)
+                                deg_score = (self.G.degree(u) + self.G.degree(v)) * 0.4
+                                candidate_pairs.append({
+                                    "node_a": u,
+                                    "category_a": cat_u,
+                                    "node_b": v,
+                                    "category_b": cat_v,
+                                    "score": compat * 2.2 + deg_score,
+                                    "rationale_hint": f"跨功能社区核心 Hub 结构洞：社区{c_i}（{u}）与 社区{c_j}（{v}）"
+                                })
+
+        # 辅助补充：若有游离单点，生成单点并网桥接候选
+        if singletons and len(candidate_pairs) < top_k * 2:
+            giant_sub = self.G.subgraph(giant)
+            giant_degrees = dict(giant_sub.degree())
+            top_giant_hubs = sorted(giant_degrees.keys(), key=lambda n: giant_degrees[n], reverse=True)[:3]
+
+            for s_node in singletons[:3]:
+                cat_s = self._get_node_category(s_node)
+                for h_node in top_giant_hubs:
+                    if self.G.has_edge(s_node, h_node):
+                        continue
+                    cat_h = self._get_node_category(h_node)
+                    compat = self._calc_compatibility_score(cat_s, cat_h)
+                    candidate_pairs.append({
+                        "node_a": s_node,
+                        "category_a": cat_s,
+                        "node_b": h_node,
+                        "category_b": cat_h,
+                        "score": compat * 2.0 + 1.0,
+                        "rationale_hint": f"游离实体并网：将孤立节点 {s_node} 桥接至核心中枢 {h_node}"
+                    })
+
+        # 若依然不足，平滑回退到周界边缘生长补充
+        if not candidate_pairs:
+            return self._mine_peripheral_growth(top_k=top_k)
 
         candidate_pairs.sort(key=lambda x: x["score"], reverse=True)
         return candidate_pairs[:top_k]
