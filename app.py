@@ -2180,6 +2180,43 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "zh": "将当前调控通路/回路打包为标准 .biokg 独立工程文件，可直接载入系统进行智能拓展、桥接等二次深度分析",
         "en": "Package this pathway/circuit as a standard .biokg project archive, ready for secondary smart expansion, bridging, and deep analysis"
     })
+    UI_TEXT.update({
+        "wb_sec3_title": {
+            "zh": "### 💡 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)",
+            "en": "### 💡 Stage 3: Hypothesis Deduction & Discovery Copilot"
+        },
+        "wb_sec3_caption": {
+            "zh": "结合阶段一本体分类与图论拓扑结构洞，自主挖掘网络断裂带；生成高价值学术猜想，并由裁判大模型并发通读 PubMed 检验科研创新性与空白填补。",
+            "en": "Combines Stage 1 ontology with graph-theoretic structural holes to autonomously mine network gaps, formulate high-value hypotheses, and concurrently verify novelty via literature referee."
+        },
+        "wb_hypo_mode_select": {"zh": "🧭 选择探勘策略模式", "en": "🧭 Select Discovery Strategy Mode"},
+        "wb_hypo_mode_auto": {"zh": "🤖 自动感知智能推荐 (Auto Mode)", "en": "🤖 Auto-Perception Smart Recommendation"},
+        "wb_hypo_mode_bridge": {"zh": "🔗 跨簇孤岛自主桥接 (Cluster Bridging)", "en": "🔗 Autonomous Cluster Bridging"},
+        "wb_hypo_mode_growth": {"zh": "🌱 周界边缘薄层生长 (Peripheral Growth)", "en": "🌱 Peripheral Thin-Layer Growth"},
+        "wb_hypo_mode_intent": {"zh": "🎯 学者科研意向定向探究 (Intent Exploration)", "en": "🎯 Intent-Driven Directional Exploration"},
+        "wb_hypo_intent_label": {"zh": "🎯 输入学者的科研关注点 / 探索意向 Prompt", "en": "🎯 Enter Research Intent / Focus Prompt"},
+        "wb_hypo_intent_placeholder": {"zh": "例如：探索该通路在克服耐药性或介导自噬中的关键交互靶点", "en": "e.g., Explore potential targets mediating drug resistance or autophagy crosstalk"},
+        "wb_hypo_btn_mine": {"zh": "🚀 启动拓扑寻孔并推演候选假说 (~5项)", "en": "🚀 Mine Structural Holes & Formulate Hypotheses (~5 items)"},
+        "wb_hypo_list_title": {"zh": "### 💡 探勘候选学术假说 (共 {count} 项)", "en": "### 💡 Candidate Academic Hypotheses ({count} items)"},
+        "wb_hypo_btn_verify_single": {"zh": "🔬 启动文献检索与裁判终审", "en": "🔬 Launch Literature Search & Referee Review"},
+        "wb_hypo_btn_verify_batch": {"zh": "⚡ 并发核验所有待审假说 (多线程加速)", "en": "⚡ Concurrently Verify All Pending Hypotheses (Multi-threaded)"},
+        "wb_hypo_btn_clear": {"zh": "🗑️ 清空假说卡片", "en": "🗑️ Clear Hypotheses"},
+        "wb_hypo_card_rationale": {"zh": "🧬 生物学生化合理性依据：", "en": "🧬 Biochemical Rationale:"},
+        "wb_hypo_card_direction": {"zh": "🧭 建议科研探索方向与留白描述：", "en": "🧭 Suggested Research Direction & Gap Description:"},
+        "wb_hypo_verdict_known": {"zh": "💡 文献已确证的事实补全 (Known Evidence)", "en": "💡 Fact Gap Filled by Literature Evidence (Known Fact)"},
+        "wb_hypo_verdict_novel": {"zh": "🌟 真正的科研空白 (原始创新假说 / Novelty High)", "en": "🌟 Genuine Scientific White Space (Novelty High)"},
+        "wb_hypo_verdict_cascade": {"zh": "🔗 多步级联中介通路 (Cascade Pathway)", "en": "🔗 Multi-Step Cascade Pathway"},
+        "wb_hypo_verdict_inconclusive": {"zh": "❓ 证据不足或存在争议 (Inconclusive)", "en": "❓ Inconclusive or Disputed Evidence"},
+        "wb_hypo_btn_merge_return": {"zh": "📥 采纳并补入主图谱 (返回主界面)", "en": "📥 Accept & Merge into Master Graph (Return to Main)"},
+        "wb_hypo_btn_dl_biokg": {"zh": "📦 导出为专题研究子工程 (.biokg)", "en": "📦 Export as Research Subproject (.biokg)"},
+        "wb_hypo_toast_merged_return": {"zh": "🎉 确证事实已成功补入知识图谱！已自动返回主图谱画布。", "en": "🎉 Confirmed fact successfully merged into graph! Returned to main canvas."},
+        "wb_hypo_novel_notice": {"zh": "ℹ️ 依据科研严谨性规范，未经验证的科学空白假说留作专享选题灵感，不污染主图谱事实库；学者可导出为独立子工程深挖。", "en": "ℹ️ By scientific standards, unverified gaps remain as research inspiration without polluting factual graph; export as subproject to investigate."},
+        "wb_hypo_articles_title": {"zh": "📚 裁判检索审阅的 PubMed 文献摘要 ({count} 篇)", "en": "📚 Reviewed PubMed Abstracts ({count} items)"},
+        "wb_hypo_badge_auto": {"zh": "🤖 自动感知模式", "en": "🤖 Auto Mode"},
+        "wb_hypo_badge_bridge": {"zh": "🔗 跨簇桥接", "en": "🔗 Cluster Bridge"},
+        "wb_hypo_badge_growth": {"zh": "🌱 周界生长", "en": "🌱 Peripheral Growth"},
+        "wb_hypo_badge_intent": {"zh": "🎯 意向探究", "en": "🎯 Intent Exploration"},
+    })
 
     # 1. 顶部返回导航栏与标题
     col_back1, col_back2 = st.columns([1, 4])
@@ -2877,7 +2914,279 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             width="stretch"
                         )
 
-    # 8. 底部返回按钮
+    # ==========================================
+    # 8. 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)
+    # ==========================================
+    st.markdown("---")
+    st.markdown(t("wb_sec3_title"))
+    st.caption(t("wb_sec3_caption"))
+
+    import hypothesis_engine
+    importlib.reload(hypothesis_engine)
+    from hypothesis_engine import HypothesisEngine
+    from WebSearcher import get_searcher
+
+    cur_db = st.session_state.get("search_database", "PubMed")
+    searcher = get_searcher(cur_db)
+
+    # 1. 探勘策略控制面板
+    with st.container(border=True):
+        col_m1, col_m2 = st.columns([2, 3])
+        with col_m1:
+            mode_options = [
+                ("auto", t("wb_hypo_mode_auto")),
+                ("cluster_bridge", t("wb_hypo_mode_bridge")),
+                ("peripheral_growth", t("wb_hypo_mode_growth")),
+                ("intent_exploration", t("wb_hypo_mode_intent"))
+            ]
+            mode_keys = [m[0] for m in mode_options]
+            mode_labels = {m[0]: m[1] for m in mode_options}
+
+            selected_hypo_mode = st.selectbox(
+                t("wb_hypo_mode_select"),
+                options=mode_keys,
+                format_func=lambda k: mode_labels.get(k, k),
+                key="wb_hypo_mode_select"
+            )
+
+        temp_engine = HypothesisEngine(
+            entities=ents,
+            relations=rels,
+            workbench_state=st.session_state.get("workbench_state", {}),
+            lang=st.session_state.get("ui_language", "zh")
+        )
+
+        with col_m2:
+            if selected_hypo_mode == "auto":
+                auto_info = temp_engine.detect_auto_mode()
+                st.info(f"🤖 **{auto_info['label']}** — {auto_info['reason']}")
+            elif selected_hypo_mode == "intent_exploration":
+                hypo_intent_query = st.text_input(
+                    t("wb_hypo_intent_label"),
+                    value=st.session_state.get("wb_hypo_intent_input", ""),
+                    placeholder=t("wb_hypo_intent_placeholder"),
+                    key="wb_hypo_intent_input"
+                )
+            elif selected_hypo_mode == "cluster_bridge":
+                st.caption("ℹ️ " + ("算法将对不同连通子图簇的核心 Hub 与 Gateway 节点进行跨界相容性寻孔配对" if not is_en else "Mines cross-cluster gateway & hub pairs between disconnected components"))
+            else:
+                st.caption("ℹ️ " + ("算法将识别度数较低的周界外围功能实体，向外探索合理的直接上下游薄层延伸" if not is_en else "Identifies peripheral frontier nodes and proposes direct upstream/downstream thin-layer growth"))
+
+        col_act1, col_act2 = st.columns([3, 1])
+        with col_act1:
+            btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
+        with col_act2:
+            if st.session_state.get("hypothesis_cards"):
+                if st.button(t("wb_hypo_btn_clear"), key="wb_hypo_btn_clear", width="stretch"):
+                    st.session_state.hypothesis_cards = []
+                    st.rerun()
+
+    # 2. 触发探勘推演
+    if btn_mine:
+        current_key = api_key.strip() if api_key else ""
+        is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+        if not current_key and not is_local:
+            st.error(t("err_missing_api_key"))
+            st.stop()
+
+        from LLM_SYS import BioBrainAgent
+        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+
+        intent_text = st.session_state.get("wb_hypo_intent_input", "") if selected_hypo_mode == "intent_exploration" else ""
+        active_engine = HypothesisEngine(
+            entities=ents,
+            relations=rels,
+            workbench_state=st.session_state.get("workbench_state", {}),
+            agent=llm_agent,
+            searcher=searcher,
+            lang=st.session_state.get("ui_language", "zh")
+        )
+
+        with st.spinner(t("msg_generating_pathways") if is_en else "🔬 正在进行拓扑寻孔与假说机制推演..."):
+            cards = active_engine.mine_and_formulate(
+                mode=selected_hypo_mode,
+                intent=intent_text,
+                top_k=5
+            )
+            st.session_state.hypothesis_cards = cards
+            st.session_state.active_hypo_mode = selected_hypo_mode
+            st.session_state.active_hypo_intent = intent_text
+            st.rerun()
+
+    # 3. 假说卡片列表渲染与交互区 (两阶段解耦，按需并发核验)
+    hypo_cards = st.session_state.get("hypothesis_cards", [])
+    if hypo_cards:
+        st.markdown(t("wb_hypo_list_title").format(count=len(hypo_cards)))
+
+        # 批量核验操作条
+        unverified_cards = [c for c in hypo_cards if c.get("verification_status") != "verified"]
+        if unverified_cards:
+            col_b1, col_b2 = st.columns([3, 1])
+            with col_b1:
+                if st.button(t("wb_hypo_btn_verify_batch"), key="wb_hypo_btn_verify_batch", width="stretch"):
+                    current_key = api_key.strip() if api_key else ""
+                    is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                    if not current_key and not is_local:
+                        st.error(t("err_missing_api_key"))
+                        st.stop()
+
+                    from LLM_SYS import BioBrainAgent
+                    llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+                    engine = HypothesisEngine(
+                        entities=ents,
+                        relations=rels,
+                        workbench_state=st.session_state.get("workbench_state", {}),
+                        agent=llm_agent,
+                        searcher=searcher,
+                        lang=st.session_state.get("ui_language", "zh")
+                    )
+                    with st.spinner("⚡ 正在多线程并发检索 PubMed 文献并由裁判大模型终审..."):
+                        updated_list = engine.verify_hypotheses_concurrent(
+                            hypotheses=hypo_cards,
+                            intent=st.session_state.get("active_hypo_intent", ""),
+                            max_workers=4
+                        )
+                        st.session_state.hypothesis_cards = updated_list
+                        st.toast("✅ 全部假说文献裁判终审已并发完成！", icon="🎉")
+                        st.rerun()
+
+        # 逐卡片呈现
+        for idx, card in enumerate(hypo_cards):
+            cid = card.get("id", f"hypo_{idx}")
+            status = card.get("verification_status", "unverified")
+            node_a = card.get("node_a", "")
+            node_b = card.get("node_b", "")
+            cat_a = card.get("category_a", "Gene_Protein")
+            cat_b = card.get("category_b", "Gene_Protein")
+
+            with st.container(border=True):
+                h_col1, h_col2 = st.columns([4, 1])
+                with h_col1:
+                    st.markdown(f"#### 假说 #{idx+1}：`{node_a}` $\\longleftrightarrow$ `{node_b}`")
+                    st.caption(f"📌 **{card.get('hypothesis_statement', '')}**")
+                with h_col2:
+                    mode_tag = card.get("mode", "bridge")
+                    if "bridge" in mode_tag:
+                        st.markdown(f"`{t('wb_hypo_badge_bridge')}`")
+                    elif "growth" in mode_tag:
+                        st.markdown(f"`{t('wb_hypo_badge_growth')}`")
+                    else:
+                        st.markdown(f"`{t('wb_hypo_badge_intent')}`")
+
+                st.markdown(f"**{t('wb_hypo_card_rationale')}** {card.get('biological_rationale', '')}")
+                st.markdown(f"**{t('wb_hypo_card_direction')}** {card.get('research_direction', '')}")
+
+                # 阶段 B：裁判核验与结果展示
+                if status != "verified":
+                    if st.button(t("wb_hypo_btn_verify_single"), key=f"btn_verify_single_{cid}"):
+                        current_key = api_key.strip() if api_key else ""
+                        is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
+                        if not current_key and not is_local:
+                            st.error(t("err_missing_api_key"))
+                            st.stop()
+
+                        from LLM_SYS import BioBrainAgent
+                        llm_agent = BioBrainAgent(api_key=current_key, model=selected_model_id, base_url=base_url)
+                        engine = HypothesisEngine(
+                            entities=ents,
+                            relations=rels,
+                            workbench_state=st.session_state.get("workbench_state", {}),
+                            agent=llm_agent,
+                            searcher=searcher,
+                            lang=st.session_state.get("ui_language", "zh")
+                        )
+                        with st.spinner(f"🔬 正在检索 PubMed 并审读 `{node_a}` 与 `{node_b}` 的机制文献..."):
+                            updated_card = engine.verify_single_hypothesis(
+                                card,
+                                intent=st.session_state.get("active_hypo_intent", "")
+                            )
+                            st.session_state.hypothesis_cards[idx] = updated_card
+                            st.rerun()
+                else:
+                    adj = card.get("adjudication", {}) or {}
+                    verdict = adj.get("verdict", "novel_gap")
+                    articles = card.get("retrieved_articles", [])
+
+                    st.markdown("---")
+                    if verdict == "known":
+                        st.success(f"**{t('wb_hypo_verdict_known')}** (置信度: {adj.get('confidence', 0.9):.2f})")
+                        pmid = adj.get("direct_evidence_pmid", "")
+                        if pmid:
+                            st.markdown(f"📄 **关键确证文献**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
+                        quote = adj.get("evidence_quote", "")
+                        if quote:
+                            st.caption(f"📝 *原文依据*: “{quote}”")
+                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+
+                        # 采纳并入主图谱并返回主界面
+                        col_act_m, _ = st.columns([2, 2])
+                        with col_act_m:
+                            if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
+                                new_rel = {
+                                    "source": node_a,
+                                    "target": node_b,
+                                    "relation": card.get("proposed_relation", "Positive_Regulation"),
+                                    "doc_source": f"PMID: {pmid}" if pmid else "PubMed Verified",
+                                    "evidence": quote or card.get("hypothesis_statement", ""),
+                                    "weight": 1
+                                }
+                                st.session_state.master_relations.append(new_rel)
+                                st.session_state.master_relations = consolidate_homogeneous_relations(st.session_state.master_relations)
+                                save_local_vault()
+                                redraw_and_update()
+                                st.session_state.current_view = "main"
+                                st.toast(t("wb_hypo_toast_merged_return"), icon="🎉")
+                                st.rerun()
+
+                    elif verdict == "novel_gap":
+                        st.info(f"**{t('wb_hypo_verdict_novel')}** (创新度高)")
+                        st.markdown(f"⚖️ **裁判结论**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"🔭 **科研前瞻建议**: {adj.get('research_direction', '')}")
+                        st.caption(t("wb_hypo_novel_notice"))
+
+                        # 导出为专题独立子工程 (.biokg)
+                        col_act_sub, _ = st.columns([2, 2])
+                        with col_act_sub:
+                            sub_biokg = HypothesisEngine.export_hypothesis_as_biokg(
+                                hypothesis=card,
+                                master_entities=ents,
+                                master_relations=rels,
+                                project_id=proj_id,
+                                project_name=proj_name,
+                                workbench_state=st.session_state.get("workbench_state", {})
+                            )
+                            sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
+                            clean_fname = f"BioKG_Hypothesis_{node_a}_{node_b}.biokg"
+                            st.download_button(
+                                t("wb_hypo_btn_dl_biokg"),
+                                data=sub_bytes,
+                                file_name=clean_fname,
+                                mime="application/json",
+                                key=f"dl_hypo_sub_{cid}",
+                                width="stretch"
+                            )
+
+                    elif verdict == "cascade":
+                        st.warning(f"**{t('wb_hypo_verdict_cascade')}**")
+                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"🧭 **级联推演方向**: {adj.get('research_direction', '')}")
+                    else:
+                        st.info(f"**{t('wb_hypo_verdict_inconclusive')}**")
+                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+
+                    # 文献摘要展开面板
+                    if articles:
+                        with st.expander(t("wb_hypo_articles_title").format(count=len(articles)), expanded=False):
+                            for a_idx, art in enumerate(articles):
+                                a_pmid = art.get("pmid", "")
+                                a_title = art.get("title", "")
+                                a_year = art.get("year", "")
+                                a_journal = art.get("journal", "")
+                                a_abstract = art.get("abstract", "")
+                                st.markdown(f"**[{a_idx+1}] {a_title}** ({a_year}, {a_journal}) [PMID: {a_pmid}](https://pubmed.ncbi.nlm.nih.gov/{a_pmid}/)")
+                                st.caption(a_abstract[:300] + ("..." if len(a_abstract) > 300 else ""))
+
+    # 9. 底部返回按钮
     st.markdown("---")
     cb_1, cb_2, cb_3 = st.columns([1, 2, 1])
     with cb_2:

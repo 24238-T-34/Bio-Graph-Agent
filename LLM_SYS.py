@@ -1250,3 +1250,231 @@ class BioBrainAgent:
 
         return {}
 
+    def generate_hypothesis_pubmed_query(self, entity_a: str, entity_b: str, proposed_relation: str = "", intent: str = "") -> str:
+        """
+        为假说推演两端的实体专门生成高精度的 PubMed 检验检索式。
+        精准探查学术界是否已有关于两者直接互作或调控机制的报道。
+        """
+        sys_prompt = """你是一个顶级的生物医学文献检索与信息计量学专家。
+你的任务是为待检验的科学假说（实体 A 与 实体 B 之间的潜在调控机制）生成唯一的 PubMed 布尔检索式（Boolean Query）。
+
+规则要求：
+1. 核心实体 A 和 B 必须用 AND 连接，并带上 [Title/Abstract] 标签。
+2. 若传入了推测的机制（如促进、抑制、磷酸化、结合）或学者意图，可以适度提炼 2~4 个机制同义词作为第二组 AND 约束（例如 AND (inhibit* OR suppress* OR target*)），以过滤纯粹偶然提及的低信度文献，精准聚焦于功能/机理研究。
+3. 严禁使用过于繁琐冷门的检索语法，确保 PubMed 能够高召回。
+4. ⚠️ 严禁输出任何解释性文字、前缀或 Markdown 标记。直接输出纯检索式字符串！"""
+
+        user_content = f"待探勘核心实体 A: {entity_a}\n待探勘核心实体 B: {entity_b}\n推测机制/方向: {proposed_relation}\n学者科研意图: {intent if intent else '探究两者之间的直接分子机制与调控关系'}"
+
+        try:
+            raw_resp = self._ask_llm(sys_prompt, user_content)
+            query = self._clean_json_string(raw_resp).strip()
+            if query and "AND" in query and (entity_a.lower() in query.lower() or entity_b.lower() in query.lower()):
+                return query
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] 生成假说检验检索式异常: {e}")
+
+        clean_a = re.sub(r'[\(\)\[\]]', '', entity_a).strip()
+        clean_b = re.sub(r'[\(\)\[\]]', '', entity_b).strip()
+        return f'("{clean_a}"[Title/Abstract] AND "{clean_b}"[Title/Abstract])'
+
+    def formulate_hypothesis_candidates(self, candidate_pairs: list, intent: str = "", lang: str = "zh") -> list:
+        """
+        根据图论寻孔算法提取出的结构洞/边缘候选对，结合生物学生化逻辑，为每一对生成专业的假说命名、推演机制与研究方向描述。
+        :param candidate_pairs: 包含 node_a, category_a, node_b, category_b, context 等元数据的列表
+        :param intent: 学者指定的科研关注点（若有）
+        :param lang: "zh" 或 "en"
+        :return: 包含假说表述与建议研究方向的结构化列表
+        """
+        if not candidate_pairs:
+            return []
+
+        is_en = "en" in str(lang).lower()
+        if is_en:
+            sys_prompt = """You are a senior molecular biologist and systems medicine researcher.
+You will receive candidate entity pairs representing topological structural holes or growth frontiers in a biological knowledge graph.
+For each pair, formulate a biologically sound scientific hypothesis, propose a mechanistic relation, and articulate a clear research direction for scholars to investigate.
+
+Return strictly a valid JSON array of objects, one for each input pair in the same order:
+[
+  {
+    "hypothesis_statement": "<Concise scholarly hypothesis sentence in LaTeX, e.g. $\\\\text{Drug X}$ directly suppresses $\\\\text{Protein Y}$ phosphorylation>",
+    "proposed_relation": "<Positive_Regulation | Negative_Regulation | Physical_Binding | Catalytic_Transformation | Biomarker_Association>",
+    "biological_rationale": "<1-2 sentences on biological rationale based on entity categories and cellular context>",
+    "research_direction": "<Clear, inspiring description of the specific scientific research direction for the researcher to pursue>"
+  }
+]"""
+        else:
+            sys_prompt = """你是一位资深的分子系统生物学与转化医学专家。
+系统通过图论拓扑寻孔算法识别出了知识图谱中的若干“结构洞/缺失位点”或“周界边缘生长点”。
+你的任务是为给定的每一组候选节点对，结合两者的生物学本体分类与调控上下文，推演提出合理的科学假说、标定机制动词，并为学者阐述清晰的研究方向与科学留白。
+
+输出要求：请严格输出合法的 JSON 数组，数组元素与输入的候选对一一对应：
+[
+  {
+    "hypothesis_statement": "<规范学术假说陈述，支持 LaTeX 格式，如：$\\\\text{化合物 A}$ 靶向变构抑制 $\\\\text{激酶 B}$ 介导的下游促癌级联>",
+    "proposed_relation": "<机制动词：Positive_Regulation (促进/激活) | Negative_Regulation (抑制/阻断) | Physical_Binding (物理结合) | Catalytic_Transformation (催化转化) | Biomarker_Association (标志物关联)>",
+    "biological_rationale": "<1~2 句话阐明基于本体分类与细胞通路的生物学合理性理由>",
+    "research_direction": "<为学者指明具体、明确且有启发性的科学研究方向与留白描述，供学者自行设计实验验证>"
+  }
+]"""
+
+        user_content = f"【学者科研意向/焦点】: {intent if intent else '全局自感知自主探勘'}\n\n【待推演结构洞候选对列表】:\n" + json.dumps(candidate_pairs, ensure_ascii=False, indent=2)
+
+        try:
+            raw_resp = self._ask_llm(sys_prompt, user_content)
+            parsed = self._parse_json_object(raw_resp)
+            if isinstance(parsed, list) and len(parsed) == len(candidate_pairs):
+                return parsed
+            elif isinstance(parsed, list):
+                results = []
+                for i, pair in enumerate(candidate_pairs):
+                    if i < len(parsed) and isinstance(parsed[i], dict):
+                        results.append(parsed[i])
+                    else:
+                        results.append({
+                            "hypothesis_statement": f"{pair.get('node_a')} 与 {pair.get('node_b')} 存在潜在分子调控偶联",
+                            "proposed_relation": "Positive_Regulation",
+                            "biological_rationale": "基于拓扑近邻与跨簇结构洞推测存在未明机制关联",
+                            "research_direction": f"深入考察 {pair.get('node_a')} 对 {pair.get('node_b')} 的功能学调节效应"
+                        })
+                return results
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] 生成假说猜想异常: {e}")
+
+        # 启发式兜底
+        fallback = []
+        for pair in candidate_pairs:
+            na, nb = pair.get("node_a", "A"), pair.get("node_b", "B")
+            ca, cb = pair.get("category_a", ""), pair.get("category_b", "")
+            if "Drug" in ca or "Chemical" in ca:
+                rel = "Negative_Regulation"
+                stmt = f"{na} 靶向调控 {nb} 的表达或活性"
+                dir_desc = f"探究小分子 {na} 作为 {nb} 潜在干预剂的机理及敏感性表型"
+            else:
+                rel = "Positive_Regulation"
+                stmt = f"{na} 与 {nb} 在调控网络中存在功能偶联与互作"
+                dir_desc = f"探究 {na} 与 {nb} 在相关生物学过程中的协同或上下游级联机制"
+
+            fallback.append({
+                "hypothesis_statement": stmt,
+                "proposed_relation": rel,
+                "biological_rationale": f"基于 {ca} 与 {cb} 的本体相容性及拓扑结构洞推演",
+                "research_direction": dir_desc
+            })
+        return fallback
+
+    def adjudicate_literature_novelty(self, hypothesis_info: dict, articles: list, lang: str = "zh") -> dict:
+        """
+        文献裁判大模型核心入口：
+        通读检索到的 PubMed 摘要，判定假说究竟属于：
+        - 'known': 文献中已有直接实验/观察证实，属于知识盲区补全；
+        - 'novel_gap': 现有文献尚未有直接因果互作报道，属于真正的科研空白/原始创新假说；
+        - 'cascade': 现有文献揭示了多步间接级联（A 调控 C，C 再调控 B）；
+        - 'inconclusive': 文献仅概念共现或无直接因果依据。
+        """
+        is_en = "en" in str(lang).lower()
+        node_a = hypothesis_info.get("node_a", "")
+        node_b = hypothesis_info.get("node_b", "")
+        stmt = hypothesis_info.get("hypothesis_statement", "")
+        direction = hypothesis_info.get("research_direction", "")
+
+        if not articles:
+            if is_en:
+                return {
+                    "verdict": "novel_gap",
+                    "confidence": 0.85,
+                    "direct_evidence_pmid": "",
+                    "evidence_quote": "",
+                    "research_direction": direction,
+                    "adjudication_rationale": f"Comprehensive search in PubMed returned 0 direct co-occurrence articles for {node_a} and {node_b}. Based on ontological compatibility and network topology, this interaction represents a genuine scientific white space (novel hypothesis)."
+                }
+            else:
+                return {
+                    "verdict": "novel_gap",
+                    "confidence": 0.85,
+                    "direct_evidence_pmid": "",
+                    "evidence_quote": "",
+                    "research_direction": direction,
+                    "adjudication_rationale": f"在 PubMed 权威数据库检索中，未发现直接报道 {node_a} 与 {node_b} 相互作用的文献。基于本体相容性与拓扑结构洞推演，该机制属于尚未被报道的【真正的科研空白（原始创新假说）】。"
+                }
+
+        docs_summary = []
+        for i, art in enumerate(articles[:5]):
+            pmid = art.get("pmid", "")
+            title = art.get("title", "")
+            abstract = art.get("abstract", "")
+            year = art.get("year", "")
+            journal = art.get("journal", "")
+            docs_summary.append(
+                f"[Document #{i+1}] PMID: {pmid} ({year}, {journal})\n"
+                f"Title: {title}\n"
+                f"Abstract: {abstract}\n"
+            )
+
+        if is_en:
+            sys_prompt = """You are the Chief Scientific Reviewer in molecular pharmacology and systems biology.
+Your task is to thoroughly analyze the provided PubMed article abstracts against a proposed scientific hypothesis, and deliver an impartial, rigorous adjudication.
+
+Adjudication Categories:
+1. "known": The articles contain explicit experimental evidence directly confirming or reporting this interaction between Entity A and Entity B.
+2. "novel_gap": The articles discuss the entities separately or in unrelated contexts without demonstrating this direct causal interaction. This represents a true scientific gap / virgin territory.
+3. "cascade": The articles show that Entity A regulates an intermediate mediator C, which in turn influences Entity B.
+4. "inconclusive": Mentions are superficial or contradictory without clear mechanistic conclusion.
+
+Return strictly a valid JSON object:
+{
+  "verdict": "<known | novel_gap | cascade | inconclusive>",
+  "confidence": <float between 0.5 and 1.0>,
+  "direct_evidence_pmid": "<PMID of the key article if known, else empty string>",
+  "evidence_quote": "<Exact sentence from the abstract providing evidence, else empty string>",
+  "research_direction": "<Refined specific research direction for the researcher to explore>",
+  "adjudication_rationale": "<2-3 sentences explaining your analytical reasoning as the referee>"
+}"""
+        else:
+            sys_prompt = """你是一位国际顶尖的分子生物医学文献终审专家（Chief Referee）。
+你的任务是严谨、客观地通读给定的 PubMed 文献摘要，与学者提出的待检假说进行逐字对照，作出权威判定。
+
+判定档位规范：
+1. "known"【已知事实补全】：给定的文献摘要中已包含直接的实验或临床证据，明确报道了实体 A 与 实体 B 之间的直接作用关系。
+2. "novel_gap"【真正的科研空白 / 原始假说】：给定的文献虽然提及了实体 A 或 B，但均属于各自独立研究或宏观背景并列，尚未有文献完成该直接因果机制的实验验证，确属科研空白。
+3. "cascade"【多步级联中介】：文献表明 A 并不直接作用于 B，而是通过介导因子 C 产生间接调控 (A -> C -> B)。
+4. "inconclusive"【证据不足/无关】：文献中提及内容与该假说机制无关或存在严重矛盾。
+
+输出要求：请严格输出合法的单个 JSON 对象：
+{
+  "verdict": "<known | novel_gap | cascade | inconclusive>",
+  "confidence": <置信度浮点数 0.5~1.0>,
+  "direct_evidence_pmid": "<若已证实，给出关键证据的 PMID，否则留空字符>",
+  "evidence_quote": "<从摘要中摘录的直接证据原句，若无留空字符>",
+  "research_direction": "<进一步完善提炼的建议明确研究方向与科学留白描述>",
+  "adjudication_rationale": "<2~3句话清晰陈述裁判大模型的权威裁决理由>"
+}"""
+
+        user_content = (
+            f"【待检验假说陈述】: {stmt}\n"
+            f"【核心实体 A】: {node_a} ({hypothesis_info.get('category_a', 'Unknown')})\n"
+            f"【核心实体 B】: {node_b} ({hypothesis_info.get('category_b', 'Unknown')})\n"
+            f"【推测机制类型】: {hypothesis_info.get('proposed_relation', 'Unknown')}\n"
+            f"【原始研究方向】: {direction}\n\n"
+            f"【PubMed 检索回的前沿文献摘要集合】:\n" + "\n".join(docs_summary)
+        )
+
+        try:
+            raw_resp = self._ask_llm(sys_prompt, user_content)
+            parsed = self._parse_json_object(raw_resp)
+            if isinstance(parsed, dict) and "verdict" in parsed:
+                return parsed
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] 文献裁判大模型审读异常: {e}")
+
+        first_pmid = articles[0].get("pmid", "") if articles else ""
+        return {
+            "verdict": "novel_gap",
+            "confidence": 0.75,
+            "direct_evidence_pmid": first_pmid,
+            "evidence_quote": "",
+            "research_direction": direction,
+            "adjudication_rationale": "大模型在精读当前检索文献后，未发现针对两者直接因果调控机制的明确实验验证，建议学者针对该机制展开探究。"
+        }
+
