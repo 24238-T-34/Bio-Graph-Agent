@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from openai import OpenAI
 
@@ -15,6 +16,22 @@ class BioBrainAgent:
             raise Exception("大模型未能正常返回内容（返回值为空），可能是 API 被限流或网络超时，请检查 API Key 或稍后再试。")
 
         return raw_str.replace("```json", "").replace("```", "").strip()
+
+    def _parse_json_object(self, raw_str: str):
+        """清洗并严格反序列化大模型返回的 JSON 对象或数组，带正则容错提取"""
+        if not raw_str:
+            return None
+        cleaned = raw_str.replace("```json", "").replace("```", "").strip()
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            match = re.search(r'(\{.*\}|\[.*\])', cleaned, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(1))
+                except Exception:
+                    pass
+        return None
 
     def _ask_llm(self, system_prompt, user_content, model_override=None, max_retries=3, base_delay=2.0):
         target_model = model_override or self.model
@@ -777,5 +794,459 @@ class BioBrainAgent:
         rels = self.extract_relations(text_desc, ents)
         return ents, rels
 
+    # =========================================================================
+    # 🧬 [Workbench & Pathway Analysis 专属大模型能力扩展]
+    # =========================================================================
 
+    def classify_workbench_entity_round1(self, node_name: str, micro_ctx: dict, cat_str: str, allowed_ids: list, language: str = "zh") -> dict:
+        """
+        [Workbench] Round 1: 依据局部网络微上下文分类单节点 (严格约束枚举白名单与零容忍负向惩罚)
+        """
+        is_en = "en" in str(language).lower()
+        allowed_ids_str = json.dumps(allowed_ids, ensure_ascii=False)
+
+        if is_en:
+            system_prompt = (
+                "You are a senior computational biologist and biomedical ontology curator. Your task is to rigorously classify biomedical entities based on local graph topological micro-context.\n"
+                f"【CRITICAL RESTRICTION - ZERO TOLERANCE FOR NEW CATEGORIES】:\n"
+                f"1. You MUST choose primary_type strictly from this allowed ID list (case-sensitive): {allowed_ids_str}.\n"
+                "2. You are STRICTLY FORBIDDEN from inventing, creating, or translating ANY new category names (e.g. DO NOT create 'Bacteria', 'Pathogen', 'Microorganism', 'Organism', 'Receptor', etc.).\n"
+                "3. If evidence is insufficient, ambiguous, or the entity does not strictly fit any candidate category, you MUST set primary_type to \"Uncertain\"."
+            )
+            neighbors_str = "\n".join(micro_ctx.get("neighbors", [])) if micro_ctx.get("neighbors") else "No direct records"
+            evidence_str = "\n".join(micro_ctx.get("evidence", [])) if micro_ctx.get("evidence") else "No direct literature micro-evidence"
+
+            user_content = (
+                f"【Entity to Classify】: {node_name}\n"
+                f"【Known Aliases】: {', '.join(micro_ctx.get('aliases', [])) if micro_ctx.get('aliases') else 'None'}\n"
+                f"【Network Neighbor Relations】:\n{neighbors_str}\n"
+                f"【Local Literature Evidence】:\n{evidence_str}\n\n"
+                f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                f"【STRICT CANDIDATE ENUMERATION - primary_type MUST be one of】:\n{allowed_ids_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English. Do not invent any new category:\n"
+                "{\n"
+                "  \"primary_type\": \"<Exact Category ID from enumeration, or Uncertain>\",\n"
+                "  \"sub_type\": \"<Specific functional subtype or role in English>\",\n"
+                "  \"tags\": [\"<Tag1>\", \"<Tag2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<Concise justification in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位资深的计算生物学与生物信息学本体专家。你的任务是根据图谱局部微上下文对生物医学实体进行严谨分类。\n"
+                "【绝对硬性约束 / CRITICAL RESTRICTION - 零容忍自创新分类】:\n"
+                f"1. 字段 primary_type 的取值必须且只能严格从以下合法候选 ID 列表中选取（必须一字不差精确匹配）：\n"
+                f"   {allowed_ids_str}\n"
+                "2. 严禁擅自创造、发明或衍生任何列表之外的新分类名称（绝对禁止自创如: Bacteria, Pathogen, Microorganism, Organism, Receptor 等）！\n"
+                "3. 若该实体在当前预设中找不到对应分类或把握不足，你【必须且只能】将 primary_type 设为 \"Uncertain\"！绝不允许自立门户新增分类！"
+            )
+            neighbors_str = "\n".join(micro_ctx.get("neighbors", [])) if micro_ctx.get("neighbors") else "无直接记录"
+            evidence_str = "\n".join(micro_ctx.get("evidence", [])) if micro_ctx.get("evidence") else "无直接原文微证据"
+
+            user_content = (
+                f"【待分析实体】: {node_name}\n"
+                f"【实体已知别名】: {', '.join(micro_ctx.get('aliases', [])) if micro_ctx.get('aliases') else '无'}\n"
+                f"【网络邻居关系】:\n{neighbors_str}\n"
+                f"【局部文献证据】:\n{evidence_str}\n\n"
+                f"【候选实体类别集合】:\n{cat_str}\n\n"
+                f"【唯一允许选取的 primary_type 严格白名单】:\n{allowed_ids_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文，严禁自创分类:\n"
+                "{\n"
+                "  \"primary_type\": \"<严格白名单中的ID或Uncertain>\",\n"
+                "  \"sub_type\": \"<细分子类别或具体生物学功能>\",\n"
+                "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<简明推断理由，50字以内>\"\n"
+                "}"
+            )
+
+        try:
+            raw = self._ask_llm(system_prompt, user_content)
+            res = self._parse_json_object(raw)
+            if isinstance(res, dict) and "primary_type" in res:
+                return res
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] Round 1 Entity LLM Error ({node_name}): {e}")
+
+        return {
+            "primary_type": "Uncertain",
+            "sub_type": "",
+            "tags": [],
+            "confidence": 0.0,
+            "reasoning": "LLM call error or invalid response" if is_en else "大模型调用异常或未能返回合法结构"
+        }
+
+    def classify_workbench_entity_round2(self, node_name: str, matched_sentences: list, cat_str: str, allowed_ids: list, language: str = "zh") -> dict:
+        """
+        [Workbench] Round 2: 根据正则精准回溯原文语句进行判定 (严格约束枚举白名单与零容忍负向惩罚)
+        """
+        is_en = "en" in str(language).lower()
+        allowed_ids_str = json.dumps(allowed_ids, ensure_ascii=False)
+        sents_str = "\n".join([f"- {s}" for s in matched_sentences])
+
+        if is_en:
+            system_prompt = (
+                "You are a senior biomedical researcher. The previous round could not determine this entity's type due to weak context. Targeted regex search from the original paper full text retrieved the following sentences.\n"
+                f"【CRITICAL RESTRICTION - ZERO TOLERANCE FOR NEW CATEGORIES】:\n"
+                f"1. You MUST choose primary_type strictly from this allowed ID list (case-sensitive): {allowed_ids_str}.\n"
+                "2. You are STRICTLY FORBIDDEN from inventing, creating, or translating ANY new category names (e.g. DO NOT create 'Bacteria', 'Pathogen', 'Microorganism', 'Organism', 'Receptor', etc.).\n"
+                "3. If evidence remains insufficient or ambiguous, you MUST set primary_type to \"Uncertain\"."
+            )
+            user_content = (
+                f"【Entity to Classify】: {node_name}\n"
+                f"【Sentences Retrieved from Original Paper】:\n{sents_str}\n\n"
+                f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                f"【STRICT CANDIDATE ENUMERATION - primary_type MUST be one of】:\n{allowed_ids_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object. All field values (sub_type, tags, reasoning) MUST be in English. Do not invent any new category:\n"
+                "{\n"
+                "  \"primary_type\": \"<Exact Category ID from enumeration, or Uncertain>\",\n"
+                "  \"sub_type\": \"<Specific subtype in English>\",\n"
+                "  \"tags\": [\"<Tag1>\", \"<Tag2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<Literature-grounded evidence & rationale in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位资深的生物医学专家。前轮分析因上下文微弱无法断定该实体类型，现通过原文献正则精准检索到以下关键句子。\n"
+                "【绝对硬性约束 / CRITICAL RESTRICTION - 零容忍自创新分类】:\n"
+                f"1. 字段 primary_type 的取值必须且只能严格从以下合法候选 ID 列表中选取（必须一字不差精确匹配）：\n"
+                f"   {allowed_ids_str}\n"
+                "2. 严禁擅自创造、发明或衍生任何列表之外的新分类名称（绝对禁止自创如: Bacteria, Pathogen, Microorganism, Organism, Receptor 等）！\n"
+                "3. 若依然缺乏把握或证据不足，你【必须且只能】将 primary_type 设为 \"Uncertain\"！"
+            )
+            user_content = (
+                f"【待分析实体】: {node_name}\n"
+                f"【从原文精准检索出的上下文语句】:\n{sents_str}\n\n"
+                f"【候选实体类别集合】:\n{cat_str}\n\n"
+                f"【唯一允许选取的 primary_type 严格白名单】:\n{allowed_ids_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以单条合法 JSON 格式输出，所有文本字段（sub_type, tags, reasoning）务必使用中文，严禁自创分类:\n"
+                "{\n"
+                "  \"primary_type\": \"<严格白名单中的ID或Uncertain>\",\n"
+                "  \"sub_type\": \"<细分子类别>\",\n"
+                "  \"tags\": [\"<标签1>\", \"<标签2>\"],\n"
+                "  \"confidence\": 0.85,\n"
+                "  \"reasoning\": \"<原文支持证据与理由，50字以内>\"\n"
+                "}"
+            )
+
+        try:
+            raw = self._ask_llm(system_prompt, user_content)
+            res = self._parse_json_object(raw)
+            if isinstance(res, dict) and "primary_type" in res:
+                return res
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] Round 2 Entity LLM Error ({node_name}): {e}")
+
+        return {
+            "primary_type": "Uncertain",
+            "sub_type": "",
+            "tags": [],
+            "confidence": 0.0,
+            "reasoning": "Context in paper is insufficient to confirm category" if is_en else "文献上下文证据不足以明确分类"
+        }
+
+    def classify_workbench_entity_round3(self, node_name: str, cat_str: str, allowed_ids: list, language: str = "zh") -> dict:
+        """
+        [Workbench] Round 3: 兜底通用生物知识判定 (严格约束枚举白名单与零容忍负向惩罚)
+        """
+        is_en = "en" in str(language).lower()
+        allowed_ids_str = json.dumps(allowed_ids, ensure_ascii=False)
+
+        if is_en:
+            system_prompt = (
+                "You are a senior bioinformatics expert. The entity has limited context in the literature.\n"
+                "Adjudicate its category using your biomedical domain world knowledge.\n"
+                f"【CRITICAL RESTRICTION - ZERO TOLERANCE FOR NEW CATEGORIES】:\n"
+                f"1. You MUST choose primary_type strictly from this allowed ID list (case-sensitive): {allowed_ids_str}.\n"
+                "2. You are STRICTLY FORBIDDEN from inventing, creating, or translating ANY new category names (e.g. DO NOT create 'Bacteria', 'Pathogen', 'Microorganism', 'Organism', 'Receptor', etc.).\n"
+                "3. If confident, assign the proper candidate category from the list; if it is unidentifiable or outside the list, honestly output \"Uncertain\"."
+            )
+            user_content = (
+                f"【Biomedical Entity Name】: {node_name}\n\n"
+                f"【Candidate Entity Categories】:\n{cat_str}\n\n"
+                f"【STRICT CANDIDATE ENUMERATION - primary_type MUST be one of】:\n{allowed_ids_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object in English. Do not invent any new category:\n"
+                "{\n"
+                "  \"primary_type\": \"<Exact Category ID from enumeration, or Uncertain>\",\n"
+                "  \"sub_type\": \"<Specific subtype in English>\",\n"
+                "  \"tags\": [\"<Tag1>\"],\n"
+                "  \"confidence\": 0.70,\n"
+                "  \"reasoning\": \"<Domain knowledge reasoning in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位资深的生物信息学专家。该实体在文献局部和原文语句中信息均不足。\n"
+                "请仅根据你在通用生物医学领域的常识进行最终研判。\n"
+                "【绝对硬性约束 / CRITICAL RESTRICTION - 零容忍自创新分类】:\n"
+                f"1. 字段 primary_type 的取值必须且只能严格从以下合法候选 ID 列表中选取（必须一字不差精确匹配）：\n"
+                f"   {allowed_ids_str}\n"
+                "2. 严禁擅自创造、发明或衍生任何列表之外的新分类名称（绝对禁止自创如: Bacteria, Pathogen, Microorganism, Organism, Receptor 等）！\n"
+                "3. 若属于列表中的分类请准确归纳；若词汇无法确认或不在列表范畴，请坦率输出 \"Uncertain\"！"
+            )
+            user_content = (
+                f"【待分析生物医学实体名】: {node_name}\n\n"
+                f"【候选实体类别集合】:\n{cat_str}\n\n"
+                f"【唯一允许选取的 primary_type 严格白名单】:\n{allowed_ids_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以合法 JSON 输出，所有文本字段（sub_type, tags, reasoning）务必使用中文，严禁自创分类:\n"
+                "{\n"
+                "  \"primary_type\": \"<严格白名单中的ID或Uncertain>\",\n"
+                "  \"sub_type\": \"<细分子类别>\",\n"
+                "  \"tags\": [\"<标签1>\"],\n"
+                "  \"confidence\": 0.70,\n"
+                "  \"reasoning\": \"<通用知识研判依据，50字以内>\"\n"
+                "}"
+            )
+
+        try:
+            raw = self._ask_llm(system_prompt, user_content)
+            res = self._parse_json_object(raw)
+            if isinstance(res, dict) and "primary_type" in res:
+                return res
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] Round 3 Entity LLM Error ({node_name}): {e}")
+
+        return {
+            "primary_type": "Uncertain",
+            "sub_type": "",
+            "tags": [],
+            "confidence": 0.0,
+            "reasoning": "Features remain insufficient to classify after multi-stage analysis" if is_en else "经多级综合研判，实体特征仍不足以明确分类"
+        }
+
+    def classify_workbench_relation(self, source: str, target: str, orig_rel: str, evidence: str, rel_cat_str: str, allowed_rel_ids: list, src_type: str = "Unknown", tgt_type: str = "Unknown", language: str = "zh") -> dict:
+        """
+        [Workbench] 对单条关系进行深层机制分类与机制动词归纳 (严格枚举白名单与动词解耦约束)
+        """
+        is_en = "en" in str(language).lower()
+        allowed_rel_ids_str = json.dumps(allowed_rel_ids, ensure_ascii=False)
+
+        if is_en:
+            system_prompt = (
+                "You are a molecular mechanism biologist. Your task is to classify biomedical knowledge graph relationships into deep mechanism categories "
+                "and distill a precise, concise English mechanism verb.\n"
+                "【CRITICAL RESTRICTION - MECHANISM CATEGORY ENUMERATION】:\n"
+                f"1. mechanism_category MUST strictly be one of: {allowed_rel_ids_str}.\n"
+                "2. Specific action verbs (e.g. 'Phosphorylates', 'Inhibits', 'Binds', 'Degrades') MUST be written in mechanism_verb, NEVER as mechanism_category!\n"
+                "3. You are strictly forbidden from creating new category IDs."
+            )
+            user_content = (
+                f"【Subject Entity】: {source} (Classified as: {src_type})\n"
+                f"【Object Entity】: {target} (Classified as: {tgt_type})\n"
+                f"【Original Relation Predicate】: {orig_rel}\n"
+                f"【Original Literature Evidence】: {evidence if evidence else 'No direct sentence available'}\n\n"
+                f"【Candidate Mechanism Categories】:\n{rel_cat_str}\n\n"
+                f"【STRICT ENUMERATION - mechanism_category MUST be one of】:\n{allowed_rel_ids_str}\n\n"
+                "【Output Instructions】:\n"
+                "Strictly output a single valid JSON object. All field values MUST be in English:\n"
+                "{\n"
+                "  \"mechanism_category\": \"<Exact Candidate Category ID from enumeration>\",\n"
+                "  \"mechanism_verb\": \"<Precise concise English mechanism verb, 1-3 words>\",\n"
+                "  \"confidence\": 0.90,\n"
+                "  \"reasoning\": \"<Concise mechanism rationale in English, under 40 words>\"\n"
+                "}"
+            )
+        else:
+            system_prompt = (
+                "你是一位分子机制生物学家。你的任务是对生物知识图谱中的关系进行深层机制分类，"
+                "并归纳出一个精准精炼的机制动词谓词（如：催化磷酸化、竞争性结合、转录激活、靶向降解、受体识别、感染宿主等）。\n"
+                "【绝对硬性约束 - 关系机制分类枚举限制】:\n"
+                f"1. mechanism_category 的取值必须且只能严格从以下合法候选类别中选取：\n"
+                f"   {allowed_rel_ids_str}\n"
+                "2. 严禁自创机制大类！具体的机制动作（如：抑制、激活、结合、磷酸化等）请填写在 mechanism_verb 字段中，不要将动词当作类别填入 mechanism_category！"
+            )
+            user_content = (
+                f"【主体实体】: {source} (已分类为: {src_type})\n"
+                f"【客体实体】: {target} (已分类为: {tgt_type})\n"
+                f"【原始关系谓词】: {orig_rel}\n"
+                f"【文献原文证据】: {evidence if evidence else '无具体原文句子'}\n\n"
+                f"【候选关系机制类别】:\n{rel_cat_str}\n\n"
+                f"【唯一允许选取的 mechanism_category 严格白名单】:\n{allowed_rel_ids_str}\n\n"
+                "【输出要求】:\n"
+                "请严格以合法 JSON 输出，不要包含任何多余文字，mechanism_verb 与 reasoning 务必使用中文:\n"
+                "{\n"
+                "  \"mechanism_category\": \"<严格白名单中的类别ID>\",\n"
+                "  \"mechanism_verb\": \"<精准精炼的机制动词，10字以内>\",\n"
+                "  \"confidence\": 0.90,\n"
+                "  \"reasoning\": \"<简明归类依据，50字以内>\"\n"
+                "}"
+            )
+
+        try:
+            raw = self._ask_llm(system_prompt, user_content)
+            res = self._parse_json_object(raw)
+            if isinstance(res, dict) and "mechanism_category" in res:
+                return res
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] Relation LLM Error ({source} -> {target}): {e}")
+
+        default_cat = "Association_Correlation" if "Association_Correlation" in allowed_rel_ids else (allowed_rel_ids[0] if allowed_rel_ids else "Association_Correlation")
+        return {
+            "mechanism_category": default_cat,
+            "mechanism_verb": orig_rel,
+            "confidence": 0.5,
+            "reasoning": "Analysis defaulted to general correlation" if is_en else "分析降级至默认关联"
+        }
+
+    def score_workbench_nodes_intent(self, candidate_nodes: list, user_query: str, language: str = "zh") -> dict:
+        """
+        [Workbench/Pathway] 利用大模型对候选节点进行自然语言假说意图相关性与生物学角色偏好综合评分 (范围 0.0 ~ 5.0)
+        - 核心语义关联度: 0.0 ~ 3.5 分
+        - 关键情境角色偏好 (疾病/表型/靶点/药物/关键调节因子): 0.0 ~ 1.5 分
+        - 未提及节点默认打分 0.0
+        """
+        if not user_query or not candidate_nodes:
+            return {}
+
+        is_en = "en" in str(language).lower()
+
+        node_lines = []
+        for c in candidate_nodes[:80]:
+            n_name = c.get("name", "")
+            cat = c.get("primary_type", "Uncertain")
+            sub = c.get("sub_type", "")
+            deg = c.get("degree", 0)
+            type_str = f"{cat}/{sub}".strip("/") if sub else cat
+            node_lines.append(f"- {n_name} [类型: {type_str}, 连接度: {deg}]" if not is_en else f"- {n_name} [Type: {type_str}, Degree: {deg}]")
+
+        nodes_text = "\n".join(node_lines)
+
+        if is_en:
+            sys_prompt = (
+                "You are an expert systems biologist and computational medicine specialist. "
+                "The researcher provides a scientific research inquiry or hypothesis, and a list of entities extracted from a knowledge graph.\n"
+                "Your task is to evaluate and score which entities are relevant to the researcher's query.\n\n"
+                "【Scoring Criteria (Total: 0.0 to 5.0)】:\n"
+                "1. Semantic & Mechanistic Relevance (0.0 - 3.5 pts): How directly does this entity relate to the queried biological question, process, or pathology?\n"
+                "2. Contextual Role Preference (0.0 - 1.5 pts): Dynamically elevate key functional anchors for this specific inquiry (e.g. disease phenotypes, drug targets, critical enzymes/transcription factors, virulence factors).\n"
+                "Total score must be between 0.0 and 5.0.\n\n"
+                "【Output Format】:\n"
+                "Return strictly a single JSON object mapping ONLY the relevant entities (score >= 1.0). Omit irrelevant entities (default to 0.0):\n"
+                "{\n"
+                "  \"EntityName\": {\"score\": 4.5, \"role\": \"Direct pathological endpoint or key regulator\"}\n"
+                "}"
+            )
+            user_prompt = (
+                f"【Researcher's Focus/Inquiry】: {user_query}\n\n"
+                f"【Candidate Entities】:\n{nodes_text}\n\n"
+                "Please output the JSON ranking relevant entities:"
+            )
+        else:
+            sys_prompt = (
+                "你是一位资深的系统生物学与计算分子医学专家。学者提出了一项科学假说或探索重点，你需要从给出的图谱候选实体中，"
+                "评估哪些实体与学者的探索假说高度相关，并评定其作为通路关键锚点的优先级。\n\n"
+                "【评分标准 (总分 0.0 ~ 5.0 分)】：\n"
+                "1. 假说机理相关性 (0.0 ~ 3.5 分)：该实体是否处于学者探索意图的核心因果链上（如上下游分子、生理过程、靶点）？\n"
+                "2. 动态情境角色偏好 (0.0 ~ 1.5 分)：根据本次研究问题的具体侧重点，天然倾斜重点生物学角色（若探究致病机理则侧重关键毒力因子/疾病表型；若探究药物机制则侧重药物/靶点激酶；若探究信号转导则侧重核心受体/转录因子）。\n"
+                "满分为 5.0 分。\n\n"
+                "【输出格式要求】：\n"
+                "仅需对得分 >= 1.0 的相关实体进行评分（无关实体无需输出，系统默认赋 0.0）。严格输出唯一的合法 JSON 对象：\n"
+                "{\n"
+                "  \"实体名称\": {\"score\": 4.5, \"role\": \"核心病理表型 / 关键上游调控因子\"}\n"
+                "}"
+            )
+            user_prompt = (
+                f"【学者探索重点/假说】: {user_query}\n\n"
+                f"【候选图谱实体列表】:\n{nodes_text}\n\n"
+                "请严格按照 JSON 格式输出相关实体评分："
+            )
+
+        try:
+            raw_resp = self._ask_llm(sys_prompt, user_prompt)
+            parsed = self._parse_json_object(raw_resp)
+            if parsed and isinstance(parsed, dict):
+                cleaned_scores = {}
+                for k, v in parsed.items():
+                    if isinstance(v, dict):
+                        sc = float(v.get("score", 0.0))
+                        role = str(v.get("role", ""))
+                    elif isinstance(v, (int, float)):
+                        sc = float(v)
+                        role = ""
+                    else:
+                        continue
+                    sc = max(0.0, min(5.0, sc))
+                    if sc > 0:
+                        cleaned_scores[k] = {"score": sc, "role": role}
+                return cleaned_scores
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] Pathway 批处理节点意图评分异常: {e}")
+
+        return {}
+
+    def synthesize_pathway_narrative(self, pathway_idx: int, nodes_desc: list, edges_desc: list, loops_desc: list, user_query: str = "", language: str = "zh") -> dict:
+        """
+        [Pathway] 结合子网络关键实体、分子相互作用与回路拓扑，合成学术通路 LaTeX 命名与机制总结叙事
+        """
+        is_en = "en" in str(language).lower()
+
+        if is_en:
+            focus_instruction = f"\n3. Since a specific user inquiry is provided ('{user_query}'), strictly center the scholarly title and mechanism narrative on elucidating how this subnetwork addresses, regulates, or mediates that biological process." if user_query else ""
+            sys_prompt = (
+                "You are an expert in systems biology and molecular oncology. "
+                "You will be given an exact biological subnetwork module induced from a validated knowledge graph. "
+                "Your task is to synthesize: "
+                "1. A highly professional academic pathway title using LaTeX format where appropriate "
+                "(\e.g. '$\\text{CRL5}^{\\text{SOCS4}}$-mediated ubiquitination pathway and neurodegeneration resistance'). "
+                "2. A concise 2-3 sentence executive summary explaining the molecular mechanism. "
+                "If a feedback loop is verified in the network, briefly discuss its dynamic role (homeostasis or bistable switch). "
+                f"{focus_instruction}\n"
+                "Do NOT invent or fabricate any relations not present in the graph."
+            )
+            user_prompt = (
+                f"【Pathway #{pathway_idx} Verified Context】\n"
+                f"【User Focus】: {user_query if user_query else 'Autonomous discovery'}\n"
+                f"【Entities in Subnetwork】:\n" + "\n".join(nodes_desc) + "\n\n"
+                f"【Direct Verified Interactions】:\n" + "\n".join(edges_desc) + "\n\n"
+                f"【Detected Autoregulation Loops】:\n" + ("\n".join(loops_desc) if loops_desc else "None (Linear cascade)") + "\n\n"
+                "【Output Requirement】:\n"
+                "Return strictly a single valid JSON object in English:\n"
+                "{\n"
+                "  \"title\": \"<Scholarly title in LaTeX, e.g. $\\\\text{AMPK-mTOR}$ Signaling Axis in Autophagy>\",\n"
+                "  \"summary\": \"<2-3 concise sentences explaining the cascade and feedback regulation if present>\"\n"
+                "}"
+            )
+        else:
+            focus_instruction = f"\n3. 学者指定了明确的研究焦点（'{user_query}'），请务必以此为核心视角，在学术命名与机制解读中深入阐明该子网络如何介导或调控该生物学/病理过程。" if user_query else ""
+            sys_prompt = (
+                "你是一位资深的系统生物学与分子医学专家。你将接收从权威知识图谱中严格诱导出的局部生物机制子网络。"
+                "你的任务是：\n"
+                "1. 给出高度专业、规范的学术命名，支持规范的 LaTeX 格式"
+                "（如：$\\text{CRL5}^{\\text{SOCS4}}$ 介导的泛素化降解途径与神经退行抗性、$\\text{AMPK-mTOR}$ 介导的自噬调控轴）；\n"
+                "2. 用 2~3 句话精炼阐明该通路的分子传导逻辑与生理/病理意义；"
+                "如果给出的数据中检测到了真实的自反馈调节闭环，请在此适度剖析其自稳态或自促进效应。\n"
+                f"{focus_instruction}\n"
+                "⚠️ 严格禁止无中生有或捏造不存在的关系，节点与关系必须以给定数据为准！"
+            )
+            user_prompt = (
+                f"【第 {pathway_idx} 条通路已知机制数据】\n"
+                f"【学者关注焦点】: {user_query if user_query else '全局自主发现'}\n"
+                f"【子网络关键实体】:\n" + "\n".join(nodes_desc) + "\n\n"
+                f"【真实分子相互作用】:\n" + "\n".join(edges_desc) + "\n\n"
+                f"【算法硬性捕获的闭环回路】:\n" + ("\n".join(loops_desc) if loops_desc else "无闭环 (单向传导)") + "\n\n"
+                "【输出格式要求】:\n"
+                "请严格输出唯一的合法 JSON 对象，字段内容使用学术中文，严禁输出任何多余字符：\n"
+                "{\n"
+                "  \"title\": \"<学术命名，支持规范 LaTeX，如：$\\\\text{AMPK-mTOR}$ 轴介导的自噬应答通路>\",\n"
+                "  \"summary\": \"<2~3句话精练介绍通路机制；若有反馈循环适当融入动力学分析>\"\n"
+                "}"
+            )
+
+        try:
+            raw_resp = self._ask_llm(sys_prompt, user_prompt)
+            parsed = self._parse_json_object(raw_resp)
+            if parsed and isinstance(parsed, dict) and "title" in parsed and "summary" in parsed:
+                return parsed
+        except Exception as e:
+            print(f"⚠️ [BioBrainAgent] Pathway 机制叙事调用异常: {e}")
+
+        return {}
 
