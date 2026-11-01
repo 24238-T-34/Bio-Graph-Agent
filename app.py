@@ -2499,17 +2499,42 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     # 3. 本体预设与分析控制面板
     mgr = OntologyManager()
     presets = mgr.list_presets()
-    preset_id_map = {p["id"]: p for p in presets}
-    preset_ids = list(preset_id_map.keys())
+    raw_preset_map = {p["id"]: p for p in presets if "id" in p}
+    preset_ids = list(raw_preset_map.keys())
     default_idx = preset_ids.index("universal_biored") if "universal_biored" in preset_ids else 0
+
+    # 建立多向容错映射字典（支持 ID、中文名、英文名互查）
+    preset_id_map = {}
+    preset_name_to_id = {}
+    for p in presets:
+        pid = p.get("id", "")
+        if pid:
+            preset_id_map[pid] = p
+            preset_name_to_id[pid] = pid
+        if p.get("name"):
+            preset_id_map[p["name"]] = p
+            preset_name_to_id[p["name"]] = pid
+        if p.get("en_name"):
+            preset_id_map[p["en_name"]] = p
+            preset_name_to_id[p["en_name"]] = pid
+
+    # 🛡️ 状态守卫：双语切换时若 session_state 暂存了中文/英文显示名，安全归一化为预设 ID
+    cur_wb_preset = st.session_state.get("wb_preset_select")
+    if cur_wb_preset is not None:
+        if cur_wb_preset in preset_name_to_id:
+            st.session_state["wb_preset_select"] = preset_name_to_id[cur_wb_preset]
+        elif cur_wb_preset not in preset_ids:
+            st.session_state["wb_preset_select"] = preset_ids[default_idx] if preset_ids else ""
 
     with st.container(border=True):
         st.markdown(f"#### {t('wb_config_title')}")
         col_p1, col_p2 = st.columns([3, 2])
         with col_p1:
             def get_preset_fmt(pid):
-                p = preset_id_map.get(pid, {})
-                return p.get("en_name", p.get("name", pid)) if is_en else p.get("name", pid)
+                p = raw_preset_map.get(pid)
+                if not p:
+                    return f"__invalid_preset_{pid}__"
+                return (p.get("en_name") or p.get("name", pid)) if is_en else (p.get("name") or p.get("en_name", pid))
 
             selected_pid = st.selectbox(
                 t("wb_preset_select"),
@@ -2518,8 +2543,16 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 index=default_idx,
                 key="wb_preset_select"
             )
-            selected_preset = preset_id_map[selected_pid]
-            desc = selected_preset.get('en_description', selected_preset.get('description', '')) if is_en else selected_preset.get('description', '')
+            # 强化安全回查与兜底
+            selected_pid = preset_name_to_id.get(selected_pid, selected_pid)
+            selected_preset = preset_id_map.get(selected_pid)
+            if not selected_preset:
+                fallback_id = "universal_biored" if "universal_biored" in preset_id_map else (preset_ids[0] if preset_ids else "")
+                selected_preset = preset_id_map.get(fallback_id, {})
+                selected_pid = fallback_id
+                st.session_state["wb_preset_select"] = selected_pid
+
+            desc = (selected_preset.get('en_description') or selected_preset.get('description', '')) if is_en else (selected_preset.get('description') or selected_preset.get('en_description', ''))
             st.caption(f"ℹ️ {desc}")
         with col_p2:
             st.markdown(f"**{t('wb_custom_preset_title')}**")
@@ -2832,13 +2865,35 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
                 with col_e2:
                     cat_keys = list(ent_cat_defs.keys())
-                    def_cat_idx = cat_keys.index(cur_type) if cur_type in cat_keys else 0
+                    cat_name_to_id = {}
+                    for k, cd in ent_cat_defs.items():
+                        cat_name_to_id[k] = k
+                        if cd.get("name"): cat_name_to_id[cd["name"]] = k
+                        if cd.get("label"): cat_name_to_id[cd["label"]] = k
+                        if cd.get("en_name"): cat_name_to_id[cd["en_name"]] = k
+                        if cd.get("en_label"): cat_name_to_id[cd["en_label"]] = k
+
+                    norm_cur_type = cat_name_to_id.get(cur_type, cur_type)
+                    def_cat_idx = cat_keys.index(norm_cur_type) if norm_cur_type in cat_keys else 0
+
+                    # 🛡️ 状态守卫：实体分类选择器
+                    cur_wb_cat = st.session_state.get("wb_select_target_cat")
+                    if cur_wb_cat is not None:
+                        if cur_wb_cat in cat_name_to_id:
+                            st.session_state["wb_select_target_cat"] = cat_name_to_id[cur_wb_cat]
+                        elif cur_wb_cat not in cat_keys:
+                            st.session_state["wb_select_target_cat"] = cat_keys[def_cat_idx] if cat_keys else ""
+
                     def get_cat_fmt(k):
-                        cd = ent_cat_defs.get(k, {})
+                        cd = ent_cat_defs.get(k)
+                        if not cd:
+                            return f"__invalid_cat_{k}__"
                         return ((cd.get("en_name") or cd.get("en_label", k)) if is_en else (cd.get("name") or cd.get("label", k))) or k
+
                     target_cat = st.selectbox(t("wb_target_cat_lbl"), cat_keys, index=def_cat_idx,
                                               format_func=get_cat_fmt,
                                               key="wb_select_target_cat")
+                    target_cat = cat_name_to_id.get(target_cat, target_cat)
                     target_sub = st.text_input(t("wb_sub_type_lbl"), value=cur_a.get("sub_type", ""), key="wb_input_target_sub")
                     target_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正", key="wb_input_target_reason")
 
@@ -2889,7 +2944,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     col_r1, col_r2 = st.columns([1, 1])
                     with col_r1:
                         sel_edge_lbl = st.selectbox(t("wb_sel_rel_lbl"), edge_display_list, key="wb_select_override_edge")
-                        s, t_node, orig_rel, k = edge_key_map[sel_edge_lbl]
+                        if sel_edge_lbl not in edge_key_map and edge_display_list:
+                            sel_edge_lbl = edge_display_list[0]
+                        s, t_node, orig_rel, k = edge_key_map.get(sel_edge_lbl, ("", "", "", ""))
                         cur_ra = rel_annots.get(k, {})
                         cur_mech_cat = cur_ra.get("mechanism_category", "Association_Correlation")
                         cur_mech_lbl = ((rel_cat_defs.get(cur_mech_cat, {}).get("en_name") or rel_cat_defs.get(cur_mech_cat, {}).get("en_label", cur_mech_cat)) if is_en else (rel_cat_defs.get(cur_mech_cat, {}).get("name") or rel_cat_defs.get(cur_mech_cat, {}).get("label", cur_mech_cat))) or cur_mech_cat
@@ -2899,13 +2956,35 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
                     with col_r2:
                         rel_keys = list(rel_cat_defs.keys())
-                        def_rel_idx = rel_keys.index(cur_mech_cat) if cur_mech_cat in rel_keys else 0
-                        def get_rel_fmt(k):
-                            rd = rel_cat_defs.get(k, {})
-                            return ((rd.get("en_name") or rd.get("en_label", k)) if is_en else (rd.get("name") or rd.get("label", k))) or k
+                        rel_name_to_id = {}
+                        for rk, rd in rel_cat_defs.items():
+                            rel_name_to_id[rk] = rk
+                            if rd.get("name"): rel_name_to_id[rd["name"]] = rk
+                            if rd.get("label"): rel_name_to_id[rd["label"]] = rk
+                            if rd.get("en_name"): rel_name_to_id[rd["en_name"]] = rk
+                            if rd.get("en_label"): rel_name_to_id[rd["en_label"]] = rk
+
+                        norm_cur_mech_cat = rel_name_to_id.get(cur_mech_cat, cur_mech_cat)
+                        def_rel_idx = rel_keys.index(norm_cur_mech_cat) if norm_cur_mech_cat in rel_keys else 0
+
+                        # 🛡️ 状态守卫：关系机制选择器
+                        cur_wb_rel = st.session_state.get("wb_select_target_relcat")
+                        if cur_wb_rel is not None:
+                            if cur_wb_rel in rel_name_to_id:
+                                st.session_state["wb_select_target_relcat"] = rel_name_to_id[cur_wb_rel]
+                            elif cur_wb_rel not in rel_keys:
+                                st.session_state["wb_select_target_relcat"] = rel_keys[def_rel_idx] if rel_keys else ""
+
+                        def get_rel_fmt(rk):
+                            rd = rel_cat_defs.get(rk)
+                            if not rd:
+                                return f"__invalid_rel_{rk}__"
+                            return ((rd.get("en_name") or rd.get("en_label", rk)) if is_en else (rd.get("name") or rd.get("label", rk))) or rk
+
                         target_rel_cat = st.selectbox(t("wb_target_relcat_lbl"), rel_keys, index=def_rel_idx,
                                                       format_func=get_rel_fmt,
                                                       key="wb_select_target_relcat")
+                        target_rel_cat = rel_name_to_id.get(target_rel_cat, target_rel_cat)
                         target_verb = st.text_input(t("wb_verb_lbl"), value=cur_ra.get("mechanism_verb", orig_rel), key="wb_input_target_verb")
                         target_rel_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正机制", key="wb_input_target_relreason")
 
@@ -3205,12 +3284,42 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             mode_keys = [m[0] for m in mode_options]
             mode_labels = {m[0]: m[1] for m in mode_options}
 
+            # 建立中英文双语模式名称反查字典
+            mode_name_to_id = {m[0]: m[0] for m in mode_options}
+            for mk, m_tkey in [
+                ("auto", "wb_hypo_mode_auto"),
+                ("detour_shortcut", "wb_hypo_mode_shortcut"),
+                ("cluster_bridge", "wb_hypo_mode_bridge"),
+                ("feedback_homeostasis", "wb_hypo_mode_homeostasis"),
+                ("peripheral_growth", "wb_hypo_mode_growth"),
+                ("intent_exploration", "wb_hypo_mode_intent")
+            ]:
+                if m_tkey in UI_TEXT:
+                    for l_code in ["zh", "en"]:
+                        lbl = UI_TEXT[m_tkey].get(l_code)
+                        if lbl:
+                            mode_name_to_id[lbl] = mk
+
+            # 🛡️ 状态守卫：假设推演模式选择器
+            cur_wb_mode = st.session_state.get("wb_hypo_mode_select")
+            if cur_wb_mode is not None:
+                if cur_wb_mode in mode_name_to_id:
+                    st.session_state["wb_hypo_mode_select"] = mode_name_to_id[cur_wb_mode]
+                elif cur_wb_mode not in mode_keys:
+                    st.session_state["wb_hypo_mode_select"] = mode_keys[0]
+
+            def get_mode_fmt(mk):
+                if mk not in mode_labels:
+                    return f"__invalid_mode_{mk}__"
+                return mode_labels[mk]
+
             selected_hypo_mode = st.selectbox(
                 t("wb_hypo_mode_select"),
                 options=mode_keys,
-                format_func=lambda k: mode_labels.get(k, k),
+                format_func=get_mode_fmt,
                 key="wb_hypo_mode_select"
             )
+            selected_hypo_mode = mode_name_to_id.get(selected_hypo_mode, selected_hypo_mode)
 
         temp_engine = HypothesisEngine(
             entities=master_ents,
