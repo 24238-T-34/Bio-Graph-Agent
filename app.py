@@ -3172,14 +3172,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             else:
                 st.caption("ℹ️ " + ("识别周界外围低度数实体，推演通过已知中介节点与核心中枢深入级联的薄层生长" if not is_en else "Identifies peripheral frontier nodes and hypothesizes cascade growth towards core network hubs"))
 
-        col_act1, col_act2 = st.columns([3, 1])
-        with col_act1:
-            btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
-        with col_act2:
-            if st.session_state.get("hypothesis_cards"):
-                if st.button(t("wb_hypo_btn_clear"), key="wb_hypo_btn_clear", width="stretch"):
-                    st.session_state.hypothesis_cards = []
-                    st.rerun()
+        btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
 
     # 2. 触发探勘推演
     if btn_mine:
