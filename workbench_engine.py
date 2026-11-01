@@ -1240,8 +1240,11 @@ class PathwayDecompositionEngine:
                 candidate_seeds.append(s_name)
                 base_scores[s_name] = s_score
 
-        # 2. 构建有向网络，计算生化动力学语义阻抗与导纳
+        # 2. 构建有向网络，计算生化动力学语义阻抗与导纳，并记录从属包含层级结构
         G_dir = nx.DiGraph()
+        parent_map = {}  # child -> set of parents
+        containment_edges = set()
+
         for r in relations:
             s = str(r.get("source", "")).strip()
             t = str(r.get("target", "")).strip()
@@ -1267,6 +1270,8 @@ class PathwayDecompositionEngine:
                 if is_containment:
                     r_imp = 10.0
                     conductance = 0.05
+                    parent_map.setdefault(t, set()).add(s)
+                    containment_edges.add((s, t))
                 elif is_causal:
                     r_imp = 1.0
                     conductance = 1.0
@@ -1296,7 +1301,22 @@ class PathwayDecompositionEngine:
         selected_subsets = []
         seen_node_sets = []
 
-        # 3. 循环多轮诱导不同方向的通路
+        # 预计算全图中所有长度为 2~3 的精炼生物功能因果闭环 (Feedback Cycles)，用于后续豁免保护
+        G_causal = nx.DiGraph()
+        for u, v, d in G_dir.edges(data=True):
+            if d.get("is_regulatory"):
+                G_causal.add_edge(u, v, **d)
+
+        all_cycles = []
+        try:
+            raw_cycles = list(nx.simple_cycles(G_causal))
+            for c in raw_cycles:
+                if 2 <= len(c) <= 3:
+                    all_cycles.append(c)
+        except Exception:
+            pass
+
+        # 3. 循环多轮诱导不同方向的高清因果通路 (级联主干 + 反馈闭环优先编织)
         while len(selected_subsets) < max_pathways:
             # MMR 动态种子重排：已曝光节点得分受衰减
             if enable_diversity_penalty and visited_node_counts:
@@ -1326,105 +1346,135 @@ class PathwayDecompositionEngine:
                     G_curr.add_edge(u, v, **d_copy)
 
                 cascade_nodes = {seed}
+                immune_nodes = set()
+                immune_edges = set()
 
-                # A. 沿有向出边搜寻直接下游效应 (Downstream Cascade，过滤纯包含关系，按导纳*度数*多样性加权)
-                direct_succs = []
-                for succ in G_curr.successors(seed):
-                    if G_curr[seed][succ].get("is_containment"):
-                        continue
-                    cond = G_curr[seed][succ].get("conductance", 0.4)
-                    deg_factor = 1.0 + (deg_dict.get(succ, 1) / max_deg)
-                    vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[succ]) if enable_diversity_penalty else 1.0
-                    prio = cond * deg_factor * vis_factor
-                    direct_succs.append((succ, prio))
-                direct_succs.sort(key=lambda x: x[1], reverse=True)
-
-                top_succs = [x[0] for x in direct_succs[:4]]
-                cascade_nodes.update(top_succs)
-
-                second_succs = []
-                for s1 in top_succs:
-                    for s2 in G_curr.successors(s1):
-                        if s2 != seed and s2 not in cascade_nodes and not G_curr[s1][s2].get("is_containment"):
-                            cond = G_curr[s1][s2].get("conductance", 0.4)
-                            deg_factor = 1.0 + (deg_dict.get(s2, 1) / max_deg)
-                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[s2]) if enable_diversity_penalty else 1.0
-                            prio = cond * deg_factor * vis_factor
-                            second_succs.append((s2, prio))
-                second_succs.sort(key=lambda x: x[1], reverse=True)
-                cascade_nodes.update([x[0] for x in second_succs[:3]])
-
-                # B. 沿有向入边搜寻上游刺激/输入 (Upstream Regulators，过滤纯包含关系)
-                direct_preds = []
-                for pred in G_curr.predecessors(seed):
-                    if G_curr[pred][seed].get("is_containment"):
-                        continue
-                    cond = G_curr[pred][seed].get("conductance", 0.4)
-                    deg_factor = 1.0 + (deg_dict.get(pred, 1) / max_deg)
-                    vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[pred]) if enable_diversity_penalty else 1.0
-                    prio = cond * deg_factor * vis_factor
-                    direct_preds.append((pred, prio))
-                direct_preds.sort(key=lambda x: x[1], reverse=True)
-
-                top_preds = [x[0] for x in direct_preds[:3]]
-                cascade_nodes.update(top_preds)
-
-                second_preds = []
-                for p1 in top_preds:
-                    for p2 in G_curr.predecessors(p1):
-                        if p2 != seed and p2 not in cascade_nodes and not G_curr[p2][p1].get("is_containment"):
-                            cond = G_curr[p2][p1].get("conductance", 0.4)
-                            deg_factor = 1.0 + (deg_dict.get(p2, 1) / max_deg)
-                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[p2]) if enable_diversity_penalty else 1.0
-                            prio = cond * deg_factor * vis_factor
-                            second_preds.append((p2, prio))
-                second_preds.sort(key=lambda x: x[1], reverse=True)
-                cascade_nodes.update([x[0] for x in second_preds[:2]])
-
-                # C. 打通与其它高优先级种子之间的有向最短路径 (加权 Dijkstra，最深 5 步)
-                target_peers = [o for o in active_seeds_order if o != seed and o in G_curr]
-                for other in target_peers[:15]:
-                    if len(cascade_nodes) >= 11:
+                # A. 确定前向因果传导主干长链 (Downstream Spine Tracing，深入 3~4 步)
+                curr = seed
+                for _ in range(4):
+                    causal_succs = []
+                    for succ in G_curr.successors(curr):
+                        if G_curr[curr][succ].get("is_regulatory") and succ not in cascade_nodes:
+                            # 亚型折叠：若父复合体已在主干中，不拉入下属组分以消除局部密集团簇
+                            if any(p in cascade_nodes for p in parent_map.get(succ, set())):
+                                continue
+                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[succ]) if enable_diversity_penalty else 1.0
+                            score = (1.0 + (deg_dict.get(succ, 1) / max_deg)) * vis_factor
+                            causal_succs.append((succ, score))
+                    if causal_succs:
+                        causal_succs.sort(key=lambda x: x[1], reverse=True)
+                        best_next = causal_succs[0][0]
+                        cascade_nodes.add(best_next)
+                        curr = best_next
+                    else:
                         break
+
+                # B. 向上追溯上游因果触发输入 (Upstream Spine Tracing，向上 2~3 步)
+                curr = seed
+                for _ in range(3):
+                    causal_preds = []
+                    for pred in G_curr.predecessors(curr):
+                        if G_curr[pred][curr].get("is_regulatory") and pred not in cascade_nodes:
+                            if any(p in cascade_nodes for p in parent_map.get(pred, set())):
+                                continue
+                            vis_factor = ((1.0 - diversity_penalty_rate) ** visited_node_counts[pred]) if enable_diversity_penalty else 1.0
+                            score = (1.0 + (deg_dict.get(pred, 1) / max_deg)) * vis_factor
+                            causal_preds.append((pred, score))
+                    if causal_preds:
+                        causal_preds.sort(key=lambda x: x[1], reverse=True)
+                        best_prev = causal_preds[0][0]
+                        cascade_nodes.add(best_prev)
+                        curr = best_prev
+                    else:
+                        break
+
+                # C. 打通到未被充分探索的高优先级代表元的最短路径
+                target_peers = [o for o in active_seeds_order if o != seed and o in G_curr]
+                for other in target_peers[:6]:
+                    if len(cascade_nodes) >= 8:
+                        break
+                    if any(p in cascade_nodes for p in parent_map.get(other, set())):
+                        continue
                     try:
                         if nx.has_path(G_curr, seed, other):
                             p = nx.shortest_path(G_curr, seed, other, weight="weight")
-                            if len(p) <= 5:
+                            if len(p) <= 4:
                                 cascade_nodes.update(p)
                         elif nx.has_path(G_curr, other, seed):
                             p = nx.shortest_path(G_curr, other, seed, weight="weight")
-                            if len(p) <= 5:
+                            if len(p) <= 4:
                                 cascade_nodes.update(p)
                     except Exception:
                         pass
 
-                # D. 父子场域容器归属激活：若有子节点在通路中，将其所属父容器作为发生场域上下文标记
-                containers = []
-                for node in list(cascade_nodes):
-                    for pred in G_dir.predecessors(node):
-                        if G_dir[pred][node].get("is_containment"):
-                            containers.append({"container": pred, "contained": node})
-                            if pred in candidate_seeds[:10] and len(cascade_nodes) < 11:
-                                cascade_nodes.add(pred)
+                # D. 反馈闭环优先检测与绝对豁免保护 (Feedback Loop Immunity，保留与主干耦合的闭环)
+                matched_cycles = []
+                for c in all_cycles:
+                    c_set = set(c)
+                    overlap = len(c_set.intersection(cascade_nodes))
+                    if overlap >= 1:
+                        matched_cycles.append((c, overlap))
+                matched_cycles.sort(key=lambda x: (x[1], -len(x[0])), reverse=True)
 
-                # 节点规模精炼修剪 (至多 11 个核心节点)
-                if len(cascade_nodes) > 11:
-                    sorted_cand = sorted(
-                        list(cascade_nodes),
-                        key=lambda x: (x == seed, -visited_node_counts[x], deg_dict.get(x, 0)),
+                for c, _ in matched_cycles[:2]:
+                    c_set = set(c)
+                    if len(cascade_nodes.union(c_set)) <= 11:
+                        cascade_nodes.update(c_set)
+                        immune_nodes.update(c_set)
+                        for i in range(len(c)):
+                            u = c[i]
+                            v = c[(i + 1) % len(c)]
+                            immune_edges.add((u, v))
+
+                # E. 连通性保全修剪 (确保 100% 连通图，保护割点桥梁分子，杜绝游离孤岛)
+                G_sub_undir = nx.Graph()
+                for n in cascade_nodes:
+                    G_sub_undir.add_node(n)
+                for u, v in G_dir.edges():
+                    if u in cascade_nodes and v in cascade_nodes:
+                        G_sub_undir.add_edge(u, v)
+
+                # 严格保留与主种子 seed 连通的主分量 (彻底清除任何游离孤岛)
+                if seed in G_sub_undir:
+                    seed_comp = nx.node_connected_component(G_sub_undir, seed)
+                    cascade_nodes = set(seed_comp)
+                    G_sub_undir = G_sub_undir.subgraph(cascade_nodes).copy()
+
+                # 超限节点精炼修剪：绝不可裁切割点桥梁与豁免闭环节点！
+                max_limit = 10
+                while len(cascade_nodes) > max_limit:
+                    articulation_points = set(nx.articulation_points(G_sub_undir))
+                    candidates_to_prune = [
+                        n for n in cascade_nodes
+                        if n != seed and n not in immune_nodes and n not in articulation_points
+                    ]
+                    if not candidates_to_prune:
+                        break
+                    candidates_to_prune.sort(
+                        key=lambda x: (visited_node_counts[x], -deg_dict.get(x, 0)),
                         reverse=True
                     )
-                    cascade_nodes = set(sorted_cand[:11])
+                    node_to_remove = candidates_to_prune[0]
+                    cascade_nodes.remove(node_to_remove)
+                    G_sub_undir.remove_node(node_to_remove)
 
-                # 诱导已知边
+                # F. 边的高质量筛选 (因果骨干 + 闭环回路 + 结构包含，稀疏化旁路冗余弱相关)
                 sub_rels = []
                 for r in relations:
                     src = str(r.get("source", "")).strip()
                     tgt = str(r.get("target", "")).strip()
                     if src in cascade_nodes and tgt in cascade_nodes and src != tgt:
-                        sub_rels.append(r)
+                        rel_type = str(r.get("relation", r.get("relation_type", ""))).strip()
+                        is_immune = (src, tgt) in immune_edges
+                        is_reg = (rel_type in ["正作用", "负作用"])
+                        is_comp = (src, tgt) in containment_edges
+                        if is_immune or is_reg or is_comp:
+                            sub_rels.append(r)
+                        elif rel_type in ["相关", "相互作用"]:
+                            # 仅当两点间无直接因果或闭环连接时补充保底
+                            sub_rels.append(r)
 
-                if len(cascade_nodes) >= 2 and len(sub_rels) >= 1:
+                if len(cascade_nodes) >= 3 and len(sub_rels) >= 2:
                     # 检查 Jaccard 相似度，多样性模式下阈值收紧至 0.45
                     jaccard_max = 0.0
                     for existing in seen_node_sets:
@@ -1441,7 +1491,7 @@ class PathwayDecompositionEngine:
                             "seed_nodes": [seed],
                             "nodes": sorted(list(cascade_nodes)),
                             "relations": sub_rels,
-                            "containers": containers
+                            "immune_nodes": list(immune_nodes)
                         })
                         found_new = True
                         break
