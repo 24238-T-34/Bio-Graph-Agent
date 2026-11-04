@@ -829,13 +829,13 @@ class GraphVisualizer:
                     """)
 
             legend_html = f"""
-            <!-- 图谱分析工作台悬浮动态图例 (无 Emoji 极简学术规范) -->
-            <div id="workbench-legend-panel" style="position:fixed;top:16px;right:16px;background:rgba(17,24,39,0.88);backdrop-filter:blur(8px);border:1px solid rgba(75,85,99,0.6);border-radius:10px;padding:12px 16px;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,0.5);z-index:9999;max-width:280px;user-select:none;">
-                <div id="legend-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:13px;border-bottom:1px solid rgba(75,85,99,0.5);padding-bottom:6px;margin-bottom:8px;" title="{toggle_tip}">
+            <!-- 图谱分析工作台悬浮动态图例 (扁平极简学术规范) -->
+            <div id="workbench-legend-panel" style="position:fixed;top:16px;right:16px;background:#111827;border:1px solid #374151;border-radius:8px;padding:12px 16px;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.3);z-index:9999;max-width:280px;user-select:none;">
+                <div id="legend-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:13px;border-bottom:1px solid #374151;padding-bottom:6px;margin-bottom:8px;" title="{toggle_tip}">
                     <span>{legend_title}</span>
-                    <span id="legend-toggle-btn" style="font-size:11px;color:#9ca3af;background:rgba(55,65,81,0.6);padding:2px 6px;border-radius:4px;">{btn_collapse}</span>
+                    <span id="legend-toggle-btn" style="font-size:11px;color:#9ca3af;background:#374151;padding:2px 6px;border-radius:4px;">{btn_collapse}</span>
                 </div>
-                <div id="legend-body" style="transition:all 0.2s ease;">
+                <div id="legend-body">
                     <div style="font-weight:600;color:#9ca3af;font-size:11px;text-transform:uppercase;margin:4px 0;">{entity_sec_title}</div>
                     {''.join(ent_legend_items)}
                     <div style="font-weight:600;color:#9ca3af;font-size:11px;text-transform:uppercase;margin:8px 0 4px 0;">{rel_sec_title}</div>

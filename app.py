@@ -1231,7 +1231,7 @@ st.set_page_config(page_title="Bio-Graph Agent", page_icon="🧬", layout="wide"
 UI_TEXT = {
     # 全局 & 标题
     "page_title": {"zh": "🧬 Bio-Graph Agent 生物知识图谱自动生成引擎", "en": "🧬 Bio-Graph Agent Biomedical Knowledge Graph Engine"},
-    "btn_help": {"zh": "❓ 帮助与说明", "en": "❓ Help & Docs"},
+    "btn_help": {"zh": "帮助说明", "en": "Help & Docs"},
     # 侧边栏
     "sidebar_title": {"zh": "## 🧬 Bio-Graph Agent", "en": "## 🧬 Bio-Graph Agent"},
     "sidebar_api_placeholder_local": {"zh": "Ollama 免密运行，可留空", "en": "Ollama local mode, can be empty"},
@@ -1254,8 +1254,8 @@ UI_TEXT = {
     "sidebar_db_title": {"zh": "#### 📚 智能检索源", "en": "#### 📚 Smart Search Source"},
     "sidebar_db_select": {"zh": "数据库", "en": "Database"},
     "sidebar_features_title": {"zh": "#### 🎛️ 界面功能开关", "en": "#### 🎛️ Feature Toggles"},
-    "sidebar_toggle_editor": {"zh": "📝 开启手动编辑面板", "en": "📝 Enable Manual Editor"},
-    "sidebar_toggle_ai": {"zh": "🤖 开启 AI 智能图谱分析", "en": "🤖 Enable AI Graph Analysis"},
+    "sidebar_toggle_editor": {"zh": "手动编辑面板", "en": "Manual Editor"},
+    "sidebar_toggle_ai": {"zh": "AI 智能图谱分析", "en": "AI Graph Analysis"},
     "sidebar_contact": {"zh": "🤝 联系我们 / 了解更多", "en": "🤝 Contact / Learn More"},
     "contact_desc": {
         "zh": "**Bio-Graph Agent** 致力于将大语言模型与生物知识图谱无缝融合。\n\n- 🐛 发现 Bug？\n- 💡 有绝妙的新功能想法？\n- 🌟 觉得好用的话，来给我们点个 Star 吧！",
@@ -1273,30 +1273,30 @@ UI_TEXT = {
     "api_ollama": {"zh": "Ollama (本地断网运行)", "en": "Ollama (Local Offline)"},
     "api_custom": {"zh": "自定义 (Custom)", "en": "Custom URL"},
     # 2. 模型选项
-    "model_gemini_2_5_flash_lite": {"zh": "Gemini 2.5 Flash-Lite (谷歌极致低价版)", "en": "Gemini 2.5 Flash-Lite (Ultra Low Cost)"},
-    "model_qwen_2_5_72b": {"zh": "Qwen 2.5 72B (千问学术双语旗舰版)", "en": "Qwen 2.5 72B (Bilingual Flagship)"},
-    "model_qwen_3_8_27b": {"zh": "Qwen 3.8 27B (千问学术双语旗舰版)", "en": "Qwen 3.8 27B (Bilingual Flagship)"},
-    "model_hy4_preview": {"zh": "Hunyuan 4 Preview (混元4预览版)", "en": "Hunyuan 4 Preview (Cost-effective)"},
-    "model_hy3_preview": {"zh": "Hunyuan 3 Preview (预览版 - 高性价比)", "en": "Hunyuan 3 Preview (Cost-effective)"},
-    "model_hy3": {"zh": "Hunyuan 3 (正式版 - 最强推理)", "en": "Hunyuan 3 (Official - Max Reasoning)"},
-    "model_deepseek_4_1_flash": {"zh": "DeepSeek 4.1 Flash (深度求索极速版)", "en": "DeepSeek 4.1 Flash"},
-    "model_glm_5_3": {"zh": "GLM 5.3 (智谱大模型)", "en": "GLM 5.3 (Zhipu AI)"},
-    "model_glm_5_3_f": {"zh": "GLM 5.3 flash(智谱大模型)", "en": "GLM 5.3 flash(Zhipu AI)"},
-    "model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash (谷歌高性价比极速版)", "en": "Gemini 3.8 Flash"},
-    "model_gemini_3_5_flash_lite": {"zh": "Gemini 3.5 Flash-Lite (谷歌性价比)", "en": "Gemini 3.5 Flash-Lite "},
+    "model_gemini_2_5_flash_lite": {"zh": "Gemini 2.5 Flash-Lite", "en": "Gemini 2.5 Flash-Lite"},
+    "model_qwen_2_5_72b": {"zh": "Qwen 2.5 72B", "en": "Qwen 2.5 72B"},
+    "model_qwen_3_8_27b": {"zh": "Qwen 3.8 27B", "en": "Qwen 3.8 27B"},
+    "model_hy4_preview": {"zh": "Hunyuan 4 Preview", "en": "Hunyuan 4 Preview"},
+    "model_hy3_preview": {"zh": "Hunyuan 3 Preview", "en": "Hunyuan 3 Preview"},
+    "model_hy3": {"zh": "Hunyuan 3", "en": "Hunyuan 3"},
+    "model_deepseek_4_1_flash": {"zh": "DeepSeek 4.1 Flash", "en": "DeepSeek 4.1 Flash"},
+    "model_glm_5_3": {"zh": "GLM 5.3", "en": "GLM 5.3"},
+    "model_glm_5_3_f": {"zh": "GLM 5.3 Flash", "en": "GLM 5.3 Flash"},
+    "model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash", "en": "Gemini 3.8 Flash"},
+    "model_gemini_3_5_flash_lite": {"zh": "Gemini 3.5 Flash-Lite", "en": "Gemini 3.5 Flash-Lite"},
     # 3. 数据库选项
-    "db_pubmed": {"zh": "PubMed (生物医学权威)", "en": "PubMed (Biomedical Auth)"},
-    "db_semanticscholar": {"zh": "Semantic Scholar (全科AI智能)", "en": "Semantic Scholar (AI Smart Search)"},
+    "db_pubmed": {"zh": "PubMed", "en": "PubMed"},
+    "db_semanticscholar": {"zh": "Semantic Scholar", "en": "Semantic Scholar"},
     # 预留给主界面的 Key（后续慢慢加）
     # 主界面：左侧文献输入与配置区
-    "col1_title": {"zh": "📂 1. 文献输入与配置", "en": "📂 1. Document Input & Config"},
+    "col1_title": {"zh": "文献输入与配置", "en": "Document Input & Config"},
     "upload_pdf": {"zh": "上传生物学文献 (PDF)", "en": "Upload Biological Document (PDF)"},
     "pdf_read_success": {"zh": "📄 成功读取 PDF 文件，总计 **{pages}** 页。", "en": "📄 Successfully loaded PDF, **{pages}** pages in total."},
     # 零基础冷启动区
     "cold_start_title": {"zh": "### 💡 没有文献？对 AI 说说你要研究什么吧", "en": "### 💡 No PDF? Tell AI what you want to study"},
     "cold_start_caption": {"zh": "只需输入一句话，AI 将自动检索、分批验证并为你搭建初始知识网络。", "en": "Just type a sentence, AI will automatically search, verify, and build your initial knowledge network."},
     "cold_start_placeholder": {"zh": "你的研究方向 (例如: 巨噬细胞极化在肿瘤微环境中的作用)", "en": "Your research topic (e.g. Role of macrophage polarization in tumor microenvironment)"},
-    "btn_ai_search": {"zh": "🚀 AI 一键检索并生成初始图谱", "en": "🚀 AI: Search & Generate Initial Graph"},
+    "btn_ai_search": {"zh": "检索文献", "en": "Search Literature"},
     "err_no_api_key": {"zh": "❌ 请先在上方配置 API Key！", "en": "❌ Please configure API Key above first!"},
     "warn_no_topic": {"zh": "⚠️ 请输入你想研究的内容！", "en": "⚠️ Please enter your research topic!"},
     "msg_generating_query": {"zh": "🤖 AI 正在生成专业检索式...", "en": "🤖 AI is generating professional query..."},
@@ -1315,11 +1315,11 @@ UI_TEXT = {
     "toast_start_success": {"zh": "✅ 一键起步成功！", "en": "✅ One-click start successful!"},
     "err_all_validation_fail": {"zh": "❌ 检索到的 {count} 篇候选文献全部未能通过相关性验证。可能是研究方向过于前沿或关键词歧义，请尝试修改研究意图后重试！", "en": "❌ All {count} candidate papers failed relevance validation. Your topic might be too cutting-edge or ambiguous. Please revise and try again!"},
     # 提取模式设置区
-    "extract_settings_title": {"zh": "⚙️ 2. 提取模式设置", "en": "⚙️ 2. Extraction Mode Settings"},
-    "toggle_summary_only": {"zh": "⚡ 仅提取摘要模式 (速度极快)", "en": "⚡ Summary Only Mode (Extremely Fast)"},
-    "toggle_reflection": {"zh": "🔍 启用自我反思纠错", "en": "🔍 Enable Self-Reflection Check"},
-    "toggle_append_mode": {"zh": "🔗 追加模式 (叠加到现有图谱)", "en": "🔗 Append Mode (Merge to Existing Graph)"},
-    "toggle_relation_grounding": {"zh": "🛡️ 关系节点文献正则补漏", "en": "🛡️ Relation Node Literature Grounding"},
+    "extract_settings_title": {"zh": "提取模式设置", "en": "Extraction Mode Settings"},
+    "toggle_summary_only": {"zh": "仅提取摘要", "en": "Summary Only"},
+    "toggle_reflection": {"zh": "自我反思纠错", "en": "Self-Reflection Check"},
+    "toggle_append_mode": {"zh": "追加模式 (叠加到现有图谱)", "en": "Append Mode (Merge to Existing Graph)"},
+    "toggle_relation_grounding": {"zh": "文献正则补漏", "en": "Relation Literature Grounding"},
     "toggle_relation_grounding_help": {"zh": "切块分析完成后，若发现关系端点未在实体字典中登记，自动使用正则比对原文。若原文确实存在该实体则自动回填落实为真实节点，若完全不存在则坚决剔除虚构关系。", "en": "After chunk analysis, regex-verify unregistered relation endpoints against original paper text. Real entities are recovered; hallucinated edges are strictly dropped."},
     "slider_concurrency": {"zh": "⚡ 并发线程数 (多切块并行解析)", "en": "⚡ Concurrency Workers (Parallel Chunks)"},
     "slider_concurrency_help": {"zh": "多线程并行抽取切块并并发转译机制插图，可成倍压缩文献解析耗时。若遇到频繁 API 限流报错可调小此数值。", "en": "Extract chunks and transcribe pathway figures concurrently to drastically reduce parsing time. Reduce this if you hit API rate limits."},
@@ -1340,9 +1340,9 @@ UI_TEXT = {
     "sidebar_vision_model_suffix": {"zh": "🏷️ 视觉模型后缀 (可选)", "en": "🏷️ Vision Model Suffix (Optional)"},
     "sidebar_vision_model_suffix_placeholder": {"zh": "如 :free 或完整模型名", "en": "e.g. :free or model ID"},
     "vision_model_auto": {"zh": "🔄 自由跟随主模型 (智能自适应)", "en": "🔄 Auto-follow Main Model"},
-    "vision_model_gemini_2_5_flash_lite": {"zh": "Gemini 2.5 Flash-Lite (极速推荐)", "en": "Gemini 2.5 Flash-Lite (Recommended)"},
-    "vision_model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash (高智商旗舰)", "en": "Gemini 3.8 Flash (Flagship)"},
-    "vision_model_qwen_2_5_vl_72b": {"zh": "Qwen 2.5 VL 72B (千问视觉旗舰)", "en": "Qwen 2.5 VL 72B (Vision Flagship)"},
+    "vision_model_gemini_2_5_flash_lite": {"zh": "Gemini 2.5 Flash-Lite", "en": "Gemini 2.5 Flash-Lite"},
+    "vision_model_gemini_3_8_flash": {"zh": "Gemini 3.8 Flash", "en": "Gemini 3.8 Flash"},
+    "vision_model_qwen_2_5_vl_72b": {"zh": "Qwen 2.5 VL 72B", "en": "Qwen 2.5 VL 72B"},
     "vision_model_custom": {"zh": "自定义视觉模型...", "en": "Custom Vision Model..."},
     # 追加模式提示
     "append_info_ready": {"zh": "📦 记忆库就绪：当前已有 {count} 个节点。新知识将与之融合！", "en": "📦 Memory Bank Ready: Currently {count} nodes. New knowledge will be merged!"},
@@ -1352,12 +1352,12 @@ UI_TEXT = {
     "start_page": {"zh": "起始页码", "en": "Start Page"},
     "end_page": {"zh": "结束页码", "en": "End Page"},
     "warn_summary_range": {"zh": "💡 提示：摘要通常在文献前两页。为了保证极速提取，建议缩小页码范围！", "en": "💡 Tip: Abstracts are usually in the first two pages. To ensure speed, suggest narrowing the page range!"},
-    "btn_start_parsing": {"zh": "🚀 开始解析 & 生成图谱", "en": "🚀 Start Parsing & Generate Graph"},
+    "btn_start_parsing": {"zh": "解析文献", "en": "Parse Literature"},
     # 历史文献侧边栏
     "history_sidebar_title": {"zh": "📚 历史分析文献", "en": "📚 Analyzed History Papers"},
     "history_no_docs": {"zh": "暂无已分析的文献", "en": "No analyzed papers yet"},
     # 右侧边界预览区
-    "preview_col_title": {"zh": "👀 3. 边界预览", "en": "👀 3. Boundary Preview"},
+    "preview_col_title": {"zh": "边界预览", "en": "Boundary Preview"},
     "preview_expander": {"zh": "🔍 点击查看选定范围的起止页 (用于确认边界)", "en": "🔍 Click to view start/end pages of selected range (Confirm boundaries)"},
     "preview_start_page": {"zh": "**🟢 起始边界 (第 {page} 页)**", "en": "**🟢 Start Boundary (Page {page})**"},
     "preview_end_page": {"zh": "**🔴 结束边界 (第 {page} 页)**", "en": "**🔴 End Boundary (Page {page})**"},
@@ -1366,18 +1366,18 @@ UI_TEXT = {
     "preview_no_pdf": {"zh": "👈 请先在左侧上传 PDF 文献以激活边界预览。", "en": "👈 Please upload a PDF document on the left to activate preview."},
     # 记忆库与工程管理区
     "memory_mgr_title": {"zh": "💾 记忆库与工程管理", "en": "💾 Memory Bank & Project Management"},
-    "btn_new_project": {"zh": "✨ 新建空白工程", "en": "✨ New Blank Project"},
-    "btn_export_project": {"zh": "📤 导出工程 (.biokg)", "en": "📤 Export Project (.biokg)"},
+    "btn_new_project": {"zh": "新建工程", "en": "New Project"},
+    "btn_export_project": {"zh": "导出工程 (.biokg)", "en": "Export Project (.biokg)"},
     "toast_export_empty": {"zh": "⚠️ 当前记忆库为空，请先上传并解析文献！", "en": "⚠️ Memory bank is empty. Please upload and parse documents first!"},
     "info_new_project_confirm": {
         "zh": "💡 **提示**：当前课题图谱已自动归档保存。新建后，您仍可在下方的「本地历史工程库」中随时切回访问当前工程；若您希望完全清除，请在历史工程库管理中操作。\n\n确认新建空白课题工程吗？",
         "en": "💡 **Notice**: The current project graph has been automatically archived. After creating a new project, you can still switch back to it anytime in 'Historical Projects' below. To delete it permanently, please manage it in Historical Projects.\n\nConfirm creating a new blank project?"
     },
-    "btn_confirm_new_project": {"zh": "✨ 确认新建", "en": "✨ Confirm Create"},
+    "btn_confirm_new_project": {"zh": "确认新建", "en": "Confirm Create"},
     "btn_cancel": {"zh": "取消", "en": "Cancel"},
     "doc_file_missing": {"zh": "未在本地文件库中找到源文件", "en": "Source file not found in local vault"},
     "upload_project": {"zh": "📥 载入历史工程文件 (.biokg / .json)", "en": "📥 Load History Project (.biokg / .json)"},
-    "btn_confirm_load": {"zh": "🚀 确认载入该工程", "en": "🚀 Confirm Load Project"},
+    "btn_confirm_load": {"zh": "确认载入工程", "en": "Confirm Load Project"},
     "help_confirm_load": {"zh": "载入该工程档案；若工程ID不同将作为独立工程载入，绝不影响当前工程", "en": "Load project archive; loads as an independent project if ID differs, safeguarding current project"},
     "toast_load_success": {"zh": "工程【{name}】已成功载入！", "en": "Project [{name}] successfully loaded!"},
     "missing_docs_section_title": {"zh": "🛠️ 缺失文献快捷补全", "en": "🛠️ Missing Literature Replenishment"},
@@ -1385,7 +1385,7 @@ UI_TEXT = {
     "project_name_label": {"zh": "🏷️ 项目课题名称", "en": "🏷️ Project Topic Name"},
     "project_name_help": {"zh": "当前研究课题名称，导出、归档目录与 Central Vault 文献库均将以此锚定", "en": "Current topic name; used for export filename, project folder, and Central Vault literature synchronization."},
     "archive_mgr_title": {"zh": "🗄️ 磁盘空间与工程归档管理", "en": "🗄️ Disk Space & Project Archive Management"},
-    "btn_clean_orphans": {"zh": "🧹 清理当前工程孤儿文献", "en": "🧹 Clean Orphaned Literature"},
+    "btn_clean_orphans": {"zh": "清理孤儿文献", "en": "Clean Orphaned Literature"},
     "help_clean_orphans": {"zh": "清除当前工程文献库中没有任何实体或关系引用的无用文献（自动识别并保护插图 [Figure: ...] 关联文献）。", "en": "Remove unused papers in current project with no node/edge references (automatically recognizes and protects figure [Figure: ...] citations)."},
     "toast_orphans_cleaned": {"zh": "✅ 已安全清理 {count} 篇孤儿文献！", "en": "✅ Safely cleaned {count} orphaned papers!"},
     "toast_no_orphans": {"zh": "✨ 当前工程文献均有图谱引用，无孤儿文献。", "en": "✨ All papers are referenced by graph nodes, no orphans."},
@@ -1417,27 +1417,27 @@ UI_TEXT = {
     "err_gen_fail": {"zh": "❌ 图谱文件未生成。", "en": "❌ Graph file not generated."},
     "err_process_fail": {"zh": "处理过程中发生错误：{e}", "en": "Error occurred during processing: {e}"},
     # 图谱渲染、视觉引擎与导出区
-    "export_section_title": {"zh": "### 📥 4. 知识图谱结果导出", "en": "### 📥 4. Export Knowledge Graph Results"},
+    "export_section_title": {"zh": "### 导出知识图谱", "en": "### Export Knowledge Graph Results"},
     "btn_export_ent_json": {"zh": "📄 导出实体 (JSON)", "en": "📄 Export Entities (JSON)"},
     "btn_export_ent_csv": {"zh": "📊 导出实体 (CSV)", "en": "📊 Export Entities (CSV)"},
     "btn_export_rel_csv": {"zh": "🔗 导出关系 (CSV)", "en": "🔗 Export Relations (CSV)"},
     "btn_export_graph_html": {"zh": "🕸️ 导出交互图谱 (HTML)", "en": "🕸️ Export Interactive Graph (HTML)"},
-    "toggle_show_shortcuts": {"zh": "👁️ 显示机制捷径边", "en": "👁️ Show Mechanism Shortcuts"},
-    "toggle_empower_ontology": {"zh": "🧬 包含关系反哺\n(父节点变大)", "en": "🧬 Ontology Empower\n(Parent Node Enlarge)"},
+    "toggle_show_shortcuts": {"zh": "显示机制捷径边", "en": "Show Mechanism Shortcuts"},
+    "toggle_empower_ontology": {"zh": "包含关系反哺\n(父节点变大)", "en": "Ontology Empower\n(Parent Node Enlarge)"},
     "slider_alpha_ontology": {"zh": "反哺转移比例 (α)", "en": "Transfer Ratio (α)"},
-    "toggle_empower_node": {"zh": "🌟 节点互相辐射\n(强关联变大)", "en": "🌟 Node Empower\n(Hub Nodes Enlarge)"},
+    "toggle_empower_node": {"zh": "节点互相辐射\n(强关联变大)", "en": "Node Empower\n(Hub Nodes Enlarge)"},
     "slider_beta_node": {"zh": "互相辐射加成率 (β)", "en": "Radiation Bonus Rate (β)"},
-    "toggle_empower_edge": {"zh": "🔗 核心主干加粗\n(高频连线变粗)", "en": "🔗 Edge Empower\n(High-freq Edges Thicken)"},
+    "toggle_empower_edge": {"zh": "核心主干加粗\n(高频连线变粗)", "en": "Edge Empower\n(High-freq Edges Thicken)"},
     "slider_gamma_edge": {"zh": "连线增粗系数 (γ)", "en": "Edge Thickening Factor (γ)"},
     "default_biokg_filename": {"zh": "我的图谱工程.biokg", "en": "My_Graph_Project.biokg"},
     # 图谱数据管理中心：全局与导航
     "editor_title": {"zh": "🎛️ 图谱数据管理中心", "en": "🎛️ Graph Data Management Center"},
     "nav_select_module": {"zh": "选择管理模块：", "en": "Select Management Module:"},
-    "nav_quick": {"zh": "⚡ 快捷功能", "en": "⚡ Quick Functions"},
+    "nav_quick": {"zh": "快捷功能", "en": "Quick Functions"},
     "nav_node": {"zh": "🎯 节点操作", "en": "🎯 Node Operations"},
     "nav_rel": {"zh": "🔗 关系操作", "en": "🔗 Relation Operations"},
     # 快捷功能区
-    "quick_clear_title": {"zh": "#### 🧹 一键清理", "en": "#### 🧹 One-Click Cleanup"},
+    "quick_clear_title": {"zh": "#### 快速清理", "en": "#### Quick Cleanup"},
     "quick_clear_desc": {"zh": "清理掉那些既不是起点、也不是终点的“孤立无援”的节点。", "en": "Clean up isolated nodes that are neither source nor target."},
     "btn_clear_isolated": {"zh": "🗑️ 清除所有孤立节点", "en": "🗑️ Clear All Isolated Nodes"},
     "toast_clear_success": {"zh": "✅ 成功清理了 {count} 个孤立节点！", "en": "✅ Successfully cleared {count} isolated nodes!"},
@@ -1446,7 +1446,7 @@ UI_TEXT = {
     "lbl_no_source": {"zh": "当前图谱没有来源记录。", "en": "No source records in current graph."},
     "lbl_select_source": {"zh": "选择要修改的文献/来源名", "en": "Select source to rename"},
     "lbl_new_source": {"zh": "输入新的名称 (如：Nature_2023_p53)", "en": "Enter new name (e.g. Nature_2023_p53)"},
-    "btn_replace_source": {"zh": "🔄 一键替换全图谱来源", "en": "🔄 Replace Source Globally"},
+    "btn_replace_source": {"zh": "替换全图谱来源", "en": "Replace Source Globally"},
     "err_empty_name": {"zh": "❌ 新名称不能为空！", "en": "❌ New name cannot be empty!"},
     "toast_rename_success": {"zh": "✅ 成功替换 '{old}'", "en": "✅ Successfully replaced '{old}'"},
     "quick_add_title": {"zh": "#### ➕ 手动添加节点", "en": "#### ➕ Manually Add Node"},
@@ -1538,7 +1538,7 @@ UI_TEXT = {
     "pruning_info": {"zh": "💡 拓扑清洗：基于大模型上下文与图论算法，自动处理同义词冗余、层级从属、机制捷径边降级、对称关系双向折叠与循环包含死锁化解。", "en": "💡 Topology Pruning: Leverages LLM reasoning and graph theory to resolve synonym redundancies, hierarchical containment, shortcut downgrading, symmetric relation folding, and mutual containment cycles."},
     "pruning_desc": {"zh": "点击下方按钮，将当前图谱的拓扑结构与文献证据发送给大模型进行诊断。",
                      "en": "Click the button below to send the current graph topology and evidence to LLM for diagnosis."},
-    "btn_start_pruning": {"zh": "🚀 开始 AI 智能诊断图谱", "en": "🚀 Start AI Smart Graph Diagnosis"},
+    "btn_start_pruning": {"zh": "开始图谱诊断", "en": "Start Graph Diagnosis"},
     "err_pruning_no_key": {"zh": "❌ 拦截：系统检测到您未填写 API Key！AI 图谱清洗需要调用大模型，请先在侧边栏配置密钥。",
                            "en": "❌ Blocked: No API Key detected! AI Pruning requires LLM. Please configure the key in the sidebar first."},
     "msg_pruning_diagnosing": {"zh": "🧠 大模型正在深度阅读文献证据并梳理图谱拓扑... (请耐心等待)",
@@ -1588,7 +1588,7 @@ UI_TEXT = {
     "col_neighbors": {"zh": "其连接的邻居", "en": "Connected Neighbors"},
     "col_risk_level": {"zh": "风险等级", "en": "Risk Level"},
     "col_ai_reason": {"zh": "AI 判定依据", "en": "AI Judgement Basis"},
-    "btn_execute_purge": {"zh": "🚨 确认处决勾选节点", "en": "🚨 Execute Purge on Checked Nodes"},
+    "btn_execute_purge": {"zh": "确认删除勾选节点", "en": "Execute Purge on Checked Nodes"},
     "toast_purge_success": {"zh": "✅ 成功清理了 {count} 个偏题节点及其连线！图谱瞬间纯净！",
                             "en": "✅ Successfully purged {count} off-topic nodes & edges! Graph is now pure!"},
     "btn_cancel_purge": {"zh": "放弃本次剪枝", "en": "Cancel This Pruning"},
@@ -1601,7 +1601,7 @@ UI_TEXT = {
     "no_papers_to_rename": {"zh": "当前工程暂无可供规范化的文献或出处来源。", "en": "No papers or sources available to standardize in current project."},
     "rename_opt_all": {"zh": "全部文献与来源", "en": "All Papers & Sources in Current Project"},
     "lbl_select_rename_target": {"zh": "选择重命名目标：", "en": "Select Renaming Target:"},
-    "btn_start_rename": {"zh": "🏷️ 开始识别并重命名", "en": "🏷️ Start Identification & Renaming"},
+    "btn_start_rename": {"zh": "开始识别并重命名", "en": "Start Renaming"},
     "msg_renaming_papers": {"zh": "🧠 正在检索官方元数据并进行大模型统一清洗审校...", "en": "🧠 Retrieving metadata and performing unified LLM sanitization..."},
     "toast_rename_success": {"zh": "✅ 文献【{old}】已规范重命名为【{new}】", "en": "✅ Paper [{old}] renamed to [{new}]"},
     "info_rename_skipped": {"zh": "ℹ️ 共 {count} 篇文献名称已符合学术规范，跳过更新。", "en": "ℹ️ {count} paper(s) already standardized, skipped."},
@@ -1642,7 +1642,7 @@ UI_TEXT = {
                     "en": "### ⚙️ Deep Fusion Task Queue (Progress: {idx}/{total})"},
     "queue_current_doc": {"zh": "👉 **当前准备解析:**\n\n📄 {title}\n*(PMID: {pmid})*",
                           "en": "👉 **Currently Parsing:**\n\n📄 {title}\n*(PMID: {pmid})*"},
-    "toggle_auto_run": {"zh": "🔁 开启连续自动解析 (无人值守模式)", "en": "🔁 Auto-Run Mode (Unattended Execution)"},
+    "toggle_auto_run": {"zh": "连续自动解析 (无人值守模式)", "en": "Auto-Run Mode (Unattended Execution)"},
     "warn_auto_running": {"zh": "⚠️ 自动巡航模式运行中... (若需中途强行中止，请点击页面右上角自带的 'Stop' 按钮)",
                           "en": "⚠️ Auto-cruise running... (To stop forcefully, click the 'Stop' button at the top right of the page)"},
     "btn_run_this": {"zh": "▶️ 解析并融合本篇", "en": "▶️ Parse & Fuse This Paper"},
@@ -1714,9 +1714,9 @@ UI_TEXT = {
     "msg_analyzing_edge": {"zh": "🧠 正在分析连线机制并生成解读...", "en": "🧠 Analyzing edge mechanism and generating explanation..."},
     "report_edge_title": {"zh": "### 📝 AI 连线机制解读报告", "en": "### 📝 AI Edge Mechanism Explanation Report"},
     # 📊 图谱分析工作台 (Workbench i18n)
-    "wb_nav_bottom_btn": {"zh": "📊 前往图谱分析工作台 (实体与关系机制深度解析) ➔", "en": "📊 Open Graph Analysis Workbench (Entities & Mechanisms) ➔"},
-    "wb_btn_top_return": {"zh": "⬅️ 返回主图谱工作区", "en": "⬅️ Return to Main Workspace"},
-    "wb_title": {"zh": "📊 图谱分析工作台 (Graph Analysis Workbench)", "en": "📊 Graph Analysis Workbench"},
+    "wb_nav_bottom_btn": {"zh": "前往图谱分析工作台 ➔", "en": "Open Graph Analysis Workbench ➔"},
+    "wb_btn_top_return": {"zh": "返回主工作区", "en": "Return to Main Workspace"},
+    "wb_title": {"zh": "图谱分析工作台", "en": "Graph Analysis Workbench"},
     "wb_caption": {"zh": "🔬 支持基于权威生物医学本体体系的层级递进研判（命名规范识别 ➔ 拓扑上下文推理 ➔ 原文精准溯源 ➔ 领域先验研判）、实体机制分布看板与专家协同校准。", "en": "🔬 Multi-stage biological entity and mechanism curation (Nomenclature Rules ➔ Topological Context ➔ Literature Grounding ➔ Domain Prior Knowledge) with biomedical ontology presets and expert review."},
     "wb_project_info": {"zh": "🗂️ 当前工程: **{name}** (`{id}`) | 实体总数: **{ents}** | 关系总数: **{rels}**", "en": "🗂️ Current Project: **{name}** (`{id}`) | Total Entities: **{ents}** | Total Relations: **{rels}**"},
     "wb_warn_no_data": {"zh": "⚠️ 当前工程暂无图谱数据。请先返回主工作区上传解析文献或导入已有工程。", "en": "⚠️ No graph data in current project. Please return to the main workspace to upload papers or import a project first."},
@@ -1725,20 +1725,20 @@ UI_TEXT = {
     "wb_config_title": {"zh": "⚙️ 分析预设与流水线控制", "en": "⚙️ Ontology Presets & Pipeline Control"},
     "wb_preset_select": {"zh": "📚 选择分析本体预设体系", "en": "📚 Select Ontology Preset"},
     "wb_custom_preset_title": {"zh": "自定义规则管理", "en": "Custom Schema Management"},
-    "wb_btn_open_presets_dir": {"zh": "📁 打开规则文件夹", "en": "📁 Open Rules Folder"},
+    "wb_btn_open_presets_dir": {"zh": "打开规则目录", "en": "Open Rules Folder"},
     "wb_open_presets_dir_desc": {"zh": "将符合三要素规范的 .json 规则文件直接放入该目录即可自动加载；文件夹内附详细中英指南。", "en": "Place 3-element .json schema files directly into this folder to load them automatically. Detailed guides are included inside."},
-    "wb_btn_refresh_presets": {"zh": "🔄 刷新预设列表", "en": "🔄 Refresh Presets"},
+    "wb_btn_refresh_presets": {"zh": "刷新预设列表", "en": "Refresh Presets"},
     "wb_toast_folder_opened": {"zh": "已尝试在文件资源管理器中打开规则目录: {path}", "en": "Attempted to open rules folder in file manager: {path}"},
     "wb_chk_entities": {"zh": "🧬 开启实体分级分类分析", "en": "🧬 Enable Entity Categorization"},
     "wb_chk_relations": {"zh": "🔗 开启关系机制动词归纳", "en": "🔗 Enable Relation Mechanism Distillation"},
     "wb_chk_force": {"zh": "🔄 忽略已有缓存强制全量重算", "en": "🔄 Force Full Re-analysis (Bypass Cache)"},
     "wb_esc_title": {"zh": "⚙️ 层级分析策略高级配置 (Multi-Stage Analysis Settings)", "en": "⚙️ Multi-Stage Analysis Configuration"},
-    "wb_esc_r0": {"zh": "⚡ 阶段一: 权威生物命名规范与词缀识别 (基于命名规则高速解析)", "en": "⚡ Stage 1: Nomenclature & Affix Recognition (Rule-based fast parsing)"},
-    "wb_esc_r1": {"zh": "🧠 阶段二: 局部网络拓扑推理 (结合相邻三元组与证据)", "en": "🧠 Stage 2: Local Network Topology Reasoning (Neighboring triples & context)"},
-    "wb_esc_r2": {"zh": "📖 阶段三: 文献全文精准溯源 (提取文献原句深度研判)", "en": "📖 Stage 3: Full-Text Literature Grounding (Source passage retrieval & analysis)"},
-    "wb_esc_r3": {"zh": "🌐 阶段四: 生物医学全局先验知识 (领域专家背景知识综合研判)", "en": "🌐 Stage 4: Biomedical Domain Prior Knowledge (Global biomedical knowledge reasoning)"},
-    "wb_btn_start_run": {"zh": "🚀 启动/更新图谱分析工作台", "en": "🚀 Run / Update Graph Analysis Workbench"},
-    "wb_btn_rerender_canvas": {"zh": "🎨 仅重新渲染工作台画布", "en": "🎨 Re-render Workbench Canvas Only"},
+    "wb_esc_r0": {"zh": "权威生物命名规范与词缀识别", "en": "Nomenclature & Affix Recognition"},
+    "wb_esc_r1": {"zh": "局部网络拓扑推理 (相邻三元组与证据)", "en": "Local Network Topology Reasoning"},
+    "wb_esc_r2": {"zh": "文献全文精准溯源 (原句研判)", "en": "Full-Text Literature Grounding"},
+    "wb_esc_r3": {"zh": "领域专家背景先验知识", "en": "Biomedical Domain Prior Knowledge"},
+    "wb_btn_start_run": {"zh": "启动工作台分析", "en": "Run Workbench Analysis"},
+    "wb_btn_rerender_canvas": {"zh": "刷新工作台画布", "en": "Refresh Canvas Only"},
     "wb_metrics_title": {"zh": "### 📈 工作台科学指标大盘", "en": "### 📈 Workbench Scientific Metrics Dashboard"},
     "wb_metric_total": {"zh": "📊 实体总数", "en": "📊 Total Entities"},
     "wb_metric_resolved": {"zh": "✅ 已解析实体", "en": "✅ Resolved Entities"},
@@ -1756,12 +1756,12 @@ UI_TEXT = {
     "wb_target_cat_lbl": {"zh": "调整目标类别", "en": "Target Category"},
     "wb_sub_type_lbl": {"zh": "细分子类 / 具体功能 (可选)", "en": "Sub-type / Function (Optional)"},
     "wb_reason_lbl": {"zh": "专家校准说明", "en": "Curation Note / Reason"},
-    "wb_btn_save_ent": {"zh": "💾 保存实体分类修正并即时更新", "en": "💾 Save & Reclassify Entity"},
+    "wb_btn_save_ent": {"zh": "保存实体分类修正", "en": "Save Entity Classification"},
     "wb_sel_rel_lbl": {"zh": "选择待调整的关系连线", "en": "Select Relation Edge to Adjust"},
     "wb_target_relcat_lbl": {"zh": "调整机制类别", "en": "Target Mechanism Category"},
     "wb_verb_lbl": {"zh": "提炼机制谓词动词 (如: 催化磷酸化, 竞争性抑制)", "en": "Mechanism Verb (e.g. Phosphorylates, Inhibits)"},
-    "wb_btn_save_rel": {"zh": "💾 保存关系机制修正并即时更新", "en": "💾 Save & Override Mechanism"},
-    "wb_btn_bottom_return": {"zh": "⬅️ 返回主图谱构建工作区", "en": "⬅️ Return to Main Graph Workspace"},
+    "wb_btn_save_rel": {"zh": "保存关系机制修正", "en": "Save Mechanism Override"},
+    "wb_btn_bottom_return": {"zh": "返回主工作区", "en": "Return to Main Workspace"},
     "wb_log_expander_title": {"zh": "📝 实时执行分析日志 (Real-time Analysis Logs)", "en": "📝 Real-time Analysis Logs"},
     "wb_toast_analysis_done": {"zh": "🎉 工作台全量分析完成并生成拓扑图谱！", "en": "🎉 Workbench analysis completed and topology graph generated!"},
     "wb_toast_rerender_done": {"zh": "工作台画布重新渲染完成！", "en": "Workbench canvas re-rendered successfully!"},
@@ -1778,7 +1778,7 @@ UI_TEXT = {
     "wb_unit_entities": {"zh": "个实体", "en": "entities"},
     "wb_unit_relations": {"zh": "条关系", "en": "relations"},
     # 🧬 工作台第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition)
-    "wb_sec2_title": {"zh": "### 🧬 第二阶段：核心信号通路拆解与自调节回路建模", "en": "### 🧬 Stage 2: Signaling Pathway Decomposition & Autoregulation Modeling"},
+    "wb_sec2_title": {"zh": "### 通路分解与因果回路", "en": "### Pathway Decomposition & Causal Circuits"},
     "wb_sec2_caption": {"zh": "融合本体分类、拓扑特征与文献溯源，自由组合挖掘核心因果传导轴、自促进/自抑制闭环反馈回路及跨文献全新假说。", "en": "Mine core causal axes, self-promotion/inhibition feedback loops, and cross-literature hypotheses leveraging ontology, topology, and citations."},
     "wb_pw_input_label": {"zh": "🎯 通路探索焦点（输入关键科学问题/疾病/表型/药物；留空则触发全局自主发掘）：", "en": "🎯 Pathway Exploration Focus (Enter biological question/disease/phenotype/drug; leave blank for autonomous discovery):"},
     "wb_pw_input_placeholder": {"zh": "例如：探讨索拉非尼耐药机制与铁死亡调控轴；或留空", "en": "e.g. Explore sorafenib resistance mechanism and ferroptosis regulatory axis; or leave blank"},
@@ -1790,9 +1790,9 @@ UI_TEXT = {
     "wb_pw_chk_bridges": {"zh": "🌟 跨文献合成通路识别 (发现新假说)", "en": "🌟 Cross-Paper Bridge Detection (Discover novel hypotheses)"},
     "wb_pw_chk_subgraphs": {"zh": "🎨 精简独立子图渲染 (生成轻量交互画布)", "en": "🎨 Mini-Subgraph Rendering (Generate lightweight interactive canvas)"},
     "wb_pw_slider_count": {"zh": "🔢 输出通路数量上限", "en": "🔢 Max Pathway Count"},
-    "wb_pw_btn_start": {"zh": "🚀 开始信号通路拆解与建模", "en": "🚀 Run Pathway Decomposition & Modeling"},
-    "wb_pw_btn_rerun": {"zh": "🔄 重新拆解与生成通路", "en": "🔄 Re-generate Signaling Pathways"},
-    "wb_pw_btn_clear": {"zh": "🗑️ 清空通路结果", "en": "🗑️ Clear Results"},
+    "wb_pw_btn_start": {"zh": "拆解信号通路", "en": "Decompose Pathways"},
+    "wb_pw_btn_rerun": {"zh": "重新拆解通路", "en": "Re-run Pathway Decomposition"},
+    "wb_pw_btn_clear": {"zh": "清空通路结果", "en": "Clear Results"},
     "wb_pw_clear_done": {"zh": "已清空通路拆解结果与历史快照", "en": "Cleared pathway results and snapshots"},
     "wb_pw_status_start": {"zh": "正在启动信号通路拆解与因果建模流水线...", "en": "Starting pathway decomposition and causal modeling pipeline..."},
     "wb_pw_toast_done": {"zh": "🎉 信号通路拆解与建模完成！", "en": "🎉 Pathway decomposition and modeling completed!"},
@@ -1839,7 +1839,7 @@ with btn_col:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # 渲染帮助按钮，点击即触发上面的弹窗函数
-    if st.button(t("btn_help"), use_container_width=True, type="secondary"):
+    if st.button(t("btn_help"), icon=":material/help:", use_container_width=True, type="secondary"):
         show_help_dialog()
 st.markdown("---")
 # 📁 创建一个持久化文件夹，用来保存所有分析过的原文
@@ -2117,16 +2117,16 @@ UI_TEXT.setdefault("wb_enter_pruning_tip", {
 })
 
 UI_TEXT.setdefault("toggle_abstract_entities", {
-    "zh": "🧬 提取表型与行为调控终点",
-    "en": "🧬 Abstract Phenotype & Behavior Endpoints"
+    "zh": "提取表型终点",
+    "en": "Abstract Phenotype Endpoints"
 })
 UI_TEXT.setdefault("toggle_abstract_entities_help", {
     "zh": "开启后，若生物学过程、细胞时相或行为谱项（如自噬、凋亡、姐妹染色单体分离、交配）明确作为被调控对象，允许提取为标准节点；关闭时严格锁定纯物理分子。",
     "en": "Extracts biological processes, cell phases, and behaviors (e.g. autophagy, apoptosis, chromatid separation, mating) when acting as regulated targets."
 })
 UI_TEXT.setdefault("toggle_concept_synthesis", {
-    "zh": "💡 允许规范总结离散调控结局",
-    "en": "💡 Synthesize Discrete Outcomes"
+    "zh": "规范总结离散结局",
+    "en": "Synthesize Discrete Outcomes"
 })
 UI_TEXT.setdefault("toggle_concept_synthesis_help", {
     "zh": "遇到指向明确但原文表述分散离散的调控结局时，允许 AI 归纳为通用中性学术名词，并在标准名末尾以 (总结)/(inferred) 标出以便溯源审查。",
@@ -2386,8 +2386,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     })
     UI_TEXT.update({
         "wb_sec3_title": {
-            "zh": "### 💡 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)",
-            "en": "### 💡 Stage 3: Hypothesis Deduction & Discovery Copilot"
+            "zh": "### 假说推演引擎",
+            "en": "### Hypothesis Deduction Engine"
         },
         "wb_sec3_caption": {
             "zh": "结合阶段一本体分类与图论拓扑结构洞，自主挖掘网络断裂带；生成高价值学术猜想，并由裁判大模型并发通读 PubMed 检验科研创新性与空白填补。",
@@ -2402,20 +2402,20 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "wb_hypo_mode_intent": {"zh": "🎯 学者科研意向定向探究 (Intent Exploration)", "en": "🎯 Intent-Driven Directional Exploration"},
         "wb_hypo_intent_label": {"zh": "🎯 输入学者的科研关注点 / 探索意向 Prompt", "en": "🎯 Enter Research Intent / Focus Prompt"},
         "wb_hypo_intent_placeholder": {"zh": "例如：探索该通路在克服耐药性或介导自噬中的关键交互靶点", "en": "e.g., Explore potential targets mediating drug resistance or autophagy crosstalk"},
-        "wb_hypo_btn_mine": {"zh": "🚀 启动拓扑寻孔并推演候选假说 (~5项)", "en": "🚀 Mine Structural Holes & Formulate Hypotheses (~5 items)"},
+        "wb_hypo_btn_mine": {"zh": "推演候选假说", "en": "Formulate Hypotheses"},
         "wb_hypo_list_title": {"zh": "### 💡 探勘候选学术假说 (共 {count} 项)", "en": "### 💡 Candidate Academic Hypotheses ({count} items)"},
-        "wb_hypo_btn_verify_single": {"zh": "🔬 启动文献检索与裁判终审", "en": "🔬 Launch Literature Search & Referee Review"},
-        "wb_hypo_btn_verify_batch": {"zh": "⚡ 并发核验所有待审假说 (多线程加速)", "en": "⚡ Concurrently Verify All Pending Hypotheses (Multi-threaded)"},
-        "wb_hypo_btn_clear": {"zh": "🗑️ 清空假说卡片", "en": "🗑️ Clear Hypotheses"},
+        "wb_hypo_btn_verify_single": {"zh": "文献裁判终审", "en": "Launch Referee Review"},
+        "wb_hypo_btn_verify_batch": {"zh": "并发核验全部假说", "en": "Concurrently Verify All"},
+        "wb_hypo_btn_clear": {"zh": "清空假说", "en": "Clear Hypotheses"},
         "wb_hypo_card_rationale": {"zh": "🧬 生物学生化合理性依据：", "en": "🧬 Biochemical Rationale:"},
         "wb_hypo_card_direction": {"zh": "🧭 建议科研探索方向与留白描述：", "en": "🧭 Suggested Research Direction & Gap Description:"},
         "wb_hypo_verdict_known": {"zh": "💡 文献已确证的事实补全 (Known Evidence)", "en": "💡 Fact Gap Filled by Literature Evidence (Known Fact)"},
         "wb_hypo_verdict_novel": {"zh": "🌟 真正的科研空白 (原始创新假说 / Novelty High)", "en": "🌟 Genuine Scientific White Space (Novelty High)"},
         "wb_hypo_verdict_cascade": {"zh": "🔗 多步级联中介通路 (Cascade Pathway)", "en": "🔗 Multi-Step Cascade Pathway"},
         "wb_hypo_verdict_inconclusive": {"zh": "❓ 证据不足或存在争议 (Inconclusive)", "en": "❓ Inconclusive or Disputed Evidence"},
-        "wb_hypo_btn_merge_return": {"zh": "📥 采纳文献证据并触发抽取流水线 (入库主图谱并返回主界面)", "en": "📥 Ingest via Pipeline & Merge to Master Graph (Return)"},
-        "wb_hypo_btn_merge_cascade": {"zh": "📥 采纳级联文献证据并智能桥接入库 (抽取中介实体与两段式调控关系)", "en": "📥 Ingest Cascade Literature Evidence & Bridge to Master Graph (Extract Mediators)"},
-        "wb_hypo_btn_dl_biokg": {"zh": "📦 导出为专题研究子工程 (.biokg)", "en": "📦 Export as Research Subproject (.biokg)"},
+        "wb_hypo_btn_merge_return": {"zh": "采纳证据并合并入库", "en": "Ingest Evidence & Merge"},
+        "wb_hypo_btn_merge_cascade": {"zh": "采纳级联证据并入库", "en": "Ingest Cascade Evidence & Bridge"},
+        "wb_hypo_btn_dl_biokg": {"zh": "导出专题子工程 (.biokg)", "en": "Export Subproject (.biokg)"},
         "wb_hypo_toast_merged_return": {"zh": "🎉 确证文献已通过流水线深度解析！新实体与调控关系已成功吸收入主图谱。", "en": "🎉 Confirmed literature successfully parsed via pipeline and merged into master graph!"},
         "wb_hypo_toast_merged_cascade": {"zh": "🎉 级联文献已通过流水线深度解析！中介实体与两段式调控关系已智能桥接并合并入主图谱。", "en": "🎉 Cascade literature parsed via pipeline! Intermediate mediators and relations bridged into master graph."},
         "wb_hypo_novel_notice": {"zh": "ℹ️ 依据科研严谨性规范，未经验证的科学空白假说留作专享选题灵感，不污染主图谱事实库；学者可导出为独立子工程深挖。", "en": "ℹ️ By scientific standards, unverified gaps remain as research inspiration without polluting factual graph; export as subproject to investigate."},
@@ -2469,13 +2469,12 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     # 1. 顶部返回导航栏与标题
     col_back1, col_back2 = st.columns([1, 4])
     with col_back1:
-        if st.button(t("wb_btn_top_return"), key="btn_wb_top_return", width="stretch"):
+        if st.button(t("wb_btn_top_return"), icon=":material/arrow_back:", key="btn_wb_top_return", width="stretch"):
             st.session_state.current_view = "main"
             st.rerun()
     with col_back2:
         st.markdown(f"## {t('wb_title')}")
 
-    st.caption(t("wb_caption"))
 
     proj_id = get_current_project_id()
     proj_name = get_current_project_name()
@@ -2484,7 +2483,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     rels = st.session_state.get("master_relations", [])
 
     st.info(t("wb_project_info").format(name=proj_name, id=proj_id, ents=len(ents), rels=len(rels)))
-    st.caption(t("wb_enter_pruning_tip"))
 
     if len(ents) == 0:
         st.warning(t("wb_warn_no_data"))
@@ -2573,10 +2571,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             st.caption(f"ℹ️ {desc}")
         with col_p2:
             st.markdown(f"**{t('wb_custom_preset_title')}**")
-            st.caption(t("wb_open_presets_dir_desc"))
             btn_col1, btn_col2 = st.columns([3, 2])
             with btn_col1:
-                if st.button(t("wb_btn_open_presets_dir"), key="wb_btn_open_presets_dir", width="stretch"):
+                if st.button(t("wb_btn_open_presets_dir"), icon=":material/folder_open:", key="wb_btn_open_presets_dir", width="stretch"):
                     abs_dir = os.path.abspath(mgr.presets_dir)
                     opened = open_directory_in_file_manager(abs_dir)
                     if opened:
@@ -2584,7 +2581,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     else:
                         st.info(f"📁 `{abs_dir}`")
             with btn_col2:
-                if st.button(t("wb_btn_refresh_presets"), key="wb_btn_refresh_presets", width="stretch"):
+                if st.button(t("wb_btn_refresh_presets"), icon=":material/refresh:", key="wb_btn_refresh_presets", width="stretch"):
                     st.rerun()
             st.caption(f"📁 `{os.path.abspath(mgr.presets_dir)}`")
 
@@ -2610,9 +2607,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
         col_btn1, col_btn2 = st.columns([2, 1])
         with col_btn1:
-            btn_run = st.button(t("wb_btn_start_run"), type="primary", key="wb_btn_start_run", width="stretch")
+            btn_run = st.button(t("wb_btn_start_run"), icon=":material/play_arrow:", type="primary", key="wb_btn_start_run", width="stretch")
         with col_btn2:
-            btn_rerender = st.button(t("wb_btn_rerender_canvas"), key="wb_btn_rerender_canvas", width="stretch")
+            btn_rerender = st.button(t("wb_btn_rerender_canvas"), icon=":material/refresh:", key="wb_btn_rerender_canvas", width="stretch")
 
         if btn_run:
             needs_llm = (enable_r1 or enable_r2 or enable_r3 or enable_relations)
@@ -2859,7 +2856,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         st.markdown("---")
         with st.container(border=True):
             st.markdown(t("wb_override_title"))
-            st.caption(t("wb_override_caption"))
             tab_ent, tab_rel = st.tabs([t("wb_tab_ent_override"), t("wb_tab_rel_override")])
 
             with tab_ent:
@@ -2914,7 +2910,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     target_sub = st.text_input(t("wb_sub_type_lbl"), value=cur_a.get("sub_type", ""), key="wb_input_target_sub")
                     target_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正", key="wb_input_target_reason")
 
-                if st.button(t("wb_btn_save_ent"), key="wb_btn_save_ent_override", width="stretch"):
+                if st.button(t("wb_btn_save_ent"), icon=":material/save:", key="wb_btn_save_ent_override", width="stretch"):
                     cur_state = st.session_state.get("workbench_state", {})
                     if "entity_annotations" not in cur_state:
                         cur_state["entity_annotations"] = {}
@@ -3005,7 +3001,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         target_verb = st.text_input(t("wb_verb_lbl"), value=cur_ra.get("mechanism_verb", orig_rel), key="wb_input_target_verb")
                         target_rel_reason = st.text_input(t("wb_reason_lbl"), value="Expert Curation" if is_en else "领域专家手动订正机制", key="wb_input_target_relreason")
 
-                    if st.button(t("wb_btn_save_rel"), key="wb_btn_save_rel_override", width="stretch"):
+                    if st.button(t("wb_btn_save_rel"), icon=":material/save:", key="wb_btn_save_rel_override", width="stretch"):
                         cur_state = st.session_state.get("workbench_state", {})
                         if "relation_annotations" not in cur_state:
                             cur_state["relation_annotations"] = {}
@@ -3038,7 +3034,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     # ==========================================
     st.markdown("---")
     st.markdown(t("wb_sec2_title"))
-    st.caption(t("wb_sec2_caption"))
 
     pathways_dir = os.path.join(proj_dir, "pathways")
     manifest_path = os.path.join(pathways_dir, "pathways_manifest.json")
@@ -3068,7 +3063,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             label_visibility="collapsed"
         )
 
-        st.caption("⚙️ " + ("子功能独立控制与配置" if not is_en else "Sub-feature Configuration"))
         c_sw1, c_sw2, c_sw3, c_sw4, c_sw5 = st.columns([4, 3, 3, 3, 2])
         with c_sw1:
             pw_chk_diversity = st.checkbox(t("wb_pw_chk_diversity"), value=True, key="wb_pw_chk_diversity")
@@ -3082,7 +3076,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             pw_max_count = st.slider(t("wb_pw_slider_count"), min_value=1, max_value=5, value=3, key="wb_pw_slider_count")
 
         btn_run_label = t("wb_pw_btn_rerun") if display_pathways else t("wb_pw_btn_start")
-        btn_run_pathway = st.button(btn_run_label, type="primary", key="wb_pw_btn_start", width="stretch")
+        btn_run_pathway = st.button(btn_run_label, icon=":material/schema:", type="primary", key="wb_pw_btn_start", width="stretch")
 
     has_stage1 = bool(ent_annots and len(ent_annots) > 0)
 
@@ -3169,7 +3163,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                 width="stretch"
             )
         with col_hdr3:
-            if st.button(t("wb_pw_btn_clear"), key="btn_clear_pathways_results", width="stretch"):
+            if st.button(t("wb_pw_btn_clear"), icon=":material/delete_sweep:", key="btn_clear_pathways_results", width="stretch"):
                 st.session_state.decomposed_pathways = None
                 if os.path.exists(pathways_dir):
                     import shutil
@@ -3272,7 +3266,6 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     # ==========================================
     st.markdown("---")
     st.markdown(t("wb_sec3_title"))
-    st.caption(t("wb_sec3_caption"))
 
     import hypothesis_engine
     importlib.reload(hypothesis_engine)
@@ -3365,7 +3358,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             else:
                 st.caption("ℹ️ " + ("识别周界外围低度数实体，推演通过已知中介节点与核心中枢深入级联的薄层生长" if not is_en else "Identifies peripheral frontier nodes and hypothesizes cascade growth towards core network hubs"))
 
-        btn_mine = st.button(t("wb_hypo_btn_mine"), type="primary", key="wb_hypo_btn_mine", width="stretch")
+        btn_mine = st.button(t("wb_hypo_btn_mine"), icon=":material/science:", type="primary", key="wb_hypo_btn_mine", width="stretch")
 
     if btn_mine:
         if not has_stage1:
@@ -3432,7 +3425,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         if unverified_cards:
             col_b1, col_b2 = st.columns([3, 1])
             with col_b1:
-                if st.button(t("wb_hypo_btn_verify_batch"), key="wb_hypo_btn_verify_batch", width="stretch"):
+                if st.button(t("wb_hypo_btn_verify_batch"), icon=":material/fact_check:", key="wb_hypo_btn_verify_batch", width="stretch"):
                     current_key = api_key.strip() if api_key else ""
                     is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
                     if not current_key and not is_local:
@@ -3512,7 +3505,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
                 # 阶段 B：裁判核验与结果展示
                 if status != "verified":
-                    if st.button(t("wb_hypo_btn_verify_single"), key=f"btn_verify_single_{cid}"):
+                    if st.button(t("wb_hypo_btn_verify_single"), icon=":material/fact_check:", key=f"btn_verify_single_{cid}"):
                         current_key = api_key.strip() if api_key else ""
                         is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
                         if not current_key and not is_local:
@@ -3553,7 +3546,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
 
                         # 采纳确证文献证据并触发智能拓展抽取流水线入库 (占满卡片全宽)
-                        if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
+                        if st.button(t("wb_hypo_btn_merge_return"), icon=":material/merge:", type="primary", key=f"btn_merge_{cid}", width="stretch"):
                             current_key = api_key.strip() if api_key else ""
                             is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
                             if not current_key and not is_local:
@@ -3578,7 +3571,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.caption(t("wb_hypo_novel_notice"))
 
                         # 深入检索并通读更多文献深挖复审 (占满卡片全宽)
-                        if st.button(t("wb_hypo_btn_expand_lit"), key=f"btn_expand_lit_{cid}", width="stretch"):
+                        if st.button(t("wb_hypo_btn_expand_lit"), icon=":material/library_add:", key=f"btn_expand_lit_{cid}", width="stretch"):
                             current_key = api_key.strip() if api_key else ""
                             is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
                             if not current_key and not is_local:
@@ -3637,7 +3630,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.markdown(f"🧭 **级联推演方向**: {adj.get('research_direction', '')}")
 
                         # 采纳级联证据并触发智能拓展抽取流水线入库 (智能桥接中介并合并入主图谱，占满全宽)
-                        if st.button(t("wb_hypo_btn_merge_cascade"), type="primary", key=f"btn_merge_cascade_{cid}", width="stretch"):
+                        if st.button(t("wb_hypo_btn_merge_cascade"), icon=":material/merge:", type="primary", key=f"btn_merge_cascade_{cid}", width="stretch"):
                             current_key = api_key.strip() if api_key else ""
                             is_local = "ollama" in str(st.session_state.get("api_provider", "")).lower()
                             if not current_key and not is_local:
@@ -3722,7 +3715,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     st.markdown("---")
     cb_1, cb_2, cb_3 = st.columns([1, 2, 1])
     with cb_2:
-        if st.button(t("wb_btn_bottom_return"), key="btn_wb_bottom_return", width="stretch"):
+        if st.button(t("wb_btn_bottom_return"), icon=":material/arrow_back:", key="btn_wb_bottom_return", width="stretch"):
             st.session_state.current_view = "main"
             st.rerun()
 # ==========================================
@@ -3766,11 +3759,10 @@ with left_col:
     # ==========================================
     if not st.session_state.master_entities and not st.session_state.master_relations and not uploaded_file:
         st.markdown(t("cold_start_title"))
-        st.caption(t("cold_start_caption"))
 
         user_topic = st.text_input(t("cold_start_placeholder"), key="cold_start_topic")
 
-        if st.button(t("btn_ai_search"), type="primary", use_container_width=True):
+        if st.button(t("btn_ai_search"), icon=":material/search:", type="primary", use_container_width=True):
             current_api_key = api_key.strip()
             if not current_api_key:
                 st.error(t("err_no_api_key"))
@@ -4066,7 +4058,7 @@ with left_col:
             st.warning(t("warn_summary_range"))
 
         st.divider()
-        start_button = st.button(t("btn_start_parsing"), use_container_width=True, type="primary")
+        start_button = st.button(t("btn_start_parsing"), icon=":material/play_arrow:", use_container_width=True, type="primary")
 
 # ==========================================
 # 📁 后置侧边栏扩展区
@@ -4150,20 +4142,20 @@ with right_col:
     col_btn1, col_btn2 = st.columns(2)
 
     with col_btn1:
-        if st.button(t("btn_new_project"), use_container_width=True):
+        if st.button(t("btn_new_project"), icon=":material/add:", use_container_width=True):
             st.session_state.show_new_confirm = not st.session_state.get("show_new_confirm", False)
 
     with col_btn2:
         export_placeholder = st.empty()
         with export_placeholder:
-            if st.button(t("btn_export_project"), use_container_width=True, key="fake_export_btn"):
+            if st.button(t("btn_export_project"), icon=":material/download:", use_container_width=True, key="fake_export_btn"):
                 st.toast(t("toast_export_empty"), icon="🈳")
 
     if st.session_state.get("show_new_confirm", False):
         st.info(t("info_new_project_confirm"))
         col_y, col_n = st.columns(2)
         with col_y:
-            if st.button(t("btn_confirm_new_project"), use_container_width=True):
+            if st.button(t("btn_confirm_new_project"), icon=":material/check:", use_container_width=True):
                 # 🛡️ 步骤 1：新建空白工程前，先自动固化当前工程，避免未保存修改丢失
                 save_local_vault()
 
@@ -4217,7 +4209,7 @@ with right_col:
             stored_pid = loaded_data.get("project_id", "")
             stored_pname = loaded_data.get("project_name", file_stem)
 
-            if st.button(t("btn_confirm_load"), type="primary", use_container_width=True, help=t("help_confirm_load")):
+            if st.button(t("btn_confirm_load"), icon=":material/upload:", type="primary", use_container_width=True, help=t("help_confirm_load")):
                 cur_pid = get_current_project_id()
                 # 🛡️ 步骤 1：若载入的是不同工程（如导出的独立通路子工程），先自动保存当前活动工程，确保父工程绝对安全
                 if stored_pid and stored_pid != cur_pid:
@@ -4327,7 +4319,7 @@ with right_col:
 
     col_clean_btn, col_clean_info = st.columns([3, 2])
     with col_clean_btn:
-        if st.button(t("btn_clean_orphans"), use_container_width=True, help=t("help_clean_orphans")):
+        if st.button(t("btn_clean_orphans"), icon=":material/delete_sweep:", use_container_width=True, help=t("help_clean_orphans")):
             if orphan_files:
                 deleted_cnt = 0
                 for of in orphan_files:
@@ -4400,7 +4392,7 @@ with right_col:
                     if not is_active:
                         c_sw, c_del = st.columns(2)
                         with c_sw:
-                            if st.button("🚀", key=f"switch_proj_{proj_id}", help=t("btn_switch_proj_help").format(name=p_display_name)):
+                            if st.button("切换", icon=":material/swap_horiz:", key=f"switch_proj_{proj_id}", help=t("btn_switch_proj_help").format(name=p_display_name)):
                                 if switch_to_project(proj_id):
                                     if p_missing:
                                         st.toast(f"{t('toast_proj_switched').format(name=p_display_name)} (⚠️ {t('badge_missing_docs').format(count=len(p_missing))})", icon="🚀")
@@ -4408,7 +4400,7 @@ with right_col:
                                         st.toast(t("toast_proj_switched").format(name=p_display_name), icon="🚀")
                                     st.rerun()
                         with c_del:
-                            if st.button("🗑️", key=f"del_proj_{proj_id}", help=t("btn_del_proj_help").format(name=p_display_name)):
+                            if st.button("删除", icon=":material/delete:", key=f"del_proj_{proj_id}", help=t("btn_del_proj_help").format(name=p_display_name)):
                                 st.session_state[f"confirm_del_proj_{proj_id}"] = True
                     else:
                         st.write("")
@@ -4724,6 +4716,7 @@ if st.session_state.show_results and st.session_state.html_data:
 
             st.download_button(
                 label=t("btn_export_project"),
+                icon=":material/download:",
                 data=json_bytes,
                 file_name=export_filename,
                 mime="application/json",
@@ -4760,7 +4753,7 @@ if st.session_state.show_results and st.session_state.html_data:
             with col1:
                 st.markdown(t("quick_clear_title"))
                 st.info(t("quick_clear_desc"))
-                if st.button(t("btn_clear_isolated"), use_container_width=True):
+                if st.button(t("btn_clear_isolated"), icon=":material/delete_sweep:", use_container_width=True):
                     connected_nodes = set()
                     for rel in st.session_state.master_relations:
                         connected_nodes.add(rel.get("source"))
@@ -5270,7 +5263,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
         col_btn, col_toggle = st.columns([1, 1])
         with col_btn:
             st.write(t("pruning_desc"))
-            if st.button(t("btn_start_pruning"), type="primary", use_container_width=True):
+            if st.button(t("btn_start_pruning"), icon=":material/auto_fix_high:", type="primary", use_container_width=True):
                 current_api_key = api_key.strip()
 
                 if not current_api_key:
@@ -5556,7 +5549,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
 
             col_prune_y, col_prune_n = st.columns(2)
             with col_prune_y:
-                if st.button(t("btn_execute_purge"), type="primary", use_container_width=True):
+                if st.button(t("btn_execute_purge"), icon=":material/delete_forever:", type="primary", use_container_width=True):
                     nodes_to_delete = edited_prune_df[edited_prune_df[col_del_txt] == True][
                         col_name_txt].tolist()
                     if nodes_to_delete:
@@ -5655,7 +5648,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
             with col_rn_btn:
                 st.write("")
                 st.write("")
-                btn_start_rename = st.button(t("btn_start_rename"), type="primary", use_container_width=True)
+                btn_start_rename = st.button(t("btn_start_rename"), icon=":material/edit_note:", type="primary", use_container_width=True)
 
             if btn_start_rename:
                 current_api_key = api_key.strip()
@@ -6395,7 +6388,7 @@ if len(st.session_state.get("master_entities", [])) > 0:
     cb_nav1, cb_nav2, cb_nav3 = st.columns([1, 3, 1])
     with cb_nav2:
         st.info(t("wb_enter_pruning_tip"))
-        if st.button(t("wb_nav_bottom_btn"), type="primary", key="btn_bottom_to_wb", width="stretch"):
+        if st.button(t("wb_nav_bottom_btn"), icon=":material/analytics:", type="primary", key="btn_bottom_to_wb", width="stretch"):
             st.session_state.current_view = "workbench"
             st.rerun()
 
