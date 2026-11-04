@@ -127,7 +127,66 @@ class BioBrainAgent:
                 return self.clean_and_sanitize_title(extracted)
         return ""
 
-    def extract_entities_with_reflection(self, text,use_reflection,entity_lang="关闭 (保持原文语言)"):
+    @staticmethod
+    def _sanitize_entity_dict(entity_list, entity_lang="关闭 (保持原文语言)"):
+        """清洗实体列表，剔除标点、etc./等 等学术噪音，规范推测标记格式"""
+        if not isinstance(entity_list, list):
+            return []
+
+        noise_pattern = re.compile(
+            r'([,，\s]+(etc\.?|et\s+al\.?|and\s+others)|(?<=[\u4e00-\u9fff])(等|等等|及其他)|[,，\s]+(等|等等|及其他))[.。]?$',
+            re.IGNORECASE
+        )
+        standalone_noise = re.compile(
+            r'^(etc\.?|et\s+al\.?|and\s+others|等|等等|及其他)[.。]?$',
+            re.IGNORECASE
+        )
+
+        cleaned = []
+        for item in entity_list:
+            if not isinstance(item, dict):
+                continue
+            std = str(item.get("standard_name", "")).strip()
+            std = std.strip('"`\'').rstrip(';,，。')
+
+            # 检测是否带有推测/总结标记
+            has_inferred = bool(re.search(r'\((?:inferred|infferd|总结)\)$', std, re.IGNORECASE))
+            inferred_tag = ""
+            if has_inferred:
+                if "总结" in std or "中文" in entity_lang:
+                    inferred_tag = " (总结)"
+                else:
+                    inferred_tag = " (inferred)"
+                std = re.sub(r'\s*\((?:inferred|infferd|总结)\)$', '', std, flags=re.IGNORECASE).strip()
+
+            std = noise_pattern.sub('', std).strip().rstrip(';,，。')
+            if not std or standalone_noise.match(std):
+                continue
+
+            if has_inferred:
+                std = std + inferred_tag
+
+            aliases = []
+            for a in item.get("aliases", []):
+                if not isinstance(a, str):
+                    continue
+                a_clean = str(a).strip().strip('"`\'').rstrip(';,，。')
+                a_clean = noise_pattern.sub('', a_clean).strip().rstrip(';,，。')
+                if (
+                    a_clean
+                    and not standalone_noise.match(a_clean)
+                    and a_clean.lower() != std.lower()
+                    and a_clean not in aliases
+                ):
+                    aliases.append(a_clean)
+
+            cleaned.append({
+                "standard_name": std,
+                "aliases": aliases
+            })
+        return cleaned
+
+    def extract_entities_with_reflection(self, text, use_reflection, entity_lang="关闭 (保持原文语言)", enable_abstract_entities: bool = False, enable_concept_synthesis: bool = False):
         """智能体工作流：提取包含标准名和别名的实体字典"""
 
         language_instruction = ""
@@ -135,6 +194,51 @@ class BioBrainAgent:
             language_instruction = "\n【⚠️ 强力约束】：请务必将提取出的所有实体（主节点）的“标准名”统一翻译并输出为**纯中文**（如果是专有英文缩写可保留，但常规名词必须严格用中文，并且最好使用中文学术圈的常见名）。"
         elif "English" in entity_lang:
             language_instruction = "\n【⚠️ 强力约束】：请务必将提取出的所有实体（主节点）的“标准名”统一翻译并输出为**纯英文 (English)**（即便原文是中文，也必须翻译成英文）。"
+
+        abstract_detect_prompt = ""
+        abstract_reflection_prompt = ""
+        if enable_abstract_entities:
+            tag_rule_s1 = "中文概念后缀必须为 ' (总结)'（例如 'M期进入 (总结)'），英文概念后缀必须为 ' (inferred)'（例如 'Mitotic entry (inferred)'）"
+            tag_rule_s1_5 = "对于中文上位概念强制保留或补齐 ' (总结)' 后缀，对于英文上位概念强制保留或补齐 ' (inferred)' 后缀"
+            if "中文" in entity_lang:
+                tag_rule_s1 = "必须统一为中文并强制带上 ' (总结)' 后缀（例如 'M期进入 (总结)'）"
+                tag_rule_s1_5 = "必须强制保留或补齐 ' (总结)' 后缀（例如 'M期进入 (总结)'）"
+            elif "English" in entity_lang:
+                tag_rule_s1 = "必须统一为英文并强制带上 ' (inferred)' 后缀（例如 'Mitotic entry (inferred)'）"
+                tag_rule_s1_5 = "必须强制保留或补齐 ' (inferred)' 后缀（例如 'Mitotic entry (inferred)'）"
+
+            abstract_detect_prompt = (
+                "\n   【⚠️ 调控受体抽象概念豁免与中性提纯规范】：除一种重要例外——当抽象概念名词（如细胞行为、生物学过程、细胞时相转换、动物行为模式或疾病表型，例如“自噬”、“凋亡”、“有丝分裂后期”、“微管组装”、“交配”）"
+                "在原文中【明确作为被某个分子/激酶/药物调控、驱动、诱导或抑制的具体受体对象/结果终点】时，允许且应当作为实体提取！"
+                "🚨【调控对象前置限制】：只有当该抽象概念在文中明确作为【调控动作的受体/调控结果】时方可提取；若仅作为宽泛的背景介绍、研究对象或无明确上游驱动调控者的主题，坚决禁止提取！"
+                "🚨【强制去动作化提纯】：提取时必须剥离一切动作谓语、时相起始或状态修饰词（如 activation, onset, induction, 启动, 活化, 诱导），提纯为纯粹中性名词概念！"
+                "（例如：原文即便出现 'apoptosis activation' 或 '诱导凋亡'，必须提纯提取为纯中性名词 'apoptosis' 或 '细胞凋亡'，绝对严禁提取为带动作的 'apoptosis activation'；"
+                "原文若出现 'anaphase onset' 或 '后期启动'，应提纯为 'Anaphase' 或 '有丝分裂后期'）！"
+                "🚫【严禁携带语气助词与泛指缩写】：实体标准名及别名中绝对严禁携带 \", etc.\", \"etc.\", \"et al.\", \"等\", \"等等\" 等泛指词或语气助词！遇到如 \"Chromosome condensation, etc.\" 时，必须彻底剔除噪音提纯为纯净中性概念 \"Chromosome condensation\"！"
+            )
+            abstract_reflection_prompt = (
+                "\n   【🔍 调控受体与终点核准豁免】：特别注意！对于初提列表中的抽象概念（如微管组装、核膜崩解、有丝分裂后期、染色体凝缩、自噬、凋亡等）："
+                "必须严格二次核验其在原文中是否【明确存在上游调控者对其施加调控/诱导/抑制等具体调控作用】。若确有明确上游调控且为中性名词，予以核准保留，豁免纯物质限制；"
+                "若缺乏明确的上游调控动作，纯属研究背景或无驱动主题，必须坚决予以剔除！"
+                "若初提列表中混入了带动作谓语或修饰的词组（如 'apoptosis activation'、'anaphase onset' 或 '后期启动'），请将其【纠正净化为中性学术概念】（如净化为 'apoptosis'、'Anaphase' 或 '有丝分裂后期'），严禁误杀合法终点概念！"
+                "同时检查并彻底清洗所有实体名及别名中残留的 \", etc.\", \"etc.\", \"et al.\", \"等\", \"等等\" 等泛指与标点噪音！"
+            )
+            if enable_concept_synthesis:
+                abstract_detect_prompt += (
+                    f"\n   【💡 规范总结与聚合提纯赋权（严格限定抽象受体，严禁总结物理分子）】：\n"
+                    f"   - 范围限定：此项总结权力【仅限且只能作用于抽象受体/表型终点/生物学过程】，绝对严禁对物理实体（基因、蛋白质、复合物、药物）进行任何合并总结！所有物理分子必须100%保持独立；\n"
+                    f"   - 聚合统摄：当同一个上游分子驱动/调控了多个离散、细分的具体生化表型（例如同时促进微管组装、核膜崩解、染色体凝缩等离散表现），或原文调控结局分散离散时，"
+                    f"【必须将其规范聚合总结为一个上位标准学术概念节点，严禁拆成多个离散碎片节点】；\n"
+                    f"   - 🚨【推测标记强制命名铁律】：凡是总结、聚合生成的上位调控概念，其【标准名称 (standard_name)】末尾必须强制带上推测标记后缀！{tag_rule_s1}！绝不允许遗漏该标记！\n"
+                    f"   - 别名回填溯源（极其重要）：【必须将所有被总结的具体离散表型的原文字面（如 Microtubule assembly, Nuclear membrane breakdown, Chromosome condensation 等）完整写入该节点的 aliases（别名列表）中】！确保零信息损失与100%可溯源性！\n"
+                    f"   - 🚫 别名去噪禁令：在将具体离散表型回填到 aliases 时，严禁携带 \", etc.\", \"etc.\", \"等\" 等修饰，必须清洗为规范的表型学术短语（例如填入 \"Chromosome condensation\"，严禁填入 \"Chromosome condensation, etc.\"）！"
+                )
+                abstract_reflection_prompt += (
+                    f"\n   【🛡️ 上位总结节点强制聚合与推测标记核验铁律】：\n"
+                    f"   1. 调控终点强制聚合：若初提列表中同一分子的多个下游具体表型（如微管组装、核膜崩解、染色体凝缩等）未被聚合，反思阶段【必须执行规范聚合，合并为一个上位学术概念节点】（例如合并为 'Mitotic entry (inferred)' 或 'M期进入 (总结)'），将细分表型移入其 aliases 别名中，删除分散的碎片节点！\n"
+                    f"   2. 强制保留/补齐推测标记：对于所有上位总结节点，必须确保其 standard_name 末尾包含推测标记后缀（{tag_rule_s1_5}）。如果初提中遗漏了标记，反思阶段【必须强制为其补齐】；如果初提已有标记，【绝对严禁在标准名压缩时将标记剥离】！\n"
+                    f"   3. 别名无损溯源与外科级去噪：严格核验上位总结节点的 aliases 中是否忠实、完整地保留了所有被总结的具体离散表型，并确保剔除了 \", etc.\"、\"等\" 等一切非实体噪音！"
+                )
 
         prompt_s1 = f"""你是一个严谨的生物学实体识别专家。请从给定的文献中提取出所有的核心生物实体（如基因、蛋白质、疾病、细胞、药物等）。
         
@@ -144,7 +248,7 @@ class BioBrainAgent:
         1. 确立【标准名称】：优先使用官方简写或公认名称（如 "p53", "MDM2"），长度尽量控制在 1-3 个单词内。
         2. 确立【别名】：只保留真正的生物学同义词、全称或简称（如 "TP53"）。
         3. 🚫 严禁保留无意义修饰变体：绝对不要把加了状态语、修饰语的词组当作别名提取！（例如：遇到 "endogenous p53", "p53 protein", "~53"，请直接忽略这些噪音，不要放入别名）。
-        4. 🚫 严禁提取“关系/事件”为实体（极度致命）：例如绝对不要把诸如 "p53-MDM2 interaction", "MDM2 overexpression", "binding to DNA" 提取为实体！这些属于【关系】或【事件】，它们应该在关系提取阶段作为连线出现，而不是独立的节点！实体必须是纯粹的生物学物质名词。
+        4. 🚫 严禁提取“关系/事件”为实体（极度致命）：例如绝对不要把诸如 "p53-MDM2 interaction", "MDM2 overexpression", "binding to DNA" 提取为实体！这些属于【关系】或【事件】，它们应该在关系提取阶段作为连线出现，而不是独立的节点！实体必须是纯粹的生物学物质名词。{abstract_detect_prompt}
         5.文章讨论中带有方向性名词的应当转为中性表现，如原文为”促进代谢“应当提取为”代谢活性“而不是代谢
         6. 🚫 严禁生成重复的同源节点：例如不要让图谱里出现多个本质上都是 p53或p53系统 的节点。除了明确的突变型，所有普通 p53 必须归一化为唯一的 "p53"。
         7. ⚠如果遇到同一实体在细节或者功能存在相反或明显区别的子对象时，应当当作两个不同的实体，尤其是文章探讨了他们的区别及不同影响时，如突变与野生型：如果文中同时明确对比了 "mutant p53"（突变型）和 "wild-type p53"（野生型），请将它们提取为两个【独立的实体】，绝对不能混为一谈。
@@ -178,7 +282,7 @@ class BioBrainAgent:
         你的任务是进行“外科手术级”的数据清洗：
         
         1. 查漏补缺：是否有关键的生物学实体被完全遗漏了？如果有，请补全。
-        2. 🧹 剔除假实体与事件节点（极度重要）：如果发现初次提取的字典里有诸如 "p53-MDM2 interaction", "MDM2 overexpression", "apoptosis activation" 等描述【关系、状态或事件】的词组被错误地当成了实体，请直接将它们【彻底删除】！实体必须是纯粹的物质名词。
+        2. 🧹 剔除假实体与事件节点（极度重要）：如果发现初次提取的字典里有诸如 "p53-MDM2 interaction", "MDM2 overexpression", "apoptosis activation" 等描述【关系、状态或事件】的词组被错误地当成了实体，请直接将它们【彻底删除】！实体必须是纯粹的物质名词。{abstract_reflection_prompt}
         3. 实体去重合并：将不同叫法但指代同一概念的实体强制合并。绝对不能出现多个本质上都是 p53 的独立节点（除非是 mutant vs wild-type 这样在作用上不同的明确对比）。
         4. 📏 标准名精简压缩：如果标准名称过长，请必须将其缩短概括（优先使用官方简写，如 "p53"），并将原来的长名称移入 aliases 中！
         5. 别名瘦身去噪：初次提取的 aliases 中可能混入了大量垃圾信息（如 "p53 protein", "endogenous MDM2", "~53"）。请大刀阔斧地剔除这些带有无意义修饰词的噪音，每个实体只保留最核心的学术同义词！
@@ -195,14 +299,16 @@ class BioBrainAgent:
 
             try:
                 raw_final = self._ask_llm(prompt_s1_5, reflection_input)
-                return json.loads(self._clean_json_string(raw_final))  # 将反思后的结果作为最终结果
+                parsed = json.loads(self._clean_json_string(raw_final))  # 将反思后的结果作为最终结果
+                return self._sanitize_entity_dict(parsed, entity_lang=entity_lang)
             except Exception as e:
                 print(f"   ❌ [Step 1.5/2] 反思阶段请求失败或超时: {e}")
                 return []
         else:
             print("    └─ ⏩ [Step 1.5/2] 已关闭自我反思，跳过纠错步骤...")
             raw_final = cleaned_s1
-            return json.loads(self._clean_json_string(raw_final))
+            parsed = json.loads(self._clean_json_string(raw_final))
+            return self._sanitize_entity_dict(parsed, entity_lang=entity_lang)
 
     def extract_relations(self, text, entities_list):
         """根据实体字典，抽取文本中的实体关系"""
@@ -783,14 +889,20 @@ class BioBrainAgent:
             print(f"⚠️ [Agent] 视觉模型机制图转译失败: {e}")
             return ""
 
-    def extract_graph_from_figure(self, image_bytes, image_ext="png", caption="", vision_model=None, entity_lang="关闭 (保持原文语言)"):
+    def extract_graph_from_figure(self, image_bytes, image_ext="png", caption="", vision_model=None, entity_lang="关闭 (保持原文语言)", enable_abstract_entities: bool = False, enable_concept_synthesis: bool = False):
         """
         多模态视觉智能体（备用兼容接口）
         """
         text_desc = self.transcribe_figure_to_text(image_bytes, image_ext, caption, vision_model)
         if not text_desc:
             return [], []
-        ents = self.extract_entities_with_reflection(text_desc, use_reflection=True, entity_lang=entity_lang)
+        ents = self.extract_entities_with_reflection(
+            text_desc,
+            use_reflection=True,
+            entity_lang=entity_lang,
+            enable_abstract_entities=enable_abstract_entities,
+            enable_concept_synthesis=enable_concept_synthesis
+        )
         rels = self.extract_relations(text_desc, ents)
         return ents, rels
 

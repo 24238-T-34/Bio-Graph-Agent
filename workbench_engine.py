@@ -58,8 +58,19 @@ class RulePreFilter:
         raw_name = node_name.strip()
         lower_name = raw_name.lower()
         all_candidates = [lower_name]
+        clean_name = re.sub(r'\s*\((?:总结|inferred|infferd)\)\s*$', '', raw_name, flags=re.I).strip()
+        if clean_name and clean_name.lower() not in all_candidates:
+            all_candidates.append(clean_name.lower())
+
         if aliases:
-            all_candidates.extend([a.strip().lower() for a in aliases if a.strip()])
+            for a in aliases:
+                if a and a.strip():
+                    al = a.strip().lower()
+                    if al not in all_candidates:
+                        all_candidates.append(al)
+                    al_clean = re.sub(r'\s*\((?:总结|inferred|infferd)\)\s*$', '', a.strip(), flags=re.I).strip().lower()
+                    if al_clean and al_clean not in all_candidates:
+                        all_candidates.append(al_clean)
 
         is_en = "en" in str(language).lower()
         unified_reason = "Rule-based regex match" if is_en else "规则正则匹配"

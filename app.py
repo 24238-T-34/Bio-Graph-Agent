@@ -331,8 +331,8 @@ def load_config():
         "append_mode": True,
         "enable_relation_grounding": True,
         "concurrency_workers": 4,
-        "ENABLE_EDITOR": True,  # ✨ 恢复的开关 1
-        "ENABLE_AI_CLEANER": True,  # ✨ 恢复的开关 2
+        "ENABLE_EDITOR": True, "enable_abstract_entities": False,  # ✨ 恢复的开关 1
+        "ENABLE_AI_CLEANER": True, "enable_concept_synthesis": False,  # ✨ 恢复的开关 2
         "ui_language": "zh",
         "vision_strategy": "opt_off",
         "vision_match_keyword": "",
@@ -385,7 +385,7 @@ def save_config():
     config_keys = [
         "api_provider", "custom_base_url", "selected_model_id", "selected_model_name", "custom_model_id", "model_suffix",
         "search_database", "is_summary_only", "use_reflection", "append_mode", "enable_relation_grounding",
-        "concurrency_workers", "ENABLE_EDITOR", "ENABLE_AI_CLEANER", "ui_language",
+        "concurrency_workers", "ENABLE_EDITOR", "ENABLE_AI_CLEANER", "enable_abstract_entities", "enable_concept_synthesis", "ui_language",
         "vision_strategy", "vision_match_keyword", "vision_model_choice", "vision_model_suffix", "custom_vision_model_id",
         "active_project_id"
     ]
@@ -1319,7 +1319,7 @@ UI_TEXT = {
     "toggle_summary_only": {"zh": "⚡ 仅提取摘要模式 (速度极快)", "en": "⚡ Summary Only Mode (Extremely Fast)"},
     "toggle_reflection": {"zh": "🔍 启用自我反思纠错", "en": "🔍 Enable Self-Reflection Check"},
     "toggle_append_mode": {"zh": "🔗 追加模式 (叠加到现有图谱)", "en": "🔗 Append Mode (Merge to Existing Graph)"},
-    "toggle_relation_grounding": {"zh": "🛡️ 关系节点文献正则补漏 (自动落实漏检实体)", "en": "🛡️ Relation Node Literature Grounding (Recover Missed Entities)"},
+    "toggle_relation_grounding": {"zh": "🛡️ 关系节点文献正则补漏", "en": "🛡️ Relation Node Literature Grounding"},
     "toggle_relation_grounding_help": {"zh": "切块分析完成后，若发现关系端点未在实体字典中登记，自动使用正则比对原文。若原文确实存在该实体则自动回填落实为真实节点，若完全不存在则坚决剔除虚构关系。", "en": "After chunk analysis, regex-verify unregistered relation endpoints against original paper text. Real entities are recovered; hallucinated edges are strictly dropped."},
     "slider_concurrency": {"zh": "⚡ 并发线程数 (多切块并行解析)", "en": "⚡ Concurrency Workers (Parallel Chunks)"},
     "slider_concurrency_help": {"zh": "多线程并行抽取切块并并发转译机制插图，可成倍压缩文献解析耗时。若遇到频繁 API 限流报错可调小此数值。", "en": "Extract chunks and transcribe pathway figures concurrently to drastically reduce parsing time. Reduce this if you hit API rate limits."},
@@ -2114,6 +2114,23 @@ with st.sidebar:
 UI_TEXT.setdefault("wb_enter_pruning_tip", {
     "zh": "💡 **建议提示**：在进入并使用【图谱分析工作台】前，强烈建议先使用主界面的【🧹 智能洗树 (Pruning)】模块对全图进行去噪、同义词折叠与冗余剪枝，以获得最高质量的本体分类、通路聚类与假说推演效果。",
     "en": "💡 **Tip**: Before entering and using the [Graph Analysis Workbench], it is strongly recommended to use the [🧹 Smart Pruning] module on the main page to denoise, fold synonyms, and prune redundant nodes, ensuring optimal ontology classification, pathway clustering, and hypothesis deduction."
+})
+
+UI_TEXT.setdefault("toggle_abstract_entities", {
+    "zh": "🧬 提取表型与行为调控终点",
+    "en": "🧬 Abstract Phenotype & Behavior Endpoints"
+})
+UI_TEXT.setdefault("toggle_abstract_entities_help", {
+    "zh": "开启后，若生物学过程、细胞时相或行为谱项（如自噬、凋亡、姐妹染色单体分离、交配）明确作为被调控对象，允许提取为标准节点；关闭时严格锁定纯物理分子。",
+    "en": "Extracts biological processes, cell phases, and behaviors (e.g. autophagy, apoptosis, chromatid separation, mating) when acting as regulated targets."
+})
+UI_TEXT.setdefault("toggle_concept_synthesis", {
+    "zh": "💡 允许规范总结离散调控结局",
+    "en": "💡 Synthesize Discrete Outcomes"
+})
+UI_TEXT.setdefault("toggle_concept_synthesis_help", {
+    "zh": "遇到指向明确但原文表述分散离散的调控结局时，允许 AI 归纳为通用中性学术名词，并在标准名末尾以 (总结)/(inferred) 标出以便溯源审查。",
+    "en": "Allows AI to summarize diffuse regulatory outcomes into standard scientific terms tagged with (inferred) for auditability."
 })
 
 
@@ -3838,9 +3855,15 @@ with left_col:
                                 current_use_ref = use_reflection if 'use_reflection' in locals() or 'use_reflection' in globals() else True
                                 current_lang = entity_language if 'entity_language' in locals() or 'entity_language' in globals() else "English"
 
+                                current_enable_abs = st.session_state.get("enable_abstract_entities", False)
+                                current_enable_syn = (
+                                    st.session_state.get("enable_concept_synthesis", False) if current_enable_abs else False
+                                )
                                 new_entities = agent.extract_entities_with_reflection(abs_text,
                                                                                       use_reflection=current_use_ref,
-                                                                                      entity_lang=current_lang)
+                                                                                      entity_lang=current_lang,
+                                                                                      enable_abstract_entities=current_enable_abs,
+                                                                                      enable_concept_synthesis=current_enable_syn)
                                 pmid_tag = f"PubMed:{pmid}"
                                 v_hash = f"pmid:{pmid}"
                                 register_or_update_paper(
@@ -3880,17 +3903,57 @@ with left_col:
                             st.error(t("err_all_validation_fail").format(count=len(results)))
 
     st.subheader(t("extract_settings_title"))
-    is_summary_only = st.toggle(t("toggle_summary_only"), value=st.session_state.get("is_summary_only", False), key="is_summary_only", persist_state="session", on_change=save_config)
-    use_reflection = st.toggle(t("toggle_reflection"), value=st.session_state.get("use_reflection", True), key="use_reflection", persist_state="session", on_change=save_config)
-    append_mode = st.toggle(t("toggle_append_mode"), value=st.session_state.get("append_mode", True), key="append_mode", persist_state="session", on_change=save_config)
-    enable_relation_grounding = st.toggle(
-        t("toggle_relation_grounding"),
-        value=st.session_state.get("enable_relation_grounding", True),
-        key="enable_relation_grounding",
-        help=t("toggle_relation_grounding_help"),
-        persist_state="session",
-        on_change=save_config
-    )
+    cfg_col1, cfg_col2 = st.columns(2)
+    with cfg_col1:
+        is_summary_only = st.toggle(
+            t("toggle_summary_only"),
+            value=st.session_state.get("is_summary_only", False),
+            key="is_summary_only",
+            persist_state="session",
+            on_change=save_config
+        )
+        use_reflection = st.toggle(
+            t("toggle_reflection"),
+            value=st.session_state.get("use_reflection", True),
+            key="use_reflection",
+            persist_state="session",
+            on_change=save_config
+        )
+        append_mode = st.toggle(
+            t("toggle_append_mode"),
+            value=st.session_state.get("append_mode", True),
+            key="append_mode",
+            persist_state="session",
+            on_change=save_config
+        )
+
+    with cfg_col2:
+        enable_relation_grounding = st.toggle(
+            t("toggle_relation_grounding"),
+            value=st.session_state.get("enable_relation_grounding", True),
+            key="enable_relation_grounding",
+            help=t("toggle_relation_grounding_help"),
+            persist_state="session",
+            on_change=save_config
+        )
+        enable_abstract_entities = st.toggle(
+            t("toggle_abstract_entities"),
+            value=st.session_state.get("enable_abstract_entities", False),
+            key="enable_abstract_entities",
+            help=t("toggle_abstract_entities_help"),
+            persist_state="session",
+            on_change=save_config
+        )
+        enable_concept_synthesis = st.toggle(
+            t("toggle_concept_synthesis"),
+            value=st.session_state.get("enable_concept_synthesis", False),
+            key="enable_concept_synthesis",
+            help=t("toggle_concept_synthesis_help"),
+            disabled=not enable_abstract_entities,
+            persist_state="session",
+            on_change=save_config
+        )
+        effective_concept_synthesis = enable_concept_synthesis if enable_abstract_entities else False
     if "concurrency_workers" not in st.session_state:
         st.session_state["concurrency_workers"] = 4
     concurrency_workers = st.slider(
@@ -4439,7 +4502,9 @@ if uploaded_file and start_button:
                     vision_strategy=final_vision_mode if 'final_vision_mode' in locals() else "off",
                     vision_keyword=vision_keyword_val if 'vision_keyword_val' in locals() else "",
                     vision_model=resolved_vision_model_id if 'resolved_vision_model_id' in locals() else None,
-                    enable_relation_grounding=enable_relation_grounding
+                    enable_relation_grounding=enable_relation_grounding,
+                    enable_abstract_entities=enable_abstract_entities,
+                    enable_concept_synthesis=effective_concept_synthesis
                 )
                 if hasattr(pipeline, "last_figure_transcriptions") and pipeline.last_figure_transcriptions:
                     cur_trans = st.session_state.setdefault("figure_transcriptions", {})
@@ -5827,9 +5892,15 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                 st.session_state.expansion_idx += 1
                                 st.rerun()
                             else:
+                                q_enable_abs = st.session_state.get("enable_abstract_entities", False)
+                                q_enable_syn = (
+                                    st.session_state.get("enable_concept_synthesis", False) if q_enable_abs else False
+                                )
                                 new_entities = agent.extract_entities_with_reflection(abstract,
                                                                                       use_reflection=use_reflection,
-                                                                                      entity_lang=entity_language)
+                                                                                      entity_lang=entity_language,
+                                                                                      enable_abstract_entities=q_enable_abs,
+                                                                                      enable_concept_synthesis=q_enable_syn)
                                 pmid_tag = f"PubMed:{pmid}"
                                 v_hash = f"pmid:{pmid}"
                                 register_or_update_paper(

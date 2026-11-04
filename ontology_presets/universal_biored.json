@@ -62,8 +62,8 @@
       "en_description": "Intracellular signaling cascades, physiological responses, metabolic processes, and programmed cell death.",
       "patterns": [
         ".*ptosis$",
-        ".*(?:pathway|signaling|cascade|apoptosis|autophagy|proliferation|differentiation|migration|invasion|angiogenesis|metastasis|glycolysis|metabolism|transcription|translation|ferroptosis|pyroptosis|cell cycle|immune response)$",
-        ".*(?:通路|信号转导|级联反应|凋亡|自噬|增殖|分化|迁移|侵袭|血管生成|糖酵解|代谢|转录|翻译|铁死亡|焦亡|细胞周期|免疫反应)$"
+        ".*(?:pathway|signaling|cascade|apoptosis|autophagy|proliferation|differentiation|migration|invasion|angiogenesis|metastasis|glycolysis|metabolism|transcription|translation|ferroptosis|pyroptosis|cell cycle|immune response|mitosis|meiosis|segregation|division)$",
+        ".*(?:通路|信号转导|级联反应|凋亡|自噬|增殖|分化|迁移|侵袭|血管生成|糖酵解|代谢|转录|翻译|铁死亡|焦亡|细胞周期|免疫反应|分裂|有丝分裂|减数分裂|染色体分离|单体分离|期转换)$"
       ]
     },
     "Cell_CellLine": {

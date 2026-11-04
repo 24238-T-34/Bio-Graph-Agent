@@ -677,7 +677,7 @@ class BioGraphPipeline:
 
         return ents, valid_relations
 
-    def run(self, pdf_path, start_page=0, end_page=None, is_summary_only=False,use_reflection=True,source_name="未知文献",entity_lang="关闭 (保持原文语言)",output_lang="zh",progress_callback=None,concurrency=4,vision_strategy="off",vision_keyword="",vision_model=None,enable_relation_grounding=True):
+    def run(self, pdf_path, start_page=0, end_page=None, is_summary_only=False,use_reflection=True,source_name="未知文献",entity_lang="关闭 (保持原文语言)",output_lang="zh",progress_callback=None,concurrency=4,vision_strategy="off",vision_keyword="",vision_model=None,enable_relation_grounding=True,enable_abstract_entities=False,enable_concept_synthesis=False):
         print("🚀 [Pipeline] 启动全自动化生物知识图谱构建系统...")
 
         current_source = os.path.basename(pdf_path)
@@ -865,7 +865,11 @@ class BioGraphPipeline:
             try:
                 # 1. 块内精准实体提取与反思
                 ents = self.agent.extract_entities_with_reflection(
-                    chunk_text, use_reflection=use_reflection, entity_lang=entity_lang
+                    chunk_text,
+                    use_reflection=use_reflection,
+                    entity_lang=entity_lang,
+                    enable_abstract_entities=enable_abstract_entities,
+                    enable_concept_synthesis=enable_concept_synthesis
                 )
                 if not isinstance(ents, list):
                     ents = []
