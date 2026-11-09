@@ -1651,6 +1651,6 @@ Return strictly a valid JSON object:
             "direct_evidence_pmid": first_pmid,
             "evidence_quote": "",
             "research_direction": direction,
-            "adjudication_rationale": "大模型在精读当前检索文献后，未发现针对两者直接因果调控机制的明确实验验证，建议学者针对该机制展开探究。"
+            "adjudication_rationale": "大模型在精读当前检索文献后，未发现针对两者直接因果调控机制的明确实验验证，建议学者针对该机制展开探究。" if not is_en else "After reading the retrieved literature, no explicit experimental validation of a direct causal interaction was found, suggesting this interaction represents a potential research gap."
         }
 

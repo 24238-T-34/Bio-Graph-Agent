@@ -38,118 +38,112 @@ def show_help_dialog():
     is_en = "en" in current_ui_lang.lower()
 
     if is_en:
-        st.markdown(""" 
-    📖 **Bio-Graph Agent Core Functionality Guide**
+        st.markdown(r""" 
+    📖 **Bio-Graph Agent Core Operational Guide**
     Welcome to Bio-Graph Agent! A specialized LLM-powered scientific counselor crafted specifically for biomedical researchers.
 
     🧬 **Graph Base Logic & Academic Mission:**
-    This system is far more than a simple "summarization tool". It leverages Large Language Models to deeply read literature and extract structured **"Entities (Nodes)"** and **"Regulatory Relationships (Edges)"**. When analyzing multiple papers, the system automatically performs semantic alignment (e.g., merging "p53" from Paper A and "TP53" from Paper B into a single node), weaving isolated papers into a globally verifiable, dynamic knowledge network to uncover multi-step cascade pathways ($A \to B \to C$) for scientific grant proposals!
+    This system is far more than a simple "summarization tool". It leverages Large Language Models to deeply read literature and extract structured **"Entities (Nodes)"** and **"Regulatory Relationships (Edges)"**. When analyzing multiple papers, the system automatically performs semantic alignment (e.g., merging "p53" from Paper A and "TP53" from Paper B into a single node), weaving isolated papers into a globally verifiable, dynamic knowledge network to uncover multi-step cascade pathways ($A 	o B 	o C$) for scientific grant proposals!
 
-    ⚙️ **I. Initial Environment Setup (Sidebar "More Settings")**
-    Before starting, expand the ⚙️ **More Settings** panel in the left sidebar for basic configuration:
+    ⚙️ **I. Initial Environment Setup (Sidebar Popover "⚙️ More Settings")**
+    Click the ⚙️ **More Settings** popover in the left sidebar for basic configuration:
+    * 🌐 **Language:** Toggle between English and Chinese seamlessly at any time.
+    * 🌐 **LLM Engine:** Select your API provider (OpenRouter, Tencent Hunyuan, SiliconFlow, custom Base URL, or local **Ollama** offline mode for privacy) and enter your API Key.
+    * 🤖 **Model Selection & Dedicated Vision Model:** Choose the main reasoning model. Expand "Advanced Models" to mount dedicated multimodal vision models (e.g. Gemini 2.5 Flash-Lite, Gemini 3.8 Flash, Qwen 2.5 VL 72B, or custom model IDs) with optional suffix overrides (e.g. `:free`).
+    * 📚 **Smart Retrieval Source:** Choose PubMed (biomedical authority) or Semantic Scholar (multidisciplinary AI search).
+    * 🎛️ **Interface Feature Toggles:** Enable or disable 📝 **Manual Editor** and 🤖 **AI Graph Analysis** as needed.
 
-    * 🌐 **LLM Engine:** Select your API provider (OpenRouter, Tencent Hunyuan, SiliconFlow, etc.) and enter the API Key. For offline privacy mode, select **Ollama** to process classified biomedical data key-free without an internet connection.
-    * 📚 **Smart Retrieval Source:** Choose PubMed (authoritative biomedical literature) or Semantic Scholar (all-discipline AI-driven high-speed retrieval with automatic rate-limit fallback).
-    * ⚡ **Concurrency Workers (Parallel Pipeline):** Set concurrent threads (1-8) to execute chunk analysis and multimodal pathway figure transcriptions in parallel, drastically reducing literature processing time.
-    * 🛡️ **Relation Node Literature Grounding:** When enabled, automatically regex-verifies unregistered relation endpoints against the original paper text. Real entities mentioned in the paper are recovered, while hallucinated edges are strictly dropped.
-    * 👁️ **Dedicated Vision Model:** Choose auto-follow main model, or specify dedicated high-performance multimodal models (such as Gemini 2.5 Flash-Lite, Gemini 3.8 Flash, or Qwen 2.5 VL 72B) with optional suffix overrides.
-    * 🎛️ **Interface Feature Toggles:** Enable the 📝 **Manual Editing Panel** and 🤖 **AI Intelligent Graph Tools** as needed.
+    📂 **II. Knowledge Graph Construction (Main Interface)**
+    In the central "📂 Local Literature Analysis & Graph Construction" area, choose between two pathways:
 
-    📂 **II. Knowledge Graph Construction (Left Control Panel)**
-    In the left "1. Literature Input & Configuration" panel, the system offers two distinct paths to build graphs:
-
-    **Option A: 💡 Zero-Based Cold Start**
-    Have no papers on hand? Simply tell the AI your research direction in the text box (e.g., *"Role of macrophage polarization in tumor microenvironment"*). Click **"One-click Retrieve & Generate Initial Graph"**, and the AI will formulate professional PubMed queries, retrieve cutting-edge literature, verify relevance, and construct your initial graph!
+    **Option A: 💡 Zero-Based Cold Start (When graph is empty)**
+    Have no papers on hand? Simply enter your research direction in the prompt box (e.g., *"Role of macrophage polarization in tumor microenvironment"*). Click **"🔍 Search & Build Initial Graph"**, and the AI will autonomously formulate professional search queries, retrieve papers, verify relevance, and build your initial graph!
 
     **Option B: 📄 Precise Local Literature Analysis**
-    * **Upload Literature:** Drag a PDF into the upload zone.
-    * **🎯 Parsing Range:** Specify starting and ending pages (e.g., parsing pages 1-5 with key mechanism figures) to save token budgets and time.
-    * **⚙️ Advanced Extraction Settings:**
+    * **Upload Literature:** Drag an academic PDF into the upload zone.
+    * **🎯 Parsing Range:** Specify starting and ending pages (e.g., pages 1-5 with key mechanism figures) to save time and token budgets.
+    * **⚙️ Extraction Settings:**
         * ⚡ **Abstract-Only Mode:** High-speed regex extraction of abstract sections for rapid exploration.
-        * 🔍 **Self-Reflection & Error Correction:** The AI acts as an independent quality auditor, cross-examining initial extraction against the raw text to eliminate hallucinated nodes.
-        * 🔗 **Append Mode (Continuous Growth):** When enabled, new literature fuses and grows into the existing graph. Turning this off clears the canvas to start fresh.
-        * 🌐 **Entity Naming Convention:** Automatically standardizes graph nodes into pure Chinese, pure English, or keeps original phrasing.
+        * 🔍 **Self-Reflection & Error Correction:** Dual-layer quality auditor Agent cross-examines extraction against raw text to eliminate hallucinated nodes.
+        * 🔗 **Append Mode (Continuous Growth):** When enabled, new literature fuses continuously into the existing graph. Disabling clears canvas to start fresh.
+        * 🧬 **Abstract Phenotype & Behavioral Endpoints:** Enable to capture cellular fates (apoptosis, autophagy) and systemic/behavioral endpoints (cognitive decline, locomotor deficits, etc.).
+        * 🏷️ **Concept Synthesis & Alias Backfill:** Summarizes verbose, scattered outcome descriptions into canonical concept entities, backfills original sentences into the `aliases` list, and marks inferred tags `(总结)` / `(inferred)`.
+        * 🛡️ **Relation Node Literature Grounding:** Automatically regex-verifies unregistered relation endpoints against the original paper text to recover genuine entities and drop hallucinated links.
+        * ⚡ **Concurrency Workers:** Adjust concurrent threads (1-8) to accelerate chunk analysis and multimodal transcription.
+        * 🌐 **Entity Language:** Standardize node names into pure English, pure Chinese, or keep original phrasing.
     * 📷 **Pathway & Mechanism Figure Strategy (Multimodal Vision):**
-        * 🚫 *Off (Pure Text):* Traditional text-only parsing.
+        * 🚫 *Off (Pure Text):* Text-only parsing.
         * 🎯 *Keyword Match:* Targeted sniffing of a specific figure (e.g., `Fig 4`, `pathway`, `Figure 2`).
-        * ⚡ *Extract All in Pages:* Automatically runs **Spatial Clustering** to merge overlapping, sliced raster layers (such as multi-panel Graphical Abstracts and composite Figure subpanels) into pristine high-res composites, plus balanced vector diagram detection for posters and pathways. Transcriptions are generated in parallel and fused into downstream entity/relation modeling.
+        * ⚡ *Extract All in Pages:* Automatically runs spatial clustering to merge fragmented raster slices into high-res composite figures, alongside balanced vector detection for posters and pathways.
 
-    🕸️ **III. Visual Empowerment Engine (Top Console of Main Interface)**
-    * 👁️ **Mechanism Shortcuts:** Reveal "express shortcuts" bypassing intermediate nodes to inspect macro upstream-to-downstream regulatory outcomes.
-    * 🧬 **Ontology Empowerment (Containment Feedback):** Feedback the weight of micro-entities (e.g., individual proteins) to macro parent categories (e.g., Kinase Family), making core pathways visually prominent.
-    * 🔥 **Node Empowerment (Degree Centrality):** Hub genes with higher connectivity dynamically scale up in node size.
-    * 🔗 **Edge Empowerment (Consensus Boldening):** Regulatory edges validated by multiple papers and rich textual evidence chains are automatically bolded.
+    🕸️ **III. Visual Empowerment Engine (Top Console)**
+    * 👁️ **Show Mechanism Shortcuts:** Toggle visibility of macro shortcuts bypassing intermediate nodes.
+    * 🧬 **Ontology Empower (Parent Node Enlarge):** Feed back micro-entity weights to macro parent categories (e.g., Kinase Families).
+    * 🌟 **Node Empower (Hub Nodes Enlarge):** Scale up hub genes with higher connectivity dynamically.
+    * 🔗 **Edge Empower (High-Freq Edges Thicken):** Automatically bold consensus edges validated by multiple papers.
 
     🎨 **IV. Topological Visual Standards**
-    * 🟢 **Green Solid Line + Arrow:** Positive regulation / Activation / Promotion ($A \to B$).
-    * 🔴 **Red Solid Line + Arrow:** Negative regulation / Inhibition / Downregulation ($A \dashv B$).
-    * ⚪ **Gray Solid Line:** General correlation / Undirected association.
-    * ⚠️ **Gray Dashed Line (---):** Mechanism shortcuts (condensed macro pathways).
+    * 🟢 **Green Solid Line + Arrow:** Positive regulation / Activation / Promotion ($A 	o B$).
+    * 🔴 **Red Solid Line + Arrow:** Negative regulation / Inhibition / Downregulation ($A \dashv B$, bolded).
+    * ⚪ **Gray Line (No Arrow):** General correlation / Undirected association (solid gray on main canvas; dashed gray in workbench analysis).
+    * ⚠️ **Gray Dashed Line (---):** Mechanism shortcuts (condensed macro pathways), with warning tooltips.
     * 🟣 **Purple Solid Line:** Hierarchical containment / Subunit / Family membership.
+    * 🔀 **Layout Modes:** Main graph runs ForceAtlas2 physics; Stage 2 pathway decomposition supports one-click switching between Hierarchical LR DAG and ForceAtlas2 layouts.
 
     ✂️ **V. Expert Manual Intervention (Data Management Center)**
-    * 🧹 **Global Operations:** Scan and eliminate isolated orphan nodes; batch-rename messy literature source tags across all connected nodes and edges; manually add missing key proteins.
-    * 🎯 **Node Operations:** Rename nodes; **Force Merge** (transfer all edges of Node A to Node B and remove A); **Node Split** (reallocate edges to two newly split sub-nodes); dangerous permanent deletion.
-    * 🔗 **Relationship Operations:** Reverse edge upstream/downstream directions; switch relation categories; edit original textual evidence; sever false-positive edges or add newly confirmed experimental links.
+    * 🧹 **Quick Tools:** Left column: Clean isolated orphan nodes and batch-rename literature source tags across all connected elements; Right column: **➕ Manually Add Node** with custom aliases and citation source.
+    * 🎯 **Node Operations:** Search and select any node to rename, **Force Merge** (transfer all edges of Node A to Node B and remove A), or **Split Node** (reallocate edges to two new sub-nodes).
+    * 🔗 **Relationship Operations:** Reverse edge directions, modify relation types, edit evidence text, sever false-positive edges, or manually connect new links.
 
-    💾 **VI. Project Workspaces & Central Memory Vault (Self-Healing Architecture)**
-    * 🗂️ **Project Isolation (`projects/<project_id>/`):** Every research topic has an independent workspace directory, storing its private `graph_state.json` and attached PDFs. Freely create blank projects, switch between historical projects, or permanently delete old topics to reclaim disk space.
-    * 🏛️ **Central Memory Vault (`vault/`):** All imported literature is registered in `literature_registry.json` via SHA-256 physical cryptographic hashes, preventing duplicate file storage across different projects.
-    * 🌐 **Automatic Standard Literature Renaming & Online PMID Alignment:** One-click online alignment with PubMed/DOI. Cryptic or temporary PDF filenames are automatically reconstructed into academic standards (e.g., `PMID: 35123456 | Article_Title.pdf`), and all node/edge provenance tags are updated seamlessly.
-    * 🩹 **Missing Literature Detection & Self-Healing Replenishment:** When moving projects across machines or relocating PDFs, the system automatically detects missing physical files, searches the Central Vault by file hash, and restores physical links with a single click.
-    * 📷 **Multimodal Figure Source Exemption:** Nodes and edges originating from mechanism figures carry tags such as `[Figure: Page1_Fig1 (P.1)]` and are permanently tied to their parent paper, enjoying auto-healing exemption.
+    💾 **VI. Project Workspaces & Local Literature Registry**
+    * 🗂️ **Project Isolation (`projects/<project_id>/`):** Each research topic enjoys an independent workspace with `project.biokg` as the single source of truth and `paper_registry.json` for SHA-256 physical hash deduplication and automatic missing-file healing.
+    * 💾 **Project Archive Compatibility:** Seamlessly export or import `.biokg` and `.json` project archives.
 
-    🤖 **VII. AI Intelligent Graph Tools (Right Dedicated Panel)**
-    * 1. 🧹 **Intelligent Tree Cleaning (Pruning):**
-        * 🔍 *Topological Diagnosis:* LLM scans whole-graph logic to recommend **Merge** (synonyms), **Hierarchy** (families), or **Downgrade** (shortcuts).
-        * 🧲 *Symmetric Relation Folding:* Automatically merges bidirectional $A \leftrightarrow B$ correlation lines into a single undirected edge, summing popularity and merging evidence chains without loss.
-        * 🔄 *Mutual Containment Deadlock Resolution:* Detects and resolves reciprocal containment loops ($A \subset B$ and $B \subset A$).
-        * 🧪 *Coarse Relation Purification (Selective Pruning):* Placed at the bottom of the checklist to let researchers decide whether to consolidate or strip vague correlation lines without early information loss.
-        * ✂️ *Intent-Based Node Cleaning (Intent Pruning):* Type your focus in plain language (e.g., *"Focus exclusively on tau proteostasis in neurons"*); AI identifies off-topic organs, compounds, or bystander molecules for one-click removal.
-    * 2. 🔍 **Intelligent Expansion (Smart Expansion):** Select 1-3 core nodes; AI formulates advanced background queries to pull the latest PubMed papers and enqueues them for **Autopilot Continuous Assimilation**.
-    * 3. 🔗 **Intelligent Bridging (Bridging):** Select any two seemingly unconnected molecules A and B; AI navigates the network to find hidden multi-step cascades or searches external literature to uncover unverified regulatory hypotheses.
-    * 4. 🤖 **Ask AI (Micro-Context Explanation):** Click any node or edge on the canvas to pass its micro-context (raw extraction evidence and literature origin) to the LLM, producing an in-depth biological mechanism essay directly suitable for grant proposals.
+    🤖 **VII. AI Intelligent Research Assistant (Beneath Main Canvas)**
+    * 1. 🧹 **Smart Pruning (Tree Cleaning):**
+        * 🔍 *Topology Diagnosis:* LLM scans full-graph logic and evidence to generate review checklists (Merge synonyms, Build hierarchy, Resolve containment deadlocks, Fold symmetric relations, Downgrade shortcuts, Remove transitive edges, Purify coarse relations). Structural repairs are checked by default, while invasive removals and coarse purifications are unchecked by default for researcher decision.
+        * ✂️ *Intent-Based Node Cleaning:* Input your research focus; AI reviews nodes with neighbor topology context under 3 risk tiers (Completely Irrelevant, Potentially Irrelevant, Low Relevance) in an interactive `st.data_editor` table. Confirm to purge selected nodes and cascade-delete connected edges.
+        * 🏷️ *Smart Paper Title Renaming:* Inside the pruning accordion, click `🏷️ Start Identification & Renaming` to automatically align filenames and citation tags with official PubMed/DOI metadata.
+    * 2. 🔍 **Smart Expansion:** Select core anchor nodes to formulate PubMed queries and assimilate new papers in autopilot mode.
+    * 3. 🔗 **Smart Bridging:** Select any two molecules; AI explores multi-step cascade routes or queries external literature for hidden bridging mechanisms.
+    * 4. 🤖 **Ask AI (Micro-Context Explanation):** Click any node or edge to generate a comprehensive, citation-anchored mechanism report.
 
-    📊 **VIII. Graph Analysis Workbench & Three-Tier Classification (Function 1)**
-    Click `📊 Go to Graph Analysis Workbench ➔` at the bottom of the canvas to enter the deep curation studio:
-    * **Three-Tier Escalation:** Tier 1 (0-Token Rule Pre-Filter for INN drug stems, enzyme `-ase`, ncRNA) ➔ Tier 2 (Micro-context local reasoning & targeted in-paper regex retrieval) ➔ Tier 3 (Biomedical world knowledge fallback & scholar manual override console).
+    📊 **VIII. Graph Analysis Workbench & Three-Tier Classification (Stage 1)**
+    Click `📊 Open Graph Analysis Workbench ➔` at the bottom of the canvas to enter the deep curation studio:
+    * **Three-Tier Escalation:** Tier 1 (0-Token Rule Pre-Filter for drug stems, enzyme `-ase`, ncRNAs) ➔ Tier 2 (Micro-context reasoning & targeted in-paper regex retrieval) ➔ Tier 3 (Biomedical world knowledge fallback & scholar manual override console).
     * **6 Built-in Schemas:** NIH BioRED, molecular signaling, pharmacology targets, tumor microenvironment, ecosystem science, and ethology presets with hot-loading custom `.json` rules.
 
-    🔬 **IX. Signaling Pathway & Autoregulatory Circuit Decomposition (Function 2)**
-    Located in the second section of the Workbench, this module distills cohesive local signaling pathways and causal circuits from complex macro networks:
-    * **Workflow:** Set focus prompt (optional) & target count (1-10) ➔ click `⚡ Start Pathway & Circuit Decomposition` ➔ view biochemical title, summary, feedback loop diagnostics (Johnson/Tarjan algorithms), and interactive DAG/Force canvases.
-    * **Export Options:** Standalone interactive HTML, JSON, or `🧬 Export as Project (.biokg)` for independent autopilot follow-up.
+    🔬 **IX. Signaling Pathway & Autoregulatory Circuit Decomposition (Stage 2)**
+    * **Operation:** Set focus prompt (optional) & target pathway count (1-5, default 3) ➔ click `🚀 Run Pathway Decomposition & Modeling` (or `🔄 Re-run Decomposition`) ➔ inspect biochemical titles, narrative summaries, feedback loop diagnostics (negative homeostasis vs. positive cascade), and interactive DAG/Force canvases.
+    * **Export:** Standalone interactive HTML, JSON, or `🧬 Export as Project (.biokg)` to spawn independent sub-projects.
 
-    💡 **X. Hypothesis Deduction & Scientific Discovery Copilot (Function 3)**
-    Located in the third section of the Workbench, this module elevates the system from knowledge extraction to autonomous scientific discovery:
-    * **Message Passing & 3-4 Node Micro-Circuits:** Transcends two-node heuristics to detect multi-hop feedback, cascades, and bridges.
-    * **6 Exploration Modes:** Auto Portfolio (2 shortcuts + 1 bridge + 1 loop + 1 cascade), Detour Shortcut ($A \to B \to C$), Cluster Bridge, Feedback Homeostasis, Peripheral Growth, and Intent-Driven Exploration.
-    * **Literature Referee & Deep Expansion:** Concurrently queries PubMed / Semantic Scholar to classify hypotheses (Known Fact, Novel Gap, Cascade Pathway, Inconclusive), with one-click 8-10 paper deep literature expansion & re-adjudication.
-    * **Adoption & Master Graph Ingestion:** One-click merge to master graph via automated smart bridging pipeline, or export as standalone `.biokg` sub-project.
+    💡 **X. Hypothesis Deduction & Scientific Discovery Copilot (Stage 3)**
+    * **Message Passing & 3-4 Node Micro-Circuits:** Executes 24-dimensional graph message passing flows to detect multi-hop feedback, cascades, and bridges.
+    * **6 Discovery Modes:** Auto Mode (auto-perception recommendation), Detour Shortcuts ($A 	o B 	o C$), Cluster Bridging, Homeostatic Feedback, Peripheral Growth, and Intent-Driven Exploration.
+    * **Autonomous PubMed Referee:** Concurrently queries PubMed to classify hypotheses into Known Fact, Novel Gap, Cascade Pathway, or Inconclusive.
+    * **Deep Expansion & Ingestion:** For gaps or disputes, click `📖 Deep Search & Read More Literature (~8 papers re-adjudication)` to fetch 8-10 PubMed abstracts for secondary re-adjudication. Click `📥 Ingest via Pipeline & Merge to Master Graph` to seamlessly merge verified hypotheses into the master graph.
     """)
     else:
-        st.markdown(""" 
+        st.markdown(r""" 
     📖 **Bio-Graph Agent 核心功能操作指南**
     欢迎使用 Bio-Graph Agent！这是一款专为生物医学研究者打造的“大模型科研军师”。
 
     🧬 **基础图谱逻辑与学术使命 (Graph Base Logic)：**
-    本系统并非简单的“文本总结工具”，而是通过大语言模型深度研读文献，抽取出结构化的“生物实体（节点）”与“调控关系（连线）”。当你导入多篇文献时，系统会自动进行跨文献实体语义对齐（例如将文献 A 中的 p53 和文献 B 中的 TP53 完美融合为同一个节点），将孤立论文编织成一张具备交叉印证能力的全局动态知识网络，帮助学者一目了然洞察潜在的 $A \to B \to C$ 级联通路，激发基金课题选题灵感！
+    本系统并非简单的“文本总结工具”，而是通过大语言模型深度研读文献，抽取出结构化的“生物实体（节点）”与“调控关系（连线）”。当你导入多篇文献时，系统会自动进行跨文献实体语义对齐（例如将文献 A 中的 p53 和文献 B 中的 TP53 完美融合为同一个节点），将孤立论文编织成一张具备交叉印证能力的全局动态知识网络，帮助学者一目了然洞察潜在的 $A 	o B 	o C$ 级联通路，激发基金课题选题灵感！
 
     ⚙️ **一、 初始环境与高级设置 (侧边栏「更多设置」)**
-    在使用前，请展开左侧边栏的 ⚙️ **更多设置** 进行环境配置：
-
-    * 🌐 **大模型引擎：** 选择 API 提供商（OpenRouter、腾讯混元、硅基流动等）并填入 Key；支持离线隐私模式（选择 **Ollama** 即可在断网环境下处理极密医学数据，免密运行）。
+    点击左侧边栏的 ⚙️ **更多设置** 弹窗进行环境配置：
+    * 🌐 **界面语言 (Language)：** 支持中英文随时一键双向无缝切换。
+    * 🌐 **大模型引擎：** 选择 API 提供商（OpenRouter、腾讯混元、硅基流动、自定义 Base URL 等）并填入 Key；支持离线隐私模式（选择 **Ollama** 即可在断网环境下处理极密医学数据，免密运行）。
+    * 🤖 **模型选择与专职视觉模型：** 选择主模型；展开“高级模型设置”可独立挂载专职多模态模型（如 Gemini 2.5 Flash-Lite、Gemini 3.8 Flash、千问 VL 72B、自定义模型 ID），并支持后缀覆盖（如 `:free`）。
     * 📚 **智能检索源：** 选择 PubMed (医学绝对权威) 或 Semantic Scholar (全科 AI 智能极速检索，自带智能降级防封机制)。
-    * ⚡ **并发线程数 (多切块与插图并行解析)：** 设置 1~8 并发线程，大幅压缩长篇文献切块抽取与机制图转译的等待耗时。
-    * 🛡️ **关系节点文献正则补漏 (Literature Grounding)：** 开启后，切块分析完成后若发现端点未在实体字典中登记，自动使用正则比对原文。若原文真实存在则回填为合法节点；若纯属大模型幻觉虚构，则坚决剔除虚假连线。
-    * 👁️ **专职视觉模型与后缀：** 支持自由跟随主模型，或指定独立的多模态视觉模型（如 Gemini 2.5 Flash-Lite、Gemini 3.8 Flash、千问 VL 72B），并支持后缀覆盖。
     * 🎛️ **界面功能开关：** 根据需要开启 📝 **手动编辑面板** 与 🤖 **AI 智能图谱分析**。
 
-    📂 **二、 从零到一：构建知识图谱 (左侧控制栏)**
-    在左侧「1. 文献输入与配置」面板，系统提供两种截然不同的起步方式：
+    📂 **二、 从零到一：构建知识图谱 (主界面)**
+    在主界面中央「📂 本地文献解析与知识图谱构建」区域，系统提供两种截然不同的起步方式：
 
-    **方式 A：💡 零基础冷启动 (Cold Start)**
-    手头没有任何文献？只需在输入框用大白话输入研究方向（例如：“巨噬细胞极化在肿瘤微环境中的作用”）。点击“一键检索并生成初始图谱”，AI 将自动生成专业检索式，潜入数据库抓取最新文献并构建出第一张初始知识图谱！
+    **方式 A：💡 零基础冷启动 (Cold Start，图谱为空时展开)**
+    手头没有任何文献？只需在输入框用大白话输入研究方向（例如：“巨噬细胞极化在肿瘤微环境中的作用”）。点击“🔍 一键智能检索并构建初始图谱”，AI 将自动生成专业检索式，潜入数据库抓取最新文献、通过滑动窗口反思初筛，并直接构建出第一张初始知识图谱！
 
     **方式 B：📄 本地文献精准解析**
     * **上传文献：** 将单篇 PDF 拖入上传区。
@@ -158,65 +152,71 @@ def show_help_dialog():
         * ⚡ **仅提取摘要模式：** 极速模式，智能匹配摘要章节并提取核心脉络。
         * 🔍 **自我反思纠错：** 启用独立质检员 Agent，二次比对剔除无原文依据的幻觉实体。
         * 🔗 **追加模式 (核心灵魂)：** 开启后，新解析文献与现有图谱无缝融合生长！关闭此项将清空画布从零开始。
+        * 🧬 **提取表型与行为调控终点：** 突破单纯分子限制，提取细胞命运（凋亡、自噬）及宏观系统/行为学表型终点（认知障碍、运动协调等）。
+        * 🏷️ **离散结局规范总结与别名回填：** 将长句离散调控结局归纳为规范概念实体，原文回填实体别名（`aliases`），并附带推断标记 `(总结)` / `(inferred)`。
+        * 🛡️ **关系节点文献正则补漏 (Literature Grounding)：** 若关系端点未在实体字典登记，自动正则比对原文，真实存在则补全，模型幻觉则坚决剔除。
+        * ⚡ **并发线程数 (1~8 线程)：** 设置多线程并发池，成倍压缩文献切块抽取与机制图并发转译耗时。
         * 🌐 **实体命名规范：** 统一将节点翻译规范为纯中文、纯英文或保持文献原文。
     * 📷 **机制图/通路图解析策略 (前置多模态视觉转译)：**
         * 🚫 *关闭 (纯文本)：* 传统纯文本解析流。
         * 🎯 *精准匹配 (输入图号)：* 依据关键词（如 `Fig 4`、`pathway`、`Figure 2`）定向狙击目标机制图。
-        * ⚡ *选定页全开 (提取全部插图)：* 启用 **空间邻近聚类合并算法**，自动将 PDF 内部重叠、分层的光栅切片（如 Graphical Abstract 及多子图复合 Figure）合并为完整高清机制图，结合均衡适度的矢量机制图检测，并发调用多模态大模型转译为分子拓扑机制文本并注入图谱生成流！
+        * ⚡ *选定页全开 (提取全部插图)：* 启用空间邻近聚类合并算法，自动将 PDF 内部重叠切片合并为高清机制图，结合均衡矢量图检测并发转译为拓扑文本。
 
     🕸️ **三、 视觉赋权引擎 (主界面上方控制台)**
-    * 👁️ **机制捷径边：** 开启后展现跨越中间节点的“直达捷径”，宏观审视上游到下游的最终调控结果。
-    * 🧬 **本体赋权 (包含反馈)：** 将微观实体（如具体蛋白）权重回馈给宏观分类父级（如激酶家族），使关键通路家族在图中自动壮大。
-    * 🔥 **节点赋权 (连接度中心性)：** 基于图论度中心性算法，核心枢纽基因随分子连线增多自动放大。
-    * 🔗 **连线赋权 (主干通路加粗)：** 被多篇文献反复验证且证据链最坚实的共识连线自动加粗显示。
+    * 👁️ **显示机制捷径边：** 开启后展现跨越中间节点的“直达捷径”，宏观审视上游到下游的最终调控结果。
+    * 🧬 **包含关系反哺 (父节点变大)：** 将微观实体权重回馈给宏观分类父级（如激酶家族），使关键通路家族在图中自动壮大。
+    * 🌟 **节点互相辐射 (强关联变大)：** 基于图论中心度与紧密关联辐射算法，核心枢纽基因随分子连线增多自动放大。
+    * 🔗 **核心主干加粗 (高频连线变粗)：** 被多篇文献反复验证且证据链最坚实的共识连线自动加粗显示。
 
     🎨 **四、 拓扑网络可视化视觉规范**
-    * 🟢 **绿色实线 + 箭头：** 正作用 / 促进 / 激活 ($A \to B$)。
-    * 🔴 **红色实线 + 箭头：** 负作用 / 抑制 / 下调 ($A \dashv B$)。
-    * ⚪ **灰色实线：** 一般关联 / 相互作用但方向未明。
-    * ⚠️ **灰色虚线 (---)：** 机制捷径边（跨级宏观粗放结论）。
+    * 🟢 **绿色实线 + 箭头：** 正作用 / 促进 / 激活 ($A 	o B$)。
+    * 🔴 **红色实线 + 箭头：** 负作用 / 抑制 / 下调 ($A \dashv B$，加粗显示突出阻断特征)。
+    * ⚪ **灰色连线 (无箭头)：** 一般关联 / 伴随结合 (主图为灰色实线；工作台拓扑以淡灰色虚线弱化呈现)。
+    * ⚠️ **灰色虚线 (---)：** 机制捷径边（跨级宏观粗放结论），附带悬停警示。
     * 🟣 **紫色实线：** 包含 / 归属 / 亚基组成关系。
+    * 🔀 **布局引擎：** 主图谱全局采用 ForceAtlas2 力导向物理引擎；阶段二局部通路拆解专属支持层次因果 DAG 流向与力导向双模一键切换。
 
     ✂️ **五、 专家手动干预 (数据管理中心)**
-    * 🧹 **全局操作：** 一键清理游离孤岛节点；批量修改文献来源标签（如统一替换为 *Nature_2026_Tau*）；手动增补关键分子节点。
-    * 🎯 **节点手术：** 节点重命名；**强制合并**（将节点 A 的所有连线转移给节点 B 并销毁 A）；**节点拆分**（将宽泛节点拆解为两个新节点并重新分配连线）；彻底危险删除。
-    * 🔗 **关系操作：** 逆转上下游方向；切换作用类型；编辑原文文本证据；彻底斩断错误连线或手动搭建已知新桥梁。
+    * 🧹 **快捷功能：** 左栏支持一键清理游离孤岛节点与批量修改文献来源标签；右栏支持 **➕ 手动增补节点**（输入名称、别名与文献出处一键入库）。
+    * 🎯 **节点手术：** 搜索并选定任意节点，进行重命名、**强制合并**（将节点 A 关系转移给节点 B 并销毁 A）或**节点拆分**（将宽泛节点拆解为两个新节点并分配连线）。
+    * 🔗 **关系手术：** 逆转上下游方向、切换作用类型、编辑原文文本证据、斩断错误连线或手动搭建已知新桥梁。
 
-    💾 **六、 专属课题工程库与 Memory Vault 集中文献自愈库**
-    * 🗂️ **专属课题工程隔离 (`projects/<project_id>/`)：** 每个研究课题享有独立的工作区目录，持久化保存各自的 `graph_state.json` 与专属文献文件。支持随时一键新建空白工程、快速切换历史课题，或彻底删除旧工程释放磁盘空间。
-    * 🏛️ **Memory Vault 集中式文献库与 SHA-256 注册表：** 所有导入文献由集中库 `vault/` 通过 SHA-256 物理哈希指纹统一归档于 `literature_registry.json`，不同课题引用同一篇论文时自动复用，杜绝磁盘冗余。
-    * 🌐 **文献自动规范重命名与在线权威 PMID 对齐：** 一键联网检索 PubMed/DOI，将随机或哈希命名的 PDF 文件自动重构为学术标准命名（如 `PMID: 35123456 | Article_Title.pdf`），并无缝同步所有实体与关系的溯源标签。
-    * 🩹 **缺失文献探测与智能自愈回填：** 跨设备迁移工程或不小心移动文件后，系统能够自动探测缺失的文献原件，基于 SHA-256 物理扫描并在 Central Vault 中一键找回并回填绑定。
-    * 📷 **机制图学术溯源豁免：** 来自插图转译的证据标有 `[Figure: Page1_Fig1 (P.1)]` 标签，深度锚定原文且在文献自愈排查中享有自动豁免，不会被误判为缺失论文。
+    💾 **六、 专属课题工程库与本地文献自愈**
+    * 🗂️ **专属课题工程隔离 (`projects/<project_id>/`)：** 每个研究课题享有独立工作区，以 `project.biokg` 作为单一真实数据源，通过 `paper_registry.json` 记录文献哈希指纹，支持跨设备缺失原件自动物理扫描回填自愈。
+    * 💾 **工程存档兼容：** 完美兼容 `.biokg` 与 `.json` 课题存档文件的导出与导入。
 
-    🤖 **七、 AI 智能图谱分析 (右侧专属面板)**
+    🤖 **七、 AI 智能科研助理 (主图谱画布正下方)**
     * 1. 🧹 **智能洗树 (Pruning)：**
-        * 🔍 *拓扑结构智能诊断：* 大模型通读全图连线逻辑，生成清单建议 **Merge** 同义词、**Hierarchy** 建立分类层级、**Downgrade** 宽泛捷径。
-        * 🧲 *对称关系无向折叠：* 自动将 $A \leftrightarrow B$ 的相互相关关系折叠为单条无向连线，热度与证据无损合并累加。
-        * 🔄 *循环包含死锁化解：* 自动排查双向包含死锁（$A$ 包含 $B$ 且 $B$ 包含 $A$），智能纠偏层次从属关系。
-        * 🧪 *粗糙关系高阶提纯 (选配清洗)：* 默认置于审查清单最下方，供学者自主选择是否合并或剔除粗糙的宽泛“相关”连线，防止信息过早丢失。
-        * ✂️ *意图节点清洗 (Intent-Based Pruning)：* 输入研究焦点（如“我只关注神经元 tau 蛋白稳态”），AI 将作为严苛审稿人，自动揪出偏题的器官、药物或无关分子，一键物理抹除。
-    * 2. 🔍 **智能拓展 (Smart Expansion)：** 选定 1~3 个核心锚点，结合图谱已知背景自动反向生成高级检索式，从 PubMed 抓取最新文献送入队列，开启**无人值守自动化融合模式**，让图谱自我生长！
-    * 3. 🔗 **智能桥接 (Bridging)：** 选中任意两个看似无关的分子 A 和 B，AI 自动遍历寻找隐秘的多步传导路径，或呼叫外网 API 强行探勘未被注意的调控桥梁，直接启发全新基金标书构思！
-    * 4. 🤖 **问 AI (微观机制解读报告)：** 点击画布上任意节点或连线，提取其微上下文（原文提取证据与文献来源），大模型现场推演并生成详实的生物学机制解读报告，直出标书素材！
+        * 🔍 *拓扑结构智能诊断：* 大模型通读全图拓扑与证据，生成 7 类操作审查清单（同义词合并、建立层级、破除循环包含、折叠双向相关、降级捷径边、删除越级连线、机制提纯合并）。高确信度结构修复默认预勾选，侵入性连线删除与粗糙提纯交由学者自主决策勾选，点击确认执行并自动终极去重。
+        * ✂️ *意图节点清洗 (Intent-Based Pruning)：* 输入研究焦点，大模型结合邻居拓扑按三级风险（完全无关、可能无关、低关联度）在 `st.data_editor` 交互表格中呈现处决名单，确认后一键物理抹除并级联移除连线。
+        * 🏷️ *智能文献名称识别与规范化：* 在洗树折叠区内点击 `🏷️ 开始识别并重命名`，一键联网检索 PubMed/DOI 获取官方学术大标题并无感同步溯源。
+    * 2. 🔍 **智能拓展 (Smart Expansion)：** 选定 1~3 个核心锚点，自动反向生成高级检索式从 PubMed 抓取最新文献送入队列无人值守自我生长！
+    * 3. 🔗 **智能桥接 (Bridging)：** 选中任意两个看似无关的分子，AI 自动遍历寻找隐秘的多步传导路径或探勘未被注意的调控桥梁。
+    * 4. 🤖 **问 AI (微观机制解读报告)：** 点击画布任意节点或连线，提取微上下文证据与来源，大模型现场推演并生成详实的机制解读报告。
 
-    📊 **八、 图谱分析工作台与三层本体机制分类 (功能一)**
+    📊 **八、 图谱分析工作台与三层本体机制分类 (阶段一)**
     在主画布底部点击「📊 前往图谱分析工作台 ➔」即可一键切换至二级深度研判工作台：
     * **三层分类升级架构：** Tier 1 (0-Token 规则预分流，INN 药名词缀/酶学/ncRNA 毫秒级命中) ➔ Tier 2 (微上下文局部推理与原篇文献正则精准回溯) ➔ Tier 3 (通用生物常识兜底与学者人工调换控制台)。
     * **6 大内置权威本体预设：** 内置 NIH BioRED 通用基准、信号转导、药理靶点、肿瘤微环境、生态系统科学、动物行为学等预设，支持一键打开规则文件夹热加载自定义 `.json` 规则。
 
-    🔬 **九、 信号通路与自调控回路图论拆解研判 (功能二)**
-    位于工作台第二大板块，利用图论拓扑算法与大模型科研焦点引导，将复杂宏观大网精炼拆解为多条条理清晰、因果明确的信号通路：
-    * **操作流程：** 设定学术焦点指导（可选）与通路数量 ➔ 点击「⚡ 开始拆解信号通路与调控网络」➔ 查看生化通路标题、机制叙述摘要、自调控反馈环诊断（Johnson/Tarjan 算法）与交互画布。
-    * **导出与二次分析：** 支持导出独立交互 HTML、结构化 JSON，以及「🧬 降级导出为工程 (.biokg)」作为独立小课题重新加载开展无人值守拓展。
+    🔬 **九、 信号通路与自调控回路图论拆解研判 (阶段二)**
+    * **操作流程：** 设定学术焦点指导（可选）与通路输出数量（1~5 条，默认 3 条） ➔ 点击「🚀 开始信号通路拆解与建模」（或「🔄 重新拆解与建模」） ➔ 查看生化通路标题、因果机制摘要、正负自调控反馈环诊断与交互画布（支持 DAG 与力导向双布局切换）。
+    * **导出与二次分析：** 支持导出独立交互 HTML、结构化 JSON，以及「🧬 降级导出为工程 (.biokg)」作为独立小课题重新加载开展针对性拓展。
 
-    💡 **十、 智能假说推演与科研探勘引擎 (功能三)**
-    位于工作台第三大板块，是系统从“知识读取”向“前沿假说自主发现”蜕变的核心引擎：
-    * **图消息传递与 3-4 节点微回路发现：** 突破两节点直连局限，多步消息传递流精准捕获中介调节、多步级联与自稳态控制微回路。
-    * **6 大科研探勘模式：** 自动组合 (Auto Portfolio：2捷径+1瓶颈+1稳态+1级联)、局部捷径绕道 ($A \to B \to C$)、跨簇功能桥接、负反馈稳态闭环、前沿级联外展、科学意图导向探勘。
-    * **在线文献裁判与深度扩读：** 联网检索 PubMed / Semantic Scholar 智能输出四级研判（已知事实、创新空白、级联通路、证据不足），支持针对空白/争议卡片一键并发检索 8~10 篇全文深度扩读与二次仲裁。
-    * **假说采纳与无缝主图合并：** 点击一键采纳触发智能桥接扩增流水线，自动将新推演的中介节点与关系合并入主图谱并同步缓存；支持独立导出为 `.biokg` 课题工程。
+    💡 **十、 智能假说推演与科研探勘引擎 (阶段三)**
+    * **图消息传递与 3~4 节点微回路发现：** 运行 24 维极性感知图消息传递流，精准捕获包含中介调节、多步级联与自稳态控制的微回路。
+    * **6 大科研探勘模式：** 自动感知智能推荐、高维语义隐性捷径 ($A 	o B 	o C$)、跨簇孤岛自主桥接、逆向稳态闭环探索、周界边缘薄层生长、学者科研意向定向探究。
+    * **在线文献裁判与深度扩读：** 联动 PubMed 在线检索文献摘要，智能输出四级研判（已知事实、创新空白、级联通路、证据不足）；针对空白/争议卡片可点击「📖 深入检索并通读更多前沿文献 (~8篇深挖复审)」并发扩读 8~10 篇权威摘要二次终审。
+    * **假说采纳与无缝主图合并：** 点击「📥 采纳文献证据并触发抽取流水线 (入库主图谱并返回主界面)」，自动将新推演的中介节点与机制合并入主图谱；支持独立导出为 `.biokg` 课题工程。
     """)
+
+
+
+
+
+
+
+
 
 
 API_PROVIDERS_CONF = {
@@ -2428,6 +2428,22 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
         "wb_hypo_badge_bridge": {"zh": "🔗 跨簇桥接", "en": "🔗 Cluster Bridge"},
         "wb_hypo_badge_growth": {"zh": "🌱 周界生长", "en": "🌱 Peripheral Growth"},
         "wb_hypo_badge_intent": {"zh": "🎯 意向探究", "en": "🎯 Intent Exploration"},
+        "wb_hypo_to_verify": {"zh": "待验证", "en": "To Verify"},
+        "wb_hypo_known": {"zh": "已知", "en": "Known"},
+        "wb_hypo_key_doc": {"zh": "关键确证文献", "en": "Key Evidence Literature"},
+        "wb_hypo_evidence_quote": {"zh": "原文依据", "en": "Source Evidence"},
+        "wb_hypo_rationale_lbl": {"zh": "裁判理由", "en": "Referee Rationale"},
+        "wb_hypo_novelty_high": {"zh": "创新度高", "en": "High Novelty"},
+        "wb_hypo_conclusion_lbl": {"zh": "裁判结论", "en": "Referee Verdict"},
+        "wb_hypo_outlook_lbl": {"zh": "科研前瞻建议", "en": "Research Outlook"},
+        "wb_hypo_cascade_doc": {"zh": "级联确证文献", "en": "Cascade Evidence Literature"},
+        "wb_hypo_cascade_direction": {"zh": "级联推演方向", "en": "Cascade Direction"},
+        "wb_hypo_spinner_batch": {"zh": "⚡ 正在多线程并发检索 PubMed 文献并由裁判大模型终审...", "en": "⚡ Concurrently retrieving PubMed literature and running referee review..."},
+        "wb_hypo_toast_batch_done": {"zh": "✅ 全部假说文献裁判终审已并发完成！", "en": "✅ All hypothesis literature referee reviews completed!"},
+        "wb_hypo_spinner_single": {"zh": "🔬 正在检索 PubMed 并审读 `{node_a}` 与 `{node_b}` 的机制文献...", "en": "🔬 Searching PubMed and reviewing mechanism literature for `{node_a}` and `{node_b}`..."},
+        "wb_hypo_spinner_merge": {"zh": "🔬 正在基于确证文献触发实体反思抽取、关系推导与知识图谱融合流水线...", "en": "🔬 Ingesting confirmed literature via extraction and graph fusion pipeline..."},
+        "wb_hypo_spinner_merge_cascade": {"zh": "🔬 正在基于级联文献抽取中介实体与调控关系，执行智能桥接合并流水线...", "en": "🔬 Ingesting cascade literature and bridging mediators into master graph..."},
+        "wb_hypo_spinner_mine": {"zh": "🔬 正在进行拓扑寻孔与假说机制推演...", "en": "🔬 Mining structural holes and formulating hypotheses..."},
         "wb_enter_pruning_tip": {
             "zh": "💡 **建议提示**：在进入并使用【图谱分析工作台】前，强烈建议先使用主界面的【🧹 智能洗树 (Pruning)】模块对全图进行去噪、同义词折叠与冗余剪枝，以获得最高质量的本体分类、通路聚类与假说推演效果。",
             "en": "💡 **Tip**: Before entering and using the [Graph Analysis Workbench], it is strongly recommended to use the [🧹 Smart Pruning] module on the main page to denoise, fold synonyms, and prune redundant nodes, ensuring optimal ontology classification, pathway clustering, and hypothesis deduction."
@@ -3411,7 +3427,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             lang=st.session_state.get("ui_language", "zh")
         )
 
-        with st.spinner(t("msg_generating_pathways") if is_en else "🔬 正在进行拓扑寻孔与假说机制推演..."):
+        with st.spinner(t("wb_hypo_spinner_mine")):
             cards = active_engine.mine_and_formulate(
                 mode=selected_hypo_mode,
                 intent=intent_text,
@@ -3449,14 +3465,14 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         searcher=searcher,
                         lang=st.session_state.get("ui_language", "zh")
                     )
-                    with st.spinner("⚡ 正在多线程并发检索 PubMed 文献并由裁判大模型终审..."):
+                    with st.spinner(t("wb_hypo_spinner_batch")):
                         updated_list = engine.verify_hypotheses_concurrent(
                             hypotheses=hypo_cards,
                             intent=st.session_state.get("active_hypo_intent", ""),
                             max_workers=4
                         )
                         st.session_state.hypothesis_cards = updated_list
-                        st.toast("✅ 全部假说文献裁判终审已并发完成！", icon="🎉")
+                        st.toast(t("wb_hypo_toast_batch_done"), icon="🎉")
                         st.rerun()
 
         # 逐卡片呈现
@@ -3475,22 +3491,20 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     st.markdown(f"#### {h_title_prefix} #{idx+1}：`{node_a}` $\\longleftrightarrow$ `{node_b}`")
                     st.caption(f"📌 **{card.get('hypothesis_statement', '')}**")
                 with h_col2:
-                    motif_lbl = card.get("motif_label", "")
-                    if not motif_lbl:
-                        mode_tag = card.get("mode", "")
-                        if "shortcut" in mode_tag:
-                            motif_lbl = t("wb_hypo_badge_shortcut")
-                        elif "bridge" in mode_tag or "bottleneck" in mode_tag:
-                            motif_lbl = t("wb_hypo_badge_bottleneck")
-                        elif "homeostasis" in mode_tag or "feedback" in mode_tag:
-                            motif_lbl = t("wb_hypo_badge_homeostasis")
-                        elif "growth" in mode_tag or "frontier" in mode_tag:
-                            motif_lbl = t("wb_hypo_badge_frontier")
-                        else:
-                            motif_lbl = t("wb_hypo_badge_intent")
+                    mode_tag = (card.get("mode", "") or card.get("motif_type", "")).lower()
+                    if "shortcut" in mode_tag:
+                        motif_lbl = t("wb_hypo_badge_shortcut")
+                    elif "bridge" in mode_tag or "bottleneck" in mode_tag:
+                        motif_lbl = t("wb_hypo_badge_bottleneck")
+                    elif "homeostasis" in mode_tag or "feedback" in mode_tag:
+                        motif_lbl = t("wb_hypo_badge_homeostasis")
+                    elif "growth" in mode_tag or "frontier" in mode_tag:
+                        motif_lbl = t("wb_hypo_badge_frontier")
+                    else:
+                        motif_lbl = t("wb_hypo_badge_intent") if "wb_hypo_badge_intent" in UI_TEXT else card.get("motif_label", "")
                     st.markdown(f"`{motif_lbl}`")
 
-                # 微型机制模体路径展示 (3~4节点：已知中介路径背景 + 待证实假说链路)
+                # 微型机制模体路径展示 (3~4节点：已知中介路径背景 + 待验证假说链路)
                 circuit_edges = card.get("circuit_edges", [])
                 if circuit_edges:
                     edge_pills = []
@@ -3499,12 +3513,13 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         t_name = ce.get("target", "")
                         rel_name = ce.get("relation", "")
                         is_hypo = (ce.get("status") == "hypothesized")
+                        rel_disp = HypothesisEngine._localize_relation(rel_name, "en" if is_en else "zh")
                         if is_hypo:
-                            hypo_prefix = "To Verify" if is_en else "待证实"
-                            edge_pills.append(f"**`{s_name}`** ──┄*({hypo_prefix}: {rel_name})*┄──▶ **`{t_name}`**")
+                            hypo_prefix = t("wb_hypo_to_verify")
+                            edge_pills.append(f"**`{s_name}`** ──┄*({hypo_prefix}: {rel_disp})*┄──▶ **`{t_name}`**")
                         else:
-                            known_prefix = "Known" if is_en else "已知"
-                            edge_pills.append(f"`{s_name}` ──*({known_prefix}: {rel_name})*──▶ `{t_name}`")
+                            known_prefix = t("wb_hypo_known")
+                            edge_pills.append(f"`{s_name}` ──*({known_prefix}: {rel_disp})*──▶ `{t_name}`")
                     st.info(" ｜ ".join(edge_pills))
 
                 st.markdown(f"**{t('wb_hypo_card_rationale')}** {card.get('biological_rationale', '')}")
@@ -3529,7 +3544,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             searcher=searcher,
                             lang=st.session_state.get("ui_language", "zh")
                         )
-                        with st.spinner(f"🔬 正在检索 PubMed 并审读 `{node_a}` 与 `{node_b}` 的机制文献..."):
+                        with st.spinner(t("wb_hypo_spinner_single").format(node_a=node_a, node_b=node_b)):
                             updated_card = engine.verify_single_hypothesis(
                                 card,
                                 intent=st.session_state.get("active_hypo_intent", "")
@@ -3543,14 +3558,15 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
 
                     st.markdown("---")
                     if verdict == "known":
-                        st.success(f"**{t('wb_hypo_verdict_known')}** (置信度: {adj.get('confidence', 0.9):.2f})")
+                        conf_str = t("wb_conf_lbl")
+                        st.success(f"**{t('wb_hypo_verdict_known')}** ({conf_str}: {adj.get('confidence', 0.9):.2f})")
                         pmid = adj.get("direct_evidence_pmid", "")
                         if pmid:
-                            st.markdown(f"📄 **关键确证文献**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
+                            st.markdown(f"📄 **{t('wb_hypo_key_doc')}**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
                         quote = adj.get("evidence_quote", "")
                         if quote:
-                            st.caption(f"📝 *原文依据*: “{quote}”")
-                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+                            st.caption(f"📝 *{t('wb_hypo_evidence_quote')}*: “{quote}”")
+                        st.markdown(f"⚖️ **{t('wb_hypo_rationale_lbl')}**: {adj.get('adjudication_rationale', '')}")
 
                         # 采纳确证文献证据并触发智能拓展抽取流水线入库 (占满卡片全宽)
                         if st.button(t("wb_hypo_btn_merge_return"), type="primary", key=f"btn_merge_{cid}", width="stretch"):
@@ -3560,7 +3576,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                                 st.error(t("err_missing_api_key"))
                                 st.stop()
 
-                            with st.spinner(f"🔬 正在基于确证文献触发实体反思抽取、关系推导与知识图谱融合流水线..."):
+                            with st.spinner(t("wb_hypo_spinner_merge")):
                                 ingest_verified_hypothesis_via_pipeline(
                                     card=card,
                                     api_key=current_key,
@@ -3572,9 +3588,9 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             st.rerun()
 
                     elif verdict == "novel_gap":
-                        st.info(f"**{t('wb_hypo_verdict_novel')}** (创新度高)")
-                        st.markdown(f"⚖️ **裁判结论**: {adj.get('adjudication_rationale', '')}")
-                        st.markdown(f"🔭 **科研前瞻建议**: {adj.get('research_direction', '')}")
+                        st.info(f"**{t('wb_hypo_verdict_novel')}** ({t('wb_hypo_novelty_high')})")
+                        st.markdown(f"⚖️ **{t('wb_hypo_conclusion_lbl')}**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"🔭 **{t('wb_hypo_outlook_lbl')}**: {adj.get('research_direction', '')}")
                         st.caption(t("wb_hypo_novel_notice"))
 
                         # 深入检索并通读更多文献深挖复审 (占满卡片全宽)
@@ -3612,7 +3628,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             master_relations=master_rels,
                             project_id=proj_id,
                             project_name=proj_name,
-                            workbench_state=st.session_state.get("workbench_state", {})
+                            workbench_state=st.session_state.get("workbench_state", {}),
+                            lang=st.session_state.get("ui_language", "zh")
                         )
                         sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
                         clean_fname = f"BioKG_Hypothesis_{node_a}_{node_b}.biokg"
@@ -3629,12 +3646,12 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.warning(f"**{t('wb_hypo_verdict_cascade')}**")
                         pmid = adj.get("direct_evidence_pmid", "")
                         if pmid:
-                            st.markdown(f"📄 **级联确证文献**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
+                            st.markdown(f"📄 **{t('wb_hypo_cascade_doc')}**: [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
                         quote = adj.get("evidence_quote", "")
                         if quote:
-                            st.caption(f"📝 *原文依据*: “{quote}”")
-                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
-                        st.markdown(f"🧭 **级联推演方向**: {adj.get('research_direction', '')}")
+                            st.caption(f"📝 *{t('wb_hypo_evidence_quote')}*: “{quote}”")
+                        st.markdown(f"⚖️ **{t('wb_hypo_rationale_lbl')}**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"🧭 **{t('wb_hypo_cascade_direction')}**: {adj.get('research_direction', '')}")
 
                         # 采纳级联证据并触发智能拓展抽取流水线入库 (智能桥接中介并合并入主图谱，占满全宽)
                         if st.button(t("wb_hypo_btn_merge_cascade"), type="primary", key=f"btn_merge_cascade_{cid}", width="stretch"):
@@ -3644,7 +3661,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                                 st.error(t("err_missing_api_key"))
                                 st.stop()
 
-                            with st.spinner(f"🔬 正在基于级联文献抽取中介实体与调控关系，执行智能桥接合并流水线..."):
+                            with st.spinner(t("wb_hypo_spinner_merge_cascade")):
                                 ingest_verified_hypothesis_via_pipeline(
                                     card=card,
                                     api_key=current_key,
@@ -3662,7 +3679,8 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             master_relations=master_rels,
                             project_id=proj_id,
                             project_name=proj_name,
-                            workbench_state=st.session_state.get("workbench_state", {})
+                            workbench_state=st.session_state.get("workbench_state", {}),
+                            lang=st.session_state.get("ui_language", "zh")
                         )
                         sub_bytes = json.dumps(sub_biokg, ensure_ascii=False, indent=2).encode('utf-8')
                         clean_fname = f"BioKG_Cascade_{node_a}_{node_b}.biokg"
@@ -3676,7 +3694,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         )
                     else:
                         st.info(f"**{t('wb_hypo_verdict_inconclusive')}**")
-                        st.markdown(f"⚖️ **裁判理由**: {adj.get('adjudication_rationale', '')}")
+                        st.markdown(f"⚖️ **{t('wb_hypo_rationale_lbl')}**: {adj.get('adjudication_rationale', '')}")
 
                         # 深入检索并通读更多文献深挖复审 (占满卡片全宽, 优先操作)
                         if st.button(t("wb_hypo_btn_expand_lit"), type="primary", key=f"btn_expand_lit_{cid}", width="stretch"):

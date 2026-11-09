@@ -213,6 +213,47 @@ class HypothesisEngine:
 
         return ontology_cache
 
+    @staticmethod
+    def _localize_relation(rel_name: str, lang: str = "zh") -> str:
+        """双语机制关系名称本地化映射"""
+        if not rel_name:
+            return ""
+        is_en = "en" in str(lang).lower()
+        mapping_to_en = {
+            "正作用": "Positive",
+            "负作用": "Negative",
+            "相关": "Related",
+            "包含": "Contains",
+            "直接短路串扰": "Direct Shortcut",
+            "跨模块核心桥接": "Cross-module Bridge",
+            "负反馈自抑": "Negative Feedback",
+            "纵深级联调控": "Cascade Regulation",
+            "Positive_Regulation": "Positive Regulation",
+            "Negative_Regulation": "Negative Regulation",
+            "Physical_Binding": "Physical Binding",
+            "Catalytic_Transformation": "Catalytic Transformation",
+            "Biomarker_Association": "Biomarker Association"
+        }
+        mapping_to_zh = {
+            "Positive": "正作用",
+            "Negative": "负作用",
+            "Related": "相关",
+            "Contains": "包含",
+            "Direct Shortcut": "直接短路串扰",
+            "Cross-module Bridge": "跨模块核心桥接",
+            "Negative Feedback": "负反馈自抑",
+            "Cascade Regulation": "纵深级联调控",
+            "Positive_Regulation": "正作用 (促进)",
+            "Negative_Regulation": "负作用 (抑制)",
+            "Physical_Binding": "物理结合",
+            "Catalytic_Transformation": "催化转化",
+            "Biomarker_Association": "标志物关联"
+        }
+        if is_en:
+            return mapping_to_en.get(rel_name, rel_name)
+        else:
+            return mapping_to_zh.get(rel_name, rel_name)
+
     def detect_auto_mode(self) -> Dict[str, str]:
         """
         拓扑-语义流场自感知：
@@ -324,8 +365,8 @@ class HypothesisEngine:
                 for idx in range(len(path) - 1):
                     p_s, p_t = path[idx], path[idx + 1]
                     r_type = self.G[p_s][p_t].get("relation", "相关")
-                    c_edges.append({"source": p_s, "target": p_t, "relation": r_type, "status": "known"})
-                c_edges.append({"source": u, "target": v, "relation": "直接短路串扰", "status": "hypothesized"})
+                    c_edges.append({"source": p_s, "target": p_t, "relation": self._localize_relation(r_type, self.lang), "status": "known"})
+                c_edges.append({"source": u, "target": v, "relation": self._localize_relation("直接短路串扰", self.lang), "status": "hypothesized"})
 
                 inter_names = ", ".join(path[1:-1])
                 hint = (
@@ -408,9 +449,9 @@ class HypothesisEngine:
                         for p_idx in range(len(path) - 1):
                             p_s, p_t = path[p_idx], path[p_idx + 1]
                             r_type = self.G[p_s][p_t].get("relation", "相关")
-                            c_edges.append({"source": p_s, "target": p_t, "relation": r_type, "status": "known"})
+                            c_edges.append({"source": p_s, "target": p_t, "relation": self._localize_relation(r_type, self.lang), "status": "known"})
                 c_nodes.append({"name": hub_j, "category": cat_j, "role": "hub_target"})
-                c_edges.append({"source": hub_i, "target": hub_j, "relation": "跨模块核心桥接", "status": "hypothesized"})
+                c_edges.append({"source": hub_i, "target": hub_j, "relation": self._localize_relation("跨模块核心桥接", self.lang), "status": "hypothesized"})
 
                 hint = (
                     f"宏观功能模块 社区{i+1}（{hub_i}，度数{deg_i[hub_i]}）与 社区{j+1}（{hub_j}，度数{deg_j[hub_j]}）存在深层调控结构洞，推演加固跨界冗余桥梁"
@@ -466,9 +507,9 @@ class HypothesisEngine:
                         {"name": w, "category": cat_w, "role": "cascade_terminal"}
                     ]
                     c_edges = [
-                        {"source": u, "target": v, "relation": rel_uv or "正作用", "status": "known"},
-                        {"source": v, "target": w, "relation": rel_vw or "正作用", "status": "known"},
-                        {"source": w, "target": u, "relation": "负反馈自抑", "status": "hypothesized"}
+                        {"source": u, "target": v, "relation": self._localize_relation(rel_uv or "正作用", self.lang), "status": "known"},
+                        {"source": v, "target": w, "relation": self._localize_relation(rel_vw or "正作用", self.lang), "status": "known"},
+                        {"source": w, "target": u, "relation": self._localize_relation("负反馈自抑", self.lang), "status": "hypothesized"}
                     ]
 
                     hint = (
@@ -540,8 +581,8 @@ class HypothesisEngine:
                 ]
                 rel_lm = self.G[leaf][mediator].get("relation", "相关")
                 c_edges = [
-                    {"source": leaf, "target": mediator, "relation": rel_lm, "status": "known"},
-                    {"source": mediator, "target": hub, "relation": "纵深级联调控", "status": "hypothesized"}
+                    {"source": leaf, "target": mediator, "relation": self._localize_relation(rel_lm, self.lang), "status": "known"},
+                    {"source": mediator, "target": hub, "relation": self._localize_relation("纵深级联调控", self.lang), "status": "hypothesized"}
                 ]
 
                 hint = (
@@ -652,10 +693,20 @@ class HypothesisEngine:
         cards = []
         for i, pair in enumerate(candidates):
             formulation = llm_formulated[i] if i < len(llm_formulated) else {}
-            stmt = formulation.get("hypothesis_statement") or f"{pair['node_a']} 与 {pair['node_b']} 在局部机制回路中存在直接或级联调控互作"
+            default_stmt = (
+                f"{pair['node_a']} 与 {pair['node_b']} 在局部机制回路中存在直接或级联调控互作"
+                if self.lang != "en" else
+                f"Direct or cascade regulatory interaction between {pair['node_a']} and {pair['node_b']} in local circuit"
+            )
+            default_direction = (
+                f"深入探究 {pair['node_a']} 对 {pair['node_b']} 的直接分子作用机制及表型响应"
+                if self.lang != "en" else
+                f"Investigate direct molecular mechanism and phenotypic response of {pair['node_a']} on {pair['node_b']}"
+            )
+            stmt = formulation.get("hypothesis_statement") or default_stmt
             rel = formulation.get("proposed_relation") or "Positive_Regulation"
             rationale = formulation.get("biological_rationale") or pair.get("rationale_hint", "")
-            direction = formulation.get("research_direction") or f"深入探究 {pair['node_a']} 对 {pair['node_b']} 的直接分子作用机制及表型响应"
+            direction = formulation.get("research_direction") or default_direction
 
             cards.append({
                 "id": f"hypo_{uuid.uuid4().hex[:8]}",
@@ -753,7 +804,7 @@ class HypothesisEngine:
                 "direct_evidence_pmid": articles[0].get("pmid", "") if articles else "",
                 "evidence_quote": "",
                 "research_direction": hypothesis.get("research_direction", ""),
-                "adjudication_rationale": "基于规则与检索文献匹配完成初步判定。"
+                "adjudication_rationale": "基于规则与检索文献匹配完成初步判定。" if self.lang != "en" else "Preliminary adjudication completed based on rules and retrieved literature matching."
             }
 
         hypothesis["adjudication"] = adjudication
@@ -839,7 +890,7 @@ class HypothesisEngine:
                 "direct_evidence_pmid": all_articles[0].get("pmid", "") if all_articles else "",
                 "evidence_quote": "",
                 "research_direction": hypothesis.get("research_direction", ""),
-                "adjudication_rationale": f"已扩充通读 {len(all_articles)} 篇前沿文献完成深度复审裁决。"
+                "adjudication_rationale": f"已扩充通读 {len(all_articles)} 篇前沿文献完成深度复审裁决。" if self.lang != "en" else f"Completed deep review adjudication after reading {len(all_articles)} cutting-edge papers."
             }
 
         hypothesis["adjudication"] = adjudication
@@ -890,7 +941,8 @@ class HypothesisEngine:
                                    master_relations: List[Dict[str, Any]],
                                    project_id: str = "",
                                    project_name: str = "",
-                                   workbench_state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                                   workbench_state: Optional[Dict[str, Any]] = None,
+                                   lang: str = "zh") -> Dict[str, Any]:
         """
         将单项假说及其局部微环境打包为合法的 .biokg 独立工程字典：
         - 包含探勘假说两端核心实体（node_a, node_b）及其在原图中的 1 阶邻居实体；
@@ -901,13 +953,18 @@ class HypothesisEngine:
         """
         import time
 
+        is_en = "en" in str(lang).lower()
         node_a = hypothesis.get("node_a", "")
         node_b = hypothesis.get("node_b", "")
         clean_title = f"{node_a}_{node_b}"
         clean_title = re.sub(r'[\$\\/:\*\?"<>\|]', '_', clean_title)[:30]
 
         sub_pid = f"proj_hypo_{int(time.time())}_{uuid.uuid4().hex[:6]}"
-        sub_pname = f"{project_name} - 专题探勘: {clean_title}" if project_name else f"专题探勘: {clean_title}"
+        sub_pname = (
+            f"{project_name} - Hypothesis: {clean_title}" if is_en else f"{project_name} - 专题探勘: {clean_title}"
+        ) if project_name else (
+            f"Hypothesis: {clean_title}" if is_en else f"专题探勘: {clean_title}"
+        )
 
         core_nodes = {node_a, node_b}
         for cn in hypothesis.get("circuit_nodes", []):
@@ -943,8 +1000,8 @@ class HypothesisEngine:
             "source": node_a,
             "target": node_b,
             "relation": hypothesis.get("proposed_relation", "Hypothesized_Interaction"),
-            "doc_source": "AI-Hypothesis (科研探勘推演)",
-            "evidence": hypothesis.get("hypothesis_statement", "") + " | 建议方向: " + hypothesis.get("research_direction", ""),
+            "doc_source": "AI-Hypothesis (Hypothesis Deduction)" if is_en else "AI-Hypothesis (科研探勘推演)",
+            "evidence": hypothesis.get("hypothesis_statement", "") + (" | Direction: " if is_en else " | 建议方向: ") + hypothesis.get("research_direction", ""),
             "weight": 1,
             "is_hypothesis": True
         }
