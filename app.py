@@ -1523,10 +1523,10 @@ UI_TEXT = {
     "btn_add_rel": {"zh": "💾 保存并添加连线", "en": "💾 Save & Add Edge"},
     "warn_rel_exists": {"zh": "⚠️ `{src}` 到 `{tgt}` 已经存在 `{type}` 类型的连线了！", "en": "⚠️ `{type}` relation already exists from `{src}` to `{tgt}`!"},
     "toast_rel_add_success": {"zh": "✅ 新关系建立成功！", "en": "✅ New relation established successfully!"},
-    # 三大核心关系词典 (极其重要：用于UI显示，内部依然保持中文硬编码以匹配算法)
+    # 四大核心关系词典 (极其重要：用于UI显示，内部依然保持中文硬编码以匹配算法)
     "rel_positive": {"zh": "正作用", "en": "Positive"},
     "rel_negative": {"zh": "负作用", "en": "Negative"},
-    "rel_correlation": {"zh": "相关", "en": "Correlation"},
+    "rel_correlation": {"zh": "相关", "en": "Correlation"}, "rel_containment": {"zh": "包含", "en": "Containment"},
     # 🤖 AI 智能图谱工具区
     "ai_tools_title": {"zh": "🤖 AI 智能图谱工具", "en": "🤖 AI Smart Graph Tools"},
     "ai_nav_select": {"zh": "选择 AI 模块：", "en": "Select AI Module:"},
@@ -4976,6 +4976,7 @@ if st.session_state.show_results and st.session_state.html_data:
                                         if val == "正作用": return t("rel_positive")
                                         if val == "负作用": return t("rel_negative")
                                         if val == "相关": return t("rel_correlation")
+                                        if val == "包含": return t("rel_containment")
                                         return val
 
 
@@ -5075,13 +5076,14 @@ if st.session_state.show_results and st.session_state.html_data:
             all_node_names = sorted([e.get("standard_name") for e in st.session_state.master_entities])
 
             # 💡 数据底层必须是中文以兼容模型设定，UI显示靠 format_func
-            SAFE_RELATIONS_INTERNAL = ["正作用", "负作用", "相关"]
+            SAFE_RELATIONS_INTERNAL = ["正作用", "负作用", "相关", "包含"]
 
 
             def get_rel_display(internal_val):
                 if internal_val == "正作用": return t("rel_positive")
                 if internal_val == "负作用": return t("rel_negative")
                 if internal_val == "相关": return t("rel_correlation")
+                if internal_val == "包含": return t("rel_containment")
                 return internal_val
 
 
@@ -6299,6 +6301,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                     if val == "正作用": return t("rel_positive")
                                     if val == "负作用": return t("rel_negative")
                                     if val == "相关": return t("rel_correlation")
+                                    if val == "包含": return t("rel_containment")
                                     return val
 
 
@@ -6364,6 +6367,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                 if val == "正作用": return t("rel_positive")
                                 if val == "负作用": return t("rel_negative")
                                 if val == "相关": return t("rel_correlation")
+                                if val == "包含": return t("rel_containment")
                                 return val
 
 
