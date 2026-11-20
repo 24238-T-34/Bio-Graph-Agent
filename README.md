@@ -149,24 +149,24 @@
 * **混合种子评分模型 (Hybrid Seed Scoring)**：
   对图谱所有节点计算综合驱动力得分，满分 10.0 分：
 
-  $$
-  \text{TotalScore}(v) = \text{GraphScore}(v) + \text{SemanticScore}(v)
-  $$
+$$
+\text{TotalScore}(v) = \text{GraphScore}(v) + \text{SemanticScore}(v)
+$$
 
   - **图论拓扑基底（满分 5.0 分）**：
 
-    $$
-    \text{GraphScore}(v) = 2.5 \times \frac{\text{Deg}(v)}{\max_{u} \text{Deg}(u)} + 2.5 \times \text{Betweenness}(v)
-    $$
+$$
+\text{GraphScore}(v) = 2.5 \times \frac{\text{Deg}(v)}{\max_{u} \text{Deg}(u)} + 2.5 \times \text{Betweenness}(v)
+$$
 
     综合平衡了局部连通度（度中心性）与全局信息流瓶颈控制力（介数中心性）；
   - **科研焦点与生物学加权（满分 5.0 分）**：若学者在“学术焦点指导 (Prompt)”中输入了研究意图，调用大模型对候选种子批量打分（0.0 ~ 5.0 分）；若留空，则根据 Stage 1 本体分类自动为生物学核心调控分子赋予物理权重（受体与转录因子 $+2.0$、激酶/酶学 $+1.8$、信使/接头蛋白 $+1.6$、化学药物 $+1.4$、生物学过程 $+1.2$）。
 * **MMR 动能阻抗与探索多样性惩罚 (Maximal Marginal Relevance & Kinetic Impedance)**：
-  在多通路连续生成过程中，引入基于动态访问频次的阻尼衰减因子 $\text{Score}_{\text{decay}}(v) = \text{BaseScore}(v) \times (1 - \lambda)^{\text{Count}_{\text{visited}}(v)} \quad (\lambda = 0.5)$，结合生化传导动力学阻抗模型（正向激活赋低阻抗，负向阻断赋高阻抗，宽泛相关赋惩罚阻抗），沿因果拓扑流定向扩散诱导，强制算法跳出已发掘的通路范围，探索全局网络中的差异化新支路。
+  在多通路连续生成过程中，引入基于动态访问频次的阻尼衰减因子 $\text{Score}\sb{\text{decay}}(v) = \text{BaseScore}(v) \times (1 - \lambda)^{\text{Count}\sb{\text{visited}}(v)} \quad (\lambda = 0.5)$，结合生化传导动力学阻抗模型（正向激活赋低阻抗，负向阻断赋高阻抗，宽泛相关赋惩罚阻抗），沿因果拓扑流定向扩散诱导，强制算法跳出已发掘的通路范围，探索全局网络中的差异化新支路。
 * **严格子图诱导不变性 (Induced Subgraph Invariance)**：
-  所拆解的通路子图严格满足诱导子图数学定义 $E_{\text{sub}} = \{(u, v) \in E \mid u, v \in V_{\text{sub}}\}$，所有连线均严格继承主图真实文献证据与机制属性，**杜绝任何模型凭空捏造的虚假连线**。
+  所拆解的通路子图严格满足诱导子图数学定义 $E\sb{\text{sub}} = \{(u, v) \in E \mid u, v \in V\sb{\text{sub}}\}$，所有连线均严格继承主图真实文献证据与机制属性，**杜绝任何模型凭空捏造的虚假连线**。
 * **Tarjan / Johnson 自调控回路检测 (Feedback Loop Mining)**：
-  在诱导子图内部运行有向简单环（Simple Directed Cycles）挖掘算法，精准过滤出长度为 $2 \le L \le 5$ 的功能自调控回路，计算各连线极性符号积 $\text{Polarity}_{\text{loop}} = \prod_{e \in \text{Loop}} \text{Sign}(e)$，自动区分**自抑制负反馈回路 (Negative Feedback / Homeostasis)**（用于维持细胞稳态平衡）与**自放大正反馈回路 (Positive Feedback / Cascading)**（用于驱动细胞命运决断）。
+  在诱导子图内部运行有向简单环（Simple Directed Cycles）挖掘算法，精准过滤出长度为 $2 \le L \le 5$ 的功能自调控回路，计算各连线极性符号积 $\text{Polarity}\sb{\text{loop}} = \prod\sb{e \in \text{Loop}} \text{Sign}(e)$，自动区分**自抑制负反馈回路 (Negative Feedback / Homeostasis)**（用于维持细胞稳态平衡）与**自放大正反馈回路 (Positive Feedback / Cascading)**（用于驱动细胞命运决断）。
 
 #### 2. 操作流程与成果导出
 1. 从主画布底部点击 `📊 前往图谱分析工作台 ➔`，向下进入 `🔬 信号通路与自调控回路拆解` 控制区；
@@ -184,25 +184,30 @@
 #### 1. 向量化图消息传递与微回路拓扑数学
 为了突破两节点简单连线推断的局限，系统在全图运行高维向量化消息传递流，精准感知 3~4 节点的高阶因果场：
 * **0-Token 高维稠密特征初始化 (24-dim Dense Embedding)**：
-  无需调用昂贵 Embedding API。系统将 Stage 1 本体分类（基因蛋白、化学药物、疾病、表型、生物过程、物种等）投影为基础正交向量，并叠加词元哈希微扰（Token Hash，使同源同名分子具备微弱局部亲和力），经 L2 归一化形成 24 维紧凑语义基底 $h_v^{(0)}$。
+  无需调用昂贵 Embedding API。系统将 Stage 1 本体分类（基因蛋白、化学药物、疾病、表型、生物过程、物种等）投影为基础正交向量，并叠加词元哈希微扰（Token Hash，使同源同名分子具备微弱局部亲和力），经 L2 归一化形成 24 维紧凑语义基底 $h\sb{v}^{(0)}$。
 * **极性感知图拓扑消息传递流 (Polarity-Aware Message Passing Flow)**：
   语义向量沿有向调控边定向流动与吸收，充分考虑生物极性权重：
 
-  $$
-  \text{Pol}(e) = \begin{cases} +1.0 & (\text{Positive / Activation / Promotion}) \\ -1.0 & (\text{Negative / Inhibition / Suppression}) \\ +0.5 & (\text{Correlation / Association}) \\ +0.3 & (\text{Hierarchy / Part\_Of}) \end{cases}
-  $$
+$$
+\text{Pol}(e) = \begin{cases}
++1.0 & (\text{Positive / Activation / Promotion}) \\
+-1.0 & (\text{Negative / Inhibition / Suppression}) \\
++0.5 & (\text{Correlation / Association}) \\
++0.3 & (\text{Hierarchy / Part\_Of})
+\end{cases}
+$$
 
   在全图执行 2-Hop 邻域聚合与残差更新：
 
-  $$
-  h_v^{(t+1)} = \text{Normalize}\left(0.5 \cdot h_v^{(t)} + 0.5 \cdot \frac{1}{|\mathcal{N}(v)|} \sum_{u \in \mathcal{N}(v)} \text{Pol}(u, v) \cdot \text{Dir}(u, v) \cdot h_u^{(t)}\right)
-  $$
+$$
+h_v^{(t+1)} = \text{Normalize}\left(0.5 \cdot h_v^{(t)} + 0.5 \cdot \frac{1}{|\mathcal{N}(v)|} \sum_{u \in \mathcal{N}(v)} \text{Pol}(u, v) \cdot \text{Dir}(u, v) \cdot h_u^{(t)}\right)
+$$
 
-  经过消息传递后，每个节点向量均深度融合了其周围 2 阶调控微环境。通过计算向量余弦相似度 $\cos(h_u, h_v) = \frac{h_u \cdot h_v}{\|h_u\| \|h_v\|}$，系统能够精确感知两个未直连节点在生物功能层面的隐性亲和力。
+  经过消息传递后，每个节点向量均深度融合了其周围 2 阶调控微环境。通过计算向量余弦相似度 $\cos(h\sb{u}, h\sb{v}) = \frac{h\sb{u} \cdot h\sb{v}}{\|h\sb{u}\| \|h\sb{v}\|}$，系统能够精确感知两个未直连节点在生物功能层面的隐性亲和力。
 * **6 大科研探勘微回路拓扑数学 (6 Exploration Topologies)**：
   1. 🤖 **自动感知智能推荐 (Auto Mode)**：自适应组合生成 2 个隐性捷径 + 1 个跨簇桥梁 + 1 个逆向稳态 + 1 个边缘外展，一键形成全景科研假说矩阵；
-  2. ⚡ **高维语义隐性捷径 (Detour Shortcuts)**：挖掘网络中绕经中介分子（$A \to M \to B$）但在向量场中拥有极高功能相似度 $\cos(h_A, h_B)$ 与生物相容度的节点对，推测存在未被证实的直接旁路短路（$A \dashrightarrow B$）；
-  3. 🔗 **跨簇孤岛自主桥接 (Cluster Bridging)**：检测图谱连通分量与聚类社群，计算不同功能孤岛核心 Hub 节点间的相容度与拓扑桥接得分 $\text{Score}_{\text{bridge}} = 2.2 \times \text{Compat}(C_i, C_j) + 0.3 \times (\text{Deg}_i + \text{Deg}_j) + 1.5 \times \cos(h_i, h_j)$，打破跨学科与跨通路壁垒；
+  2. ⚡ **高维语义隐性捷径 (Detour Shortcuts)**：挖掘网络中绕经中介分子（$A \to M \to B$）但在向量场中拥有极高功能相似度 $\cos(h\sb{A}, h\sb{B})$ 与生物相容度的节点对，推测存在未被证实的直接旁路短路（$A \dashrightarrow B$）；
+  3. 🔗 **跨簇孤岛自主桥接 (Cluster Bridging)**：检测图谱连通分量与聚类社群，计算不同功能孤岛核心 Hub 节点间的相容度与拓扑桥接得分 $\text{Score}\sb{\text{bridge}} = 2.2 \times \text{Compat}(C\sb{i}, C\sb{j}) + 0.3 \times (\text{Deg}\sb{i} + \text{Deg}\sb{j}) + 1.5 \times \cos(h\sb{i}, h\sb{j})$，打破跨学科与跨通路壁垒；
   4. ⚖️ **逆向稳态闭环探索 (Homeostatic Feedback)**：针对多步单向前馈级联（$A \to B \to C$），在反向空间挖掘由终端向下游施加负向代偿抑制的假说（$C \dashrightarrow A$），定位自稳态平衡回路；
   5. 🌱 **周界边缘薄层生长 (Peripheral Growth)**：从网络外围低度叶子节点（度数 $\le 2$）向核心网络枢纽逆向推演多步级联，启发高风险、高回报的前沿开拓性课题；
   6. 🎯 **学者科研意向定向探究 (Intent Exploration)**：将学者自然语言关注点作为语义激活势能，定向引导微回路挖掘并加权排序。

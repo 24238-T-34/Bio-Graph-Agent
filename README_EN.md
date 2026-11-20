@@ -149,24 +149,24 @@ To overcome the common pitfalls of naive path searches—namely, "whole-graph co
 * **Hybrid Seed Scoring Model**:
   Computes a composite driver score for every node in the graph (out of 10.0 points):
 
-  $$
-  \text{TotalScore}(v) = \text{GraphScore}(v) + \text{SemanticScore}(v)
-  $$
+$$
+\text{TotalScore}(v) = \text{GraphScore}(v) + \text{SemanticScore}(v)
+$$
 
   - **Graph-Theoretic Topological Base (5.0 Points Max)**:
 
-    $$
-    \text{GraphScore}(v) = 2.5 \times \frac{\text{Deg}(v)}{\max_{u} \text{Deg}(u)} + 2.5 \times \text{Betweenness}(v)
-    $$
+$$
+\text{GraphScore}(v) = 2.5 \times \frac{\text{Deg}(v)}{\max_{u} \text{Deg}(u)} + 2.5 \times \text{Betweenness}(v)
+$$
 
     Balances local degree connectivity with global information flow bottleneck control;
   - **Scientific Intent & Biological Category Weighting (5.0 Points Max)**: If researchers enter a prompt in "Academic Focus Guidance", LLM batch scores candidate seeds (0.0 to 5.0 points); if left blank, physical biological driver weights are assigned based on Stage 1 ontology categories (receptors and transcription factors $+2.0$, kinases/enzymes $+1.8$, adaptor/messenger proteins $+1.6$, chemical drugs $+1.4$, biological processes $+1.2$).
 * **MMR Kinetic Impedance & Exploration Diversity Penalty**:
-  During multi-pathway generation, introduces a dynamic frequency-based damping penalty $\text{Score}_{\text{decay}}(v) = \text{BaseScore}(v) \times (1 - \lambda)^{\text{Count}_{\text{visited}}(v)} \quad (\lambda = 0.5)$, paired with a biochemical kinetic impedance model (activation/promotion assigned low impedance, inhibition/blocking assigned high impedance, vague correlations penalized), heuristic causal flow traversal forces the algorithm to explore differentiated branch cascades rather than repeating the same dominant hubs.
+  During multi-pathway generation, introduces a dynamic frequency-based damping penalty $\text{Score}\sb{\text{decay}}(v) = \text{BaseScore}(v) \times (1 - \lambda)^{\text{Count}\sb{\text{visited}}(v)} \quad (\lambda = 0.5)$, paired with a biochemical kinetic impedance model (activation/promotion assigned low impedance, inhibition/blocking assigned high impedance, vague correlations penalized), heuristic causal flow traversal forces the algorithm to explore differentiated branch cascades rather than repeating the same dominant hubs.
 * **Strict Induced Subgraph Invariance**:
-  Each decomposed pathway satisfies the mathematical definition of an induced subgraph $E_{\text{sub}} = \{(u, v) \in E \mid u, v \in V_{\text{sub}}\}$, where all connections strictly inherit empirical evidence and mechanism attributes from the master graph, **guaranteeing zero hallucinated edges**.
+  Each decomposed pathway satisfies the mathematical definition of an induced subgraph $E\sb{\text{sub}} = \{(u, v) \in E \mid u, v \in V\sb{\text{sub}}\}$, where all connections strictly inherit empirical evidence and mechanism attributes from the master graph, **guaranteeing zero hallucinated edges**.
 * **Tarjan / Johnson Autoregulatory Feedback Loop Mining**:
-  Executes simple directed cycle search within the induced subgraph, filtering for compact circuits of length $2 \le L \le 5$, and computing the product of edge regulatory polarities $\text{Polarity}_{\text{loop}} = \prod_{e \in \text{Loop}} \text{Sign}(e)$, which automatically distinguishes **Negative Feedback Loops (Homeostasis)** (maintaining cellular balance) from **Positive Feedback Loops (Cascading Amplification)** (driving irreversible cell fate commitments).
+  Executes simple directed cycle search within the induced subgraph, filtering for compact circuits of length $2 \le L \le 5$, and computing the product of edge regulatory polarities $\text{Polarity}\sb{\text{loop}} = \prod\sb{e \in \text{Loop}} \text{Sign}(e)$, which automatically distinguishes **Negative Feedback Loops (Homeostasis)** (maintaining cellular balance) from **Positive Feedback Loops (Cascading Amplification)** (driving irreversible cell fate commitments).
 
 #### 2. Workflow & Export
 1. Click `📊 Go to Graph Analysis Workbench ➔` from the main canvas and scroll to `🔬 Signaling Pathway & Autoregulation Circuit Decomposition`;
@@ -184,25 +184,30 @@ As the core engine elevating the platform from "static knowledge extraction" to 
 #### 1. Vectorized Graph Message Passing & Micro-Circuit Topologies
 To transcend simplistic two-node direct link heuristics, the engine executes high-dimensional vectorized message passing flows across the entire network, capturing 3-to-4 node high-order causal fields:
 * **0-Token Dense Semantic Embedding Initialization (24-dim)**:
-  Zero API token cost. Stage 1 ontology categories (Gene_Protein, Chemical_Drug, Disease, Phenotype, Biological_Process, Organism_Taxon, etc.) are projected into orthogonal base vectors and combined with token hash perturbations (ensuring homologous terms share local affinity), normalized via L2 into a compact 24-dimensional semantic base $h_v^{(0)}$.
+  Zero API token cost. Stage 1 ontology categories (Gene_Protein, Chemical_Drug, Disease, Phenotype, Biological_Process, Organism_Taxon, etc.) are projected into orthogonal base vectors and combined with token hash perturbations (ensuring homologous terms share local affinity), normalized via L2 into a compact 24-dimensional semantic base $h\sb{v}^{(0)}$.
 * **Polarity-Aware Graph Topology Message Passing Flow**:
   Semantic vectors propagate directionally along regulatory edges according to biological polarity weights:
 
-  $$
-  \text{Pol}(e) = \begin{cases} +1.0 & (\text{Positive / Activation / Promotion}) \\ -1.0 & (\text{Negative / Inhibition / Suppression}) \\ +0.5 & (\text{Correlation / Association}) \\ +0.3 & (\text{Hierarchy / Part\_Of}) \end{cases}
-  $$
+$$
+\text{Pol}(e) = \begin{cases}
++1.0 & (\text{Positive / Activation / Promotion}) \\
+-1.0 & (\text{Negative / Inhibition / Suppression}) \\
++0.5 & (\text{Correlation / Association}) \\
++0.3 & (\text{Hierarchy / Part\_Of})
+\end{cases}
+$$
 
   A 2-hop neighborhood aggregation and residual update is performed globally:
 
-  $$
-  h_v^{(t+1)} = \text{Normalize}\left(0.5 \cdot h_v^{(t)} + 0.5 \cdot \frac{1}{|\mathcal{N}(v)|} \sum_{u \in \mathcal{N}(v)} \text{Pol}(u, v) \cdot \text{Dir}(u, v) \cdot h_u^{(t)}\right)
-  $$
+$$
+h_v^{(t+1)} = \text{Normalize}\left(0.5 \cdot h_v^{(t)} + 0.5 \cdot \frac{1}{|\mathcal{N}(v)|} \sum_{u \in \mathcal{N}(v)} \text{Pol}(u, v) \cdot \text{Dir}(u, v) \cdot h_u^{(t)}\right)
+$$
 
-  After propagation, each node vector absorbs its local 2-hop regulatory micro-environment field. Computing vector cosine similarity $\cos(h_u, h_v) = \frac{h_u \cdot h_v}{\|h_u\| \|h_v\|}$ allows the engine to accurately detect latent functional affinity between unconnected entities.
+  After propagation, each node vector absorbs its local 2-hop regulatory micro-environment field. Computing vector cosine similarity $\cos(h\sb{u}, h\sb{v}) = \frac{h\sb{u} \cdot h\sb{v}}{\|h\sb{u}\| \|h\sb{v}\|}$ allows the engine to accurately detect latent functional affinity between unconnected entities.
 * **6 Scientific Exploration Micro-Circuit Topologies**:
   1. 🤖 **Auto Mode (Auto-Perception Smart Recommendation)**: Adaptively generates an ensemble portfolio (2 shortcuts + 1 cluster bridge + 1 homeostasis loop + 1 peripheral growth), establishing an instant panoramic hypothesis matrix;
-  2. ⚡ **Detour Shortcuts (High-Dimensional Detour Shortcuts)**: Mines pairs that currently require intermediate mediators ($A \to M \to B$) but exhibit high semantic similarity $\cos(h_A, h_B)$ and biological compatibility, hypothesizing direct bypass links ($A \dashrightarrow B$);
-  3. 🔗 **Cluster Bridging (Autonomous Cluster Bridging)**: Identifies connected components and graph communities, scoring cross-cluster hub compatibility and topological bridging potential $\text{Score}_{\text{bridge}} = 2.2 \times \text{Compat}(C_i, C_j) + 0.3 \times (\text{Deg}_i + \text{Deg}_j) + 1.5 \times \cos(h_i, h_j)$, bridging disparate pathway islands;
+  2. ⚡ **Detour Shortcuts (High-Dimensional Detour Shortcuts)**: Mines pairs that currently require intermediate mediators ($A \to M \to B$) but exhibit high semantic similarity $\cos(h\sb{A}, h\sb{B})$ and biological compatibility, hypothesizing direct bypass links ($A \dashrightarrow B$);
+  3. 🔗 **Cluster Bridging (Autonomous Cluster Bridging)**: Identifies connected components and graph communities, scoring cross-cluster hub compatibility and topological bridging potential $\text{Score}\sb{\text{bridge}} = 2.2 \times \text{Compat}(C\sb{i}, C\sb{j}) + 0.3 \times (\text{Deg}\sb{i} + \text{Deg}\sb{j}) + 1.5 \times \cos(h\sb{i}, h\sb{j})$, bridging disparate pathway islands;
   4. ⚖️ **Homeostatic Feedback (Reverse Homeostatic Loops)**: Investigates multi-step feedforward cascades ($A \to B \to C$) to deduce reverse compensatory inhibition from terminal downstream to initial upstream ($C \dashrightarrow A$), uncovering self-balancing loops;
   5. 🌱 **Peripheral Growth (Peripheral Thin-Layer Growth)**: Extrapolates outward from peripheral low-degree nodes ($\text{Deg} \le 2$) toward core hub networks, inspiring high-novelty, pioneering grant proposals;
   6. 🎯 **Intent Exploration (Intent-Driven Directional Exploration)**: Uses natural language research queries as directional potential fields to prioritize and rank matching micro-circuits.
