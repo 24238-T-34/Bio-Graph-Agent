@@ -1,3 +1,5 @@
+"""Bio-Graph Agent Streamlit 主应用入口：涵盖多课题工程管理、文献增量抽提、交互图谱渲染与三阶段分析工作台。"""
+
 import streamlit as st
 import tempfile
 import os
@@ -21,7 +23,7 @@ from IO_SYS import (
 )
 import streamlit.components.v1 as components
 import gc
-import fitz  # 🚀 优化：把 PyMuPDF 移到文件顶部，规范代码结构
+import fitz
 import json
 import pandas as pd
 import uuid
@@ -33,7 +35,8 @@ CONFIG_FILE = ".bio_graph_config.json"
 
 @st.dialog("📖 User Guide / 操作指南", width="large")
 def show_help_dialog():
-    # 🌐 动态获取当前系统的 UI 语言
+    """弹出支持中英文动态切换的交互式系统操作指南弹窗。"""
+    # 动态获取当前 UI 语言
     current_ui_lang = st.session_state.get("language", "zh")
     is_en = "en" in current_ui_lang.lower()
 
@@ -317,12 +320,12 @@ def normalize_model_id(val: str) -> str:
 
 def load_config():
     """在应用初次加载或视图切换重跑时，持久化确保本地配置及默认状态无缝注入 session_state"""
-    # 1. 设定需要持久化的默认基准值（去掉了所有绘图相关的选项）
+    # 持久化配置的默认基准值
     default_config = {
         "api_provider": "openrouter",
         "custom_base_url": "https://api.openai.com/v1",
         "selected_model_id": "google/gemini-3.5-flash-lite",
-        "selected_model_name": "Gemini 3.5 Flash-Lite (谷歌性价比)",  # 保持兼容
+        "selected_model_name": "Gemini 3.5 Flash-Lite (谷歌性价比)",  # 保留以兼容旧版配置文件
         "custom_model_id": "",  # 用于 Ollama 等自定义手填的模型
         "model_suffix": "",  # 记录云端模型的后缀或保底覆盖
         "search_database": "PubMed",
@@ -331,8 +334,8 @@ def load_config():
         "append_mode": True,
         "enable_relation_grounding": True,
         "concurrency_workers": 4,
-        "ENABLE_EDITOR": True, "enable_abstract_entities": False,  # ✨ 恢复的开关 1
-        "ENABLE_AI_CLEANER": True, "enable_concept_synthesis": False,  # ✨ 恢复的开关 2
+        "ENABLE_EDITOR": True, "enable_abstract_entities": False,
+        "ENABLE_AI_CLEANER": True, "enable_concept_synthesis": False,
         "ui_language": "zh",
         "vision_strategy": "opt_off",
         "vision_match_keyword": "",
@@ -1082,15 +1085,15 @@ def redraw_and_update():
 
     current_show_shortcuts = st.session_state.get("show_shortcuts_toggle", False)
 
-    # 🧮 抓取三大赋权引擎的开关状态
+    # 抓取三大赋权引擎的开关状态
     empower_ontology = st.session_state.get("empower_ontology", False)
     alpha_ontology = st.session_state.get("alpha_ontology", 0.5)
 
-    # ✨ 新增：节点互相辐射开关
+    # 节点互相辐射开关
     empower_node = st.session_state.get("empower_node", False)
     beta_node = st.session_state.get("beta_node", 0.2)
 
-    # ✨ 新增：主干连线加粗开关
+    # 主干连线加粗开关
     empower_edge = st.session_state.get("empower_edge", False)
     gamma_edge = st.session_state.get("gamma_edge", 0.1)
 
@@ -1122,13 +1125,13 @@ def redraw_and_update():
         except Exception:
             pass
 
-    # 💾 核心闭环：每次图谱重绘（编辑节点/增删关系/赋权/剪枝/扩展），自动将最新图谱原子落盘到专属工程与根缓存
+    # 每次图谱重绘后自动将最新状态原子落盘到工程专属归档
     save_local_vault()
 
 
 def switch_to_project(proj_id: str) -> bool:
     """切换当前活动工程至指定的历史工程（支持原子落盘与画布完全隔离切换）"""
-    # 🛡️ 步骤 1：切换前首先自动保存当前活动工程，确保未保存的改动落盘
+    # 步骤 1：切换前先保存当前活动工程，确保未保存的改动落盘
     save_local_vault()
 
     proj_dir = get_project_dir_by_id(proj_id)
@@ -1153,7 +1156,7 @@ def switch_to_project(proj_id: str) -> bool:
         existing_in_target = [get_clean_display_title(f) for f in os.listdir(papers_dir) if os.path.isfile(os.path.join(papers_dir, f))] if os.path.exists(papers_dir) else []
         st.session_state.analyzed_files = canonicalize_project_papers(proj_id, loaded_files + existing_in_target)
 
-        # 🛡️ 步骤 2：严格重置画布，目标工程有数据则重新生成，若为空白工程则彻底销毁画布与残留
+        # 步骤 2：重置画布，目标工程有数据则重新生成，为空白工程则销毁画布残留
         html_file = ".bio_knowledge_graph.html"
         if st.session_state.master_entities:
             from back_logic import GraphVisualizer
@@ -1176,7 +1179,7 @@ def switch_to_project(proj_id: str) -> bool:
             if os.path.exists(html_file):
                 os.remove(html_file)
 
-        # 🛡️ 步骤 3：保存目标工程并更新 active_project_id 配置指针
+        # 步骤 3：保存目标工程并更新 active_project_id 配置指针
         save_local_vault()
         return True
     except Exception as e:
@@ -1221,12 +1224,10 @@ def load_local_vault():
 def clear_local_vault():
     """兼容旧接口：当前工程已完全交由 projects/ 目录管理，无根目录临时文件需清理"""
     pass
-# ==========================================
-# 页面全局配置
-# ==========================================
+# Streamlit 页面全局配置
 st.set_page_config(page_title="Bio-Graph Agent", page_icon="🧬", layout="wide")
 # ==========================================
-# 🌍 国际化 (i18n) 双语引擎
+# 国际化 (i18n) 双语词典
 # ==========================================
 UI_TEXT = {
     # 全局 & 标题
@@ -1263,9 +1264,7 @@ UI_TEXT = {
     },
     "contact_github": {"zh": "⭐ 访问 Github 仓库", "en": "⭐ Visit Github Repo"},
     "contact_email": {"zh": "📧 合作邮箱: zoyuhandd@126.com", "en": "📧 Contact Email: zoyuhandd@126.com"},
-    # ==========================
     # 选项下拉框 (Dropdown Options)
-    # ==========================
     # 1. API 提供商
     "api_openrouter": {"zh": "OpenRouter (国际节点)", "en": "OpenRouter (Global)"},
     "api_tencent": {"zh": "腾讯云 (官方兼容接口)", "en": "Tencent Cloud (Official API)"},
@@ -1527,14 +1526,14 @@ UI_TEXT = {
     "rel_positive": {"zh": "正作用", "en": "Positive"},
     "rel_negative": {"zh": "负作用", "en": "Negative"},
     "rel_correlation": {"zh": "相关", "en": "Correlation"}, "rel_containment": {"zh": "包含", "en": "Containment"},
-    # 🤖 AI 智能图谱工具区
+    # AI 智能图谱工具区
     "ai_tools_title": {"zh": "🤖 AI 智能图谱工具", "en": "🤖 AI Smart Graph Tools"},
     "ai_nav_select": {"zh": "选择 AI 模块：", "en": "Select AI Module:"},
     "ai_nav_pruning": {"zh": "🧹 智能洗树 (Pruning)", "en": "🧹 Smart Pruning"},
     "ai_nav_expansion": {"zh": "🔍 智能拓展 (Smart Expansion)", "en": "🔍 Smart Expansion"},
     "ai_nav_bridging": {"zh": "🔗 智能桥接 (Bridging)", "en": "🔗 Smart Bridging"},
     "ai_nav_ask": {"zh": "🤖 问 AI", "en": "🤖 Ask AI"},
-    # 🧹 智能洗树 (Pruning) 模块
+    # 智能洗树 (Pruning) 模块
     "pruning_info": {"zh": "💡 拓扑清洗：基于大模型上下文与图论算法，自动处理同义词冗余、层级从属、机制捷径边降级、对称关系双向折叠与循环包含死锁化解。", "en": "💡 Topology Pruning: Leverages LLM reasoning and graph theory to resolve synonym redundancies, hierarchical containment, shortcut downgrading, symmetric relation folding, and mutual containment cycles."},
     "pruning_desc": {"zh": "点击下方按钮，将当前图谱的拓扑结构与文献证据发送给大模型进行诊断。",
                      "en": "Click the button below to send the current graph topology and evidence to LLM for diagnosis."},
@@ -1546,7 +1545,7 @@ UI_TEXT = {
     "toast_pruning_done": {"zh": "✅ 大模型诊断完成！", "en": "✅ LLM diagnosis completed!"},
     "pruning_tip_shortcut": {"zh": "💡 诊断完成后，请直接在上方【图谱显示控制面板】灵活开启或关闭捷径边的显示。",
                              "en": "💡 After diagnosis, you can flexibly toggle the display of shortcut edges in the [Display Control Panel] above."},
-    # 📋 审查清单
+    # 审查清单
     "review_list_title": {"zh": "### 📋 智能修改审查清单", "en": "### 📋 Smart Modification Review List"},
     "rev_merge": {"zh": "🧲 **合并同义词**: 将 `{removes}` 合并入 `{target}` (原因: {reason})",
                   "en": "🧲 **Merge Synonyms**: Merge `{removes}` into `{target}` (Reason: {reason})"},
@@ -1567,7 +1566,7 @@ UI_TEXT = {
     "no_reason": {"zh": "未提供原因", "en": "No reason provided"},
     "btn_confirm_pruning": {"zh": "💾 确认执行选中的优化", "en": "💾 Confirm Executing Selected Optimizations"},
     "toast_pruning_exec_done": {"zh": "✅ 优化已完美执行！", "en": "✅ Optimizations executed perfectly!"},
-    # ✂️ 智能节点清洗 (Intent-Based Pruning)
+    # 智能节点清洗 (Intent-Based Pruning)
     "intent_pruning_title": {"zh": "✂️ 智能节点清洗 (Intent-Based Pruning)", "en": "✂️ Intent-Based Pruning"},
     "intent_pruning_info": {"zh": "💡 意图剪枝：大模型将根据你输入的研究兴趣方向，揪出图谱中偏题或无关的对象（如误抓的其他器官/疾病），一键抹去它们及其连线。",
                             "en": "💡 Intent Pruning: LLM will identify off-topic or irrelevant nodes (e.g., wrong organs/diseases) based on your research interest, erasing them and their edges with one click."},
@@ -1579,7 +1578,7 @@ UI_TEXT = {
                                "en": "🧠 LLM is reviewing nodes and neighbors to find off-topic content..."},
     "toast_find_irrelevant_done": {"zh": "✅ 诊断完成，请在下方确认清洗名单！",
                                    "en": "✅ Diagnosis done, please confirm the purge list below!"},
-    # 🧹 偏题节点处决名单
+    # 偏题节点处决名单
     "purge_list_title": {"zh": "### 🧹 偏题节点处决名单", "en": "### 🧹 Off-topic Nodes Purge List"},
     "purge_list_caption": {"zh": "请确认以下清洗建议。勾选【删除】的节点及其**所有相关连线**将被彻底从图谱中抹去。",
                            "en": "Please confirm the purge suggestions. Checked nodes and **ALL their relations** will be completely erased from the graph."},
@@ -1592,7 +1591,7 @@ UI_TEXT = {
     "toast_purge_success": {"zh": "✅ 成功清理了 {count} 个偏题节点及其连线！图谱瞬间纯净！",
                             "en": "✅ Successfully purged {count} off-topic nodes & edges! Graph is now pure!"},
     "btn_cancel_purge": {"zh": "放弃本次剪枝", "en": "Cancel This Pruning"},
-    # 🏷️ 智能文献名称识别与规范化 (Smart Literature Renaming) 模块
+    # 智能文献名称识别与规范化 (Smart Literature Renaming) 模块
     "paper_rename_title": {"zh": "🏷️ 智能文献名称识别与规范化", "en": "🏷️ Smart Paper Title Identification & Renaming"},
     "paper_rename_info": {
         "zh": "💡 全盘文献与出处规范化：同时支持本地物理文献（.pdf）与自动拓展/探索获得的线上文献（如 PubMed:xxxx），统一检索官方学术大标题并经轻量大模型清洗版权杂质，无感同步图谱与记忆库。",
@@ -1608,7 +1607,7 @@ UI_TEXT = {
     "warn_rename_failed": {"zh": "⚠️ 文献【{fname}】未能成功识别出标题（{reason}），已保留原文件名。", "en": "⚠️ Failed to identify title for [{fname}] ({reason}), kept original name."},
     "err_file_not_found": {"zh": "未在本地文件库中找到物理文件", "en": "Physical file not found in local vault"},
     "err_title_unrecognized": {"zh": "所有识别策略（PubMed检索、大模型快提与审校）均未成功识别出真实学术标题", "en": "All strategies (PubMed search, fast extraction, LLM review) failed to identify academic title"},
-    # 🔍 智能拓展 (Smart Expansion) 模块
+    # 智能拓展 (Smart Expansion) 模块
     "expansion_info": {"zh": "💡 选中图谱中的关键节点，系统将自动在 {db} 中检索前沿文献，并由 AI 提取摘要知识，自动将其延伸至当前图谱。",
                        "en": "💡 Select key nodes, the system will automatically search {db} for cutting-edge papers. AI will extract abstract knowledge and extend the current graph."},
     "lbl_select_nodes_exp": {"zh": "🎯 请选择要拓展的核心节点 (建议 1-3 个):",
@@ -1655,7 +1654,7 @@ UI_TEXT = {
     "toast_fused_success": {"zh": "✅ 文献 {pmid} 融合成功！", "en": "✅ Paper {pmid} fused successfully!"},
     "msg_queue_all_done": {"zh": "✅ 队列中的 {total} 篇文献已全部处理完毕！图谱已是最新形态。", "en": "✅ All {total} papers in queue processed! Graph is up to date."},
     "btn_clear_queue_and_results": {"zh": "🧹 清理队列与搜索结果", "en": "🧹 Clear Queue & Search Results"},
-# 🔗 智能桥接 (Intelligent Bridging)
+# 智能桥接 (Intelligent Bridging)
     "bridge_info": {"zh": "💡 选中两个节点，AI 将在图谱中寻找它们之间的所有多步通路，并推导深层分子机制。如果是孤岛，可一键呼叫 AI 联网挖掘！", "en": "💡 Select two nodes. AI will find all multi-step paths between them and deduce deep mechanisms. If they are isolated, one-click to call AI for web mining!"},
     "lbl_bridge_node_a": {"zh": "🎯 起点实体 (Node A):", "en": "🎯 Source Entity (Node A):"},
     "lbl_bridge_node_b": {"zh": "🎯 终点实体 (Node B):", "en": "🎯 Target Entity (Node B):"},
@@ -1695,7 +1694,7 @@ UI_TEXT = {
     "fmt_downgrade_reason": {"zh": "[智能桥接自动降级：已挖掘出深层通路] {old}", "en": "[Smart Bridging Auto-downgrade: Deep pathways mined] {old}"},
     "toast_bridge_merged": {"zh": "✅ 桥接机制已成功融合！图谱已生长！", "en": "✅ Bridge mechanism successfully merged! Graph has grown!"},
     "btn_reject_clear": {"zh": "❌ 感觉不对，放弃并清空", "en": "❌ Feels wrong, reject and clear"},
-    # 🤖 问 AI (Ask AI)
+    # 问 AI (Ask AI)
     "ask_ai_info": {"zh": "💡 选中图谱中的任何节点或连线，AI 将结合它的【文献来源依据】和【网络拓扑】，为您提供独家解读。", "en": "💡 Select any node or edge in the graph. AI will provide an exclusive interpretation combining its [Literature Evidence] and [Network Topology]."},
     "lbl_what_to_explain": {"zh": "你想让 AI 解读什么？", "en": "What do you want AI to explain?"},
     "explain_node": {"zh": "解读节点 (Node)", "en": "Explain Node"},
@@ -1713,7 +1712,7 @@ UI_TEXT = {
     "btn_explain_edge": {"zh": "✨ 让 AI 深度解读该连线", "en": "✨ Let AI deeply explain this edge"},
     "msg_analyzing_edge": {"zh": "🧠 正在分析连线机制并生成解读...", "en": "🧠 Analyzing edge mechanism and generating explanation..."},
     "report_edge_title": {"zh": "### 📝 AI 连线机制解读报告", "en": "### 📝 AI Edge Mechanism Explanation Report"},
-    # 📊 图谱分析工作台 (Workbench i18n)
+    # 图谱分析工作台 (Workbench i18n)
     "wb_nav_bottom_btn": {"zh": "📊 前往图谱分析工作台 (实体与关系机制深度解析) ➔", "en": "📊 Open Graph Analysis Workbench (Entities & Mechanisms) ➔"},
     "wb_btn_top_return": {"zh": "⬅️ 返回主图谱工作区", "en": "⬅️ Return to Main Workspace"},
     "wb_title": {"zh": "📊 图谱分析工作台 (Graph Analysis Workbench)", "en": "📊 Graph Analysis Workbench"},
@@ -1777,7 +1776,7 @@ UI_TEXT = {
     "wb_orig_rel_prefix": {"zh": "原", "en": "orig"},
     "wb_unit_entities": {"zh": "个实体", "en": "entities"},
     "wb_unit_relations": {"zh": "条关系", "en": "relations"},
-    # 🧬 工作台第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition)
+    # 工作台第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition)
     "wb_sec2_title": {"zh": "### 🧬 第二阶段：核心信号通路拆解与自调节回路建模", "en": "### 🧬 Stage 2: Signaling Pathway Decomposition & Autoregulation Modeling"},
     "wb_sec2_caption": {"zh": "融合本体分类、拓扑特征与文献溯源，自由组合挖掘核心因果传导轴、自促进/自抑制闭环反馈回路及跨文献全新假说。", "en": "Mine core causal axes, self-promotion/inhibition feedback loops, and cross-literature hypotheses leveraging ontology, topology, and citations."},
     "wb_pw_input_label": {"zh": "🎯 通路探索焦点（输入关键科学问题/疾病/表型/药物；留空则触发全局自主发掘）：", "en": "🎯 Pathway Exploration Focus (Enter biological question/disease/phenotype/drug; leave blank for autonomous discovery):"},
@@ -1835,14 +1834,13 @@ title_col, btn_col = st.columns([5, 1])
 with title_col:
     st.title(t("page_title"))
 with btn_col:
-    # 稍微往下挤一点点（用一行空行），让按钮在垂直方向上和标题的文字居中对齐
+    # 插入换行符，使帮助按钮与左侧标题在垂直方向上居中对齐
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 渲染帮助按钮，点击即触发上面的弹窗函数
+    # 渲染帮助按钮，点击后弹出操作指南弹窗
     if st.button(t("btn_help"), use_container_width=True, type="secondary"):
         show_help_dialog()
 st.markdown("---")
-# 📁 创建一个持久化文件夹，用来保存所有分析过的原文
 # 初始化全局图谱记忆中枢
 if "master_entities" not in st.session_state:
     st.session_state.master_entities = []
@@ -1859,7 +1857,7 @@ if "html_data" not in st.session_state:
 if "pubmed_search_results" not in st.session_state:
     st.session_state.pubmed_search_results = []
 
-# 📝 初始化历史文献列表与课题工程 ID / 名称
+# 初始化历史文献列表与课题工程 ID / 名称
 if "analyzed_files" not in st.session_state:
     st.session_state.analyzed_files = []
 if "current_project_id" not in st.session_state:
@@ -1874,13 +1872,9 @@ if not st.session_state.get("current_project_id"):
     st.session_state.current_project_id = generate_project_id()
     save_local_vault()
 
-# append_mode = True
-# ==========================================
-
 def render_sidebar_history_docs():
     """在侧边栏持久化展示当前工程的历史分析文献列表与下载按钮 (无论处于哪个视图均稳定渲染)"""
-    # 📚 历史文献始终稳定呈现，绝不因 append_mode 开关而隐匿
-    # 保证在无论何种运行模式与视图下，文献档案与下载入口均始终可见
+    # 历史文献列表始终稳定显示，不受 append_mode 状态或视图切换影响
     pass
     cur_files = st.session_state.get("analyzed_files", [])
     st.markdown("---")
@@ -1910,6 +1904,7 @@ def render_sidebar_history_docs():
                 else:
                     st.caption(f"📄 {fname} ({t('doc_file_missing')})")
 
+# ==========================================
 # 侧边栏配置：核心 API 和模型选择
 # ==========================================
 
@@ -1932,7 +1927,7 @@ with st.sidebar:
 
     with st.popover(t("sidebar_more_settings"), use_container_width=True):
         # ==========================================
-        # 🌍 全局语言切换开关 (无缝接入原生配置中心版)
+        # 全局语言切换开关 (接入原生配置中心)
         # ==========================================
         def on_ui_language_change():
             choice = st.session_state.get("lang_radio_choice", "")
@@ -2003,7 +1998,7 @@ with st.sidebar:
             # 同步更新展示名，以便任何依赖该字段的代码保持兼容
             st.session_state["selected_model_name"] = format_model_choice(base_model_id)
 
-            # 🛠️ 二级高级设置：收纳视觉模型选择、视觉模型后缀与主模型后缀
+            # 二级高级设置：收纳视觉模型选择、视觉模型后缀与主模型后缀
             with st.expander(t("sidebar_expander_advanced_models"), expanded=False):
                 # 1. 专职视觉模型选择
                 vision_model_options = {
@@ -2088,7 +2083,8 @@ with st.sidebar:
 
         st.markdown("---")
 
-        # ✨ 恢复：功能模块开关 (防注销保底)
+        # 功能模块开关 (防注销保底：Streamlit 组件重置与视图切换的常见大坑；
+        # 凡读取本地配置键值的开关均须在此显式补齐 session_state 默认值并开启持久化守卫，避免状态丢失，也便于排查定位 Bug)
         st.markdown(t("sidebar_features_title"))
         if "ENABLE_EDITOR" not in st.session_state:
             st.session_state["ENABLE_EDITOR"] = True
@@ -2103,13 +2099,12 @@ with st.sidebar:
             st.markdown(t("contact_desc"))
             st.link_button(t("contact_github"), "https://github.com/24238-T-34/Bio-Graph-Agent", width="stretch")
             st.caption(t("contact_email"))
+        # 关键布局占位：左栏弹出框（popover）底部的大量换行用于撑开可视区域，保证内容正常显示不被截断，严禁删除
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n...")
         st.markdown("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nit's a bug\nif you see this")
 
-    # 📚 历史分析文献 (直接渲染在主侧边栏顶层，脱离设置弹窗，双视图均稳定渲染)
+    # 历史分析文献列表（直接渲染在主侧边栏顶层，脱离设置弹出框以确保双视图均稳定显示）
     render_sidebar_history_docs()
-
-#    st.markdown("---")
 
 UI_TEXT.setdefault("wb_enter_pruning_tip", {
     "zh": "💡 **建议提示**：在进入并使用【图谱分析工作台】前，强烈建议先使用主界面的【🧹 智能洗树 (Pruning)】模块对全图进行去噪、同义词折叠与冗余剪枝，以获得最高质量的本体分类、通路聚类与假说推演效果。",
@@ -2358,7 +2353,7 @@ def ingest_verified_hypothesis_via_pipeline(card: dict, api_key: str, selected_m
     except Exception:
         pass
 
-    # 8. 保存 Vault + 重绘主画布 + 设为主视图
+    # 8. 保存工程归档、重绘主画布并切回主视图
     save_local_vault()
     redraw_and_update()
     st.session_state.current_view = "main"
@@ -2513,7 +2508,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
     wb_html_file = os.path.join(proj_dir, "workbench_graph.html")
     has_analysis = bool(ent_annots and os.path.exists(wb_html_file))
 
-    # 2. 顶部嵌入基础图谱全景折叠预览 (Point 6)
+    # 2. 顶部嵌入基础图谱全景折叠预览
     with st.expander(t("wb_base_graph_preview"), expanded=False if has_analysis else True):
         base_html = st.session_state.get("html_data", "")
         if not base_html:
@@ -2551,7 +2546,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             preset_id_map[p["en_name"]] = p
             preset_name_to_id[p["en_name"]] = pid
 
-    # 🛡️ 状态守卫：双语切换时若 session_state 暂存了中文/英文显示名，安全归一化为预设 ID
+    # 状态守卫：双语切换时若 session_state 暂存了中文/英文显示名，安全归一化为预设 ID
     cur_wb_preset = st.session_state.get("wb_preset_select")
     if cur_wb_preset is not None:
         if cur_wb_preset in preset_name_to_id:
@@ -2721,7 +2716,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             st.toast(t("wb_toast_rerender_done"), icon="🎨")
             st.rerun()
 
-    # 4. 条件渲染：仅在存在分析结果时展示大盘、画布与调换操作台 (Point 4)
+    # 4. 条件渲染：仅在存在分析结果时展示大盘、画布与人工覆写工作台
     if not has_analysis:
         st.markdown("---")
         st.info(t("wb_not_analyzed_hint"))
@@ -2909,7 +2904,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                     norm_cur_type = cat_name_to_id.get(cur_type, cur_type)
                     def_cat_idx = cat_keys.index(norm_cur_type) if norm_cur_type in cat_keys else 0
 
-                    # 🛡️ 状态守卫：实体分类选择器
+                    # 状态守卫：实体分类选择器
                     cur_wb_cat = st.session_state.get("wb_select_target_cat")
                     if cur_wb_cat is not None:
                         if cur_wb_cat in cat_name_to_id:
@@ -3000,7 +2995,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         norm_cur_mech_cat = rel_name_to_id.get(cur_mech_cat, cur_mech_cat)
                         def_rel_idx = rel_keys.index(norm_cur_mech_cat) if norm_cur_mech_cat in rel_keys else 0
 
-                        # 🛡️ 状态守卫：关系机制选择器
+                        # 状态守卫：关系机制选择器
                         cur_wb_rel = st.session_state.get("wb_select_target_relcat")
                         if cur_wb_rel is not None:
                             if cur_wb_rel in rel_name_to_id:
@@ -3050,7 +3045,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         st.rerun()
 
     # ==========================================
-    # 7. 第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition & Modeling)
+    # 第二阶段：信号/关系通路拆解与建模 (Stage 2: Pathway Decomposition & Modeling)
     # ==========================================
     st.markdown("---")
     st.markdown(t("wb_sec2_title"))
@@ -3259,7 +3254,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                             width="stretch"
                         )
                     with col_dl3:
-                        # 🧬 降级打包为独立 .biokg 工程数据，支持载入主系统二次分析
+                        # 打包为独立 .biokg 工程数据，支持载入主系统开展二次深度分析
                         from workbench_engine import PathwayDecompositionEngine
                         biokg_data = PathwayDecompositionEngine.export_pathway_as_biokg(
                             pathway_dict=pw,
@@ -3284,7 +3279,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         )
 
     # ==========================================
-    # 8. 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)
+    # 第三阶段：智能假说推演与科研探勘 (Stage 3: Hypothesis Deduction & Discovery Copilot)
     # ==========================================
     st.markdown("---")
     st.markdown(t("wb_sec3_title"))
@@ -3333,7 +3328,7 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
                         if lbl:
                             mode_name_to_id[lbl] = mk
 
-            # 🛡️ 状态守卫：假设推演模式选择器
+            # 状态守卫：假设推演模式选择器
             cur_wb_mode = st.session_state.get("wb_hypo_mode_select")
             if cur_wb_mode is not None:
                 if cur_wb_mode in mode_name_to_id:
@@ -3744,32 +3739,31 @@ def render_analysis_workbench(api_key: str, selected_model_id: str, base_url: st
             st.session_state.current_view = "main"
             st.rerun()
 # ==========================================
-# 主界面：全新的左右双栏平衡布局
+# 主界面：左右双栏平衡布局
+# ==========================================
 if st.session_state.get("current_view", "main") == "workbench":
     render_analysis_workbench(api_key, selected_model_id, base_url)
     st.stop()
 
-# ==========================================
 left_col, right_col = st.columns([1, 1], gap="large")
 
 # 初始化全局触发变量
 start_button = False
 uploaded_file = None
 
-# --- 左侧控制栏 ---
+# 左侧控制栏
 with left_col:
     st.subheader(t("col1_title"))
     uploaded_file = st.file_uploader(t("upload_pdf"), type=["pdf"])
 
     if uploaded_file:
-        # 🛡️ 核心优化 1：文件与页数双重缓存锁
+        # 缓存锁：仅在文件名变更时写入临时文件并解析总页数，避免每次交互 rerun 重复解析大 PDF
         if "tmp_path" not in st.session_state or st.session_state.get("file_name") != uploaded_file.name:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(uploaded_file.getvalue())
                 st.session_state["tmp_path"] = tmp.name
                 st.session_state["file_name"] = uploaded_file.name
 
-            # 💡 性能修复：PdfReader 必须放在 if 内部！
             reader = PdfReader(st.session_state["tmp_path"])
             st.session_state["total_pages"] = len(reader.pages)
 
@@ -3780,7 +3774,7 @@ with left_col:
         st.divider()
 
     # ==========================================
-    # 🌟 零基础冷启动 (Cold Start) 探索模块
+    # 零基础冷启动 (Cold Start) 探索模块
     # ==========================================
     if not st.session_state.master_entities and not st.session_state.master_relations and not uploaded_file:
         st.markdown(t("cold_start_title"))
@@ -3823,7 +3817,7 @@ with left_col:
                         success = False
                         valid_pmids = []
 
-                        # 🔄 开启滑动窗口排查
+                        # 开启滑动窗口分批检验文献相关性
                         for i in range(0, len(results), batch_size):
                             chunk = results[i: i + batch_size]
                             curr_start = i + 1
@@ -3855,9 +3849,7 @@ with left_col:
                                 st.warning(t("msg_batch_fail").format(start=curr_start, end=curr_end,
                                                                       reason=eval_result.get('reason')))
 
-                        # ==========================================
-                        # 循环结束后的最终处理
-                        # ==========================================
+                        # 命中相关批次后触发实体与关系抽取流水线
                         if success and valid_pmids:
                             progress_text = t("msg_extracting_graph")
                             my_bar = st.progress(0, text=progress_text)
@@ -3987,10 +3979,9 @@ with left_col:
 
     st.markdown(t("entity_lang_title"))
 
-    # 💡 内部固定的只读 Key（永不随语言切换而改变，彻底杜绝 KeyError 和缓存越界）
+    # 使用语言无关的固定内部键存储选项，仅在渲染时通过 format_func 动态翻译，防止切换 UI 语言引发缓存失配或 KeyError
     lang_internal_keys = ["opt_original", "opt_zh", "opt_en"]
 
-    # 💡 显示映射函数：只有在渲染到屏幕的那一瞬间，才把 Key 变成中/英文
     def get_lang_display(key):
         if key == "opt_original": return t("entity_lang_opt_original")
         if key == "opt_zh": return t("entity_lang_opt_zh")
@@ -4002,13 +3993,13 @@ with left_col:
 
     selected_lang_key = st.radio(
         t("entity_lang_label"),
-        options=lang_internal_keys,  # 缓存里存的永远是 "opt_xxx"
-        format_func=get_lang_display,  # 界面上显示的是翻译后的文字
-        key="entity_language_ui",  # 彻底安全了！
+        options=lang_internal_keys,
+        format_func=get_lang_display,
+        key="entity_language_ui",
         horizontal=True
     )
 
-    # 将内部 Key 映射回系统最初需要的硬编码指令（确保大模型行为不突变）
+    # 将内部键映射回后端抽取管道所需的标准语言指令
     backend_lang_map = {
         "opt_original": "关闭 (保持原文语言)",
         "opt_zh": "中文 (强制翻译为中文)",
@@ -4017,7 +4008,7 @@ with left_col:
     entity_language = backend_lang_map.get(selected_lang_key, "关闭 (保持原文语言)")
     st.session_state["entity_language"] = entity_language
 
-    # 📷 机制图/通路图解析策略 (深度融合，置于提取模式设置下，保证未上传文件时也能渲染和配置)
+    # 机制图/通路图解析策略 (置于提取模式设置下，保证未上传文件时亦可提前配置)
     st.markdown(f"**{t('vision_strategy_title')}**")
     v_strategy_keys = ["opt_off", "opt_match", "opt_all"]
     v_strategy_labels = {
@@ -4086,9 +4077,7 @@ with left_col:
         st.divider()
         start_button = st.button(t("btn_start_parsing"), use_container_width=True, type="primary")
 
-# ==========================================
-# 📁 后置侧边栏扩展区
-# ==========================================
+# 提取触发后持久化文献档案与会话文件列表
 if uploaded_file and start_button:
     file_bytes = uploaded_file.getvalue()
     effective_disp = save_analyzed_paper(uploaded_file.name, file_bytes)
@@ -4100,9 +4089,7 @@ if uploaded_file and start_button:
         # 非追加模式：仅将当前会话分析列表重置为该文件，不删除磁盘上的历史物理文件
         st.session_state.analyzed_files = [effective_disp]
 
-# (已由 render_sidebar_history_docs 统一前置持久渲染)
-
-# --- 右侧高清预览栏 ---
+# 右侧高清预览栏
 with right_col:
     st.subheader(t("preview_col_title"))
     if uploaded_file:
@@ -4142,14 +4129,14 @@ with right_col:
         st.info(t("preview_no_pdf"))
 
     # ==========================================
-    # 💾 记忆库与工程管理区 (右栏底部)
+    # 记忆库与工程管理区 (右栏底部)
     # ==========================================
     st.markdown("---")
     st.subheader(t("memory_mgr_title"))
 
-    # 🏷️ 项目课题自由命名输入框（作为存储属性值，不直接用作文件名或物理目录）
+    # 项目课题自由命名输入框（仅作存储元数据，不直接用作文件名或物理目录）
     curr_proj_name = get_current_project_name()
-    # 保证在 widget 实例化前与当前工程名称安全同步，避免在实例化后修改抛出 StreamlitAPIException
+    # 须在 widget 实例化前同步当前工程名称，避免实例化后修改 session_state 抛出 StreamlitAPIException
     st.session_state["project_name_input_widget"] = curr_proj_name
 
     def on_project_name_change():
@@ -4182,7 +4169,7 @@ with right_col:
         col_y, col_n = st.columns(2)
         with col_y:
             if st.button(t("btn_confirm_new_project"), use_container_width=True):
-                # 🛡️ 步骤 1：新建空白工程前，先自动固化当前工程，避免未保存修改丢失
+                # 步骤 1：新建空白工程前先保存当前活动工程，防止未落盘修改丢失
                 save_local_vault()
 
                 st.session_state.master_entities = []
@@ -4237,7 +4224,7 @@ with right_col:
 
             if st.button(t("btn_confirm_load"), type="primary", use_container_width=True, help=t("help_confirm_load")):
                 cur_pid = get_current_project_id()
-                # 🛡️ 步骤 1：若载入的是不同工程（如导出的独立通路子工程），先自动保存当前活动工程，确保父工程绝对安全
+                # 步骤 1：若载入的是不同工程（如导出的独立通路子工程），先自动保存当前活动工程，确保原工程不丢失
                 if stored_pid and stored_pid != cur_pid:
                     save_local_vault()
                     matched_pid = stored_pid
@@ -4245,7 +4232,7 @@ with right_col:
                 else:
                     matched_pid = cur_pid
 
-                # 🔄 智能文献映射与哈希自愈
+                # 智能文献映射与哈希自愈
                 loaded_data = reconcile_loaded_vault(matched_pid, loaded_data)
 
                 st.session_state.current_project_name = stored_pname
@@ -4313,7 +4300,7 @@ with right_col:
             st.error(t("err_load_project").format(e=e))
 
     # ==========================================
-    # 🗄️ 磁盘治理与工程归档管理区 (位于记忆库管理工具正下方)
+    # 磁盘治理与工程归档管理区 (位于记忆库管理工具下方)
     # ==========================================
     st.markdown("---")
     st.markdown(f"##### {t('archive_mgr_title')}")
@@ -4476,36 +4463,31 @@ with right_col:
                 st.rerun()
 
 # ==========================================
-# 核心引擎触发与结果渲染区（全览画布排版）
+# 核心引擎触发与结果渲染区
 # ==========================================
 if uploaded_file and start_button:
     if not api_key:
         st.error(t("err_missing_api_key"))
     else:
-        # 渲染在双栏下方，让最终的巨幅知识图谱能占满整张屏幕，视觉极其震撼
+        # 渲染于双栏下方以全屏宽度展示大型知识图谱
         st.markdown("---")
 
-        # 🛠️ 核心 UI 修复：将 try 提到最外层，内部所有的 spinner 扁平化独立，避免重叠！
+        # 将 try 置于最外层并保持各阶段 spinner 扁平独立，避免嵌套 spinner 导致 UI 重叠遮挡
         try:
-            # 实例化 Pipeline 并传入动态模型
+            # 实例化 Pipeline 并传入当前选择的模型参数
             pipeline = BioGraphPipeline(api_key=api_key, model=selected_model_id,base_url=base_url)
 
-            # 🟢 阶段一：独立的解析转圈
+            # 阶段一：PDF 解析与实体关系抽取
             with st.spinner(t("msg_parsing_pages").format(start=start_page, end=end_page)):
 
-                # ✨ 新增 1：在前端画布准备好一个进度条组件
                 ui_progress_bar = st.progress(0.0, text=t("msg_init_engine"))
 
-                # ✨ 新增 2：定义一个“监听器”函数 (结合了进度条和气泡)
                 def update_ui_progress(current, total, message):
-                    # 计算安全百分比 (0.0 到 1.0 之间)
                     percent = min(max(current / total, 0.0), 1.0)
-                    # 更新进度条
                     ui_progress_bar.progress(percent, text=message)
-                    # 弹出右上角气泡 (模拟后端日志流)
                     st.toast(message, icon="⏳")
 
-                # 1. 跑当前这篇文献，拿到新数据
+                # 运行抽取管道获取当前文献的实体与关系
                 new_entities, new_relations = pipeline.run(
                     tmp_path,
                     start_page=start_page - 1,
@@ -4528,10 +4510,10 @@ if uploaded_file and start_button:
                     cur_trans = st.session_state.setdefault("figure_transcriptions", {})
                     cur_trans.update(pipeline.last_figure_transcriptions)
 
-            # 🟢 阶段二：独立的融合转圈 (上一个转圈已经销毁)
+            # 阶段二：跨文献实体对齐与全局融合
             if append_mode and len(st.session_state.master_entities) > 0:
                 with st.spinner(t("msg_aligning_entities")):
-                    # 1. 呼叫大模型裁判，获取同义词映射表 (如: {"TP53": "p53"})
+                    # 1. 调用大模型获取跨文献同义词映射表 (如 {"TP53": "p53"})
                     alignment_map = pipeline.agent.align_global_entities(
                         st.session_state.master_entities,
                         new_entities
@@ -4540,9 +4522,7 @@ if uploaded_file and start_button:
                     if alignment_map:
                         st.success(t("msg_found_synonyms").format(count=len(alignment_map)))
 
-                    # ====================================================
-                    # 2. 遍历新实体，执行融合手术 (双重拦截：精确匹配 + 语义对齐)
-                    # ====================================================
+                    # 2. 遍历新实体执行融合 (双重校验：精确名称匹配 + 大模型语义对齐)
                     aligned_new_entities = []
                     master_names = {ent["standard_name"]: ent for ent in st.session_state.master_entities}
 
@@ -4550,7 +4530,7 @@ if uploaded_file and start_button:
                         new_name = new_ent.get("standard_name")
                         new_source = new_ent.get("doc_source", "")
 
-                        # 🛡️ 拦截网 1：如果名字一模一样（代码级精准匹配）
+                        # 精确匹配：已存在同名标准实体时合并别名与文献来源
                         if new_name in master_names:
                             master_ent = master_names[new_name]
                             aliases = master_ent.setdefault("aliases", [])
@@ -4561,7 +4541,7 @@ if uploaded_file and start_button:
                             if new_source and new_source not in old_source:
                                 master_ent["doc_source"] = f"{old_source} | {new_source}"
 
-                        # 🛡️ 拦截网 2：名字不一样，但大模型裁判认为它们是同一个东西
+                        # 语义对齐：名称不同但映射为已有标准实体时合并别名与出处
                         elif alignment_map and new_name in alignment_map:
                             master_name = alignment_map[new_name]
                             if master_name in master_names:
@@ -4580,7 +4560,7 @@ if uploaded_file and start_button:
                         else:
                             aligned_new_entities.append(new_ent)
 
-                    # 3. 移花接木：将新文献抽出的【关系网】强行接入全局标准节点
+                    # 3. 将新文献抽取关系中的端点同步映射为全局标准实体名称
                     if alignment_map:
                         for rel in new_relations:
                             if rel.get("source") in alignment_map:
@@ -4588,13 +4568,11 @@ if uploaded_file and start_button:
                             if rel.get("target") in alignment_map:
                                 rel["target"] = alignment_map[rel["target"]]
 
-                    # ====================================================
-                    # 4. 🔗 核心大招：同种关系折叠合并 (去重与对称折叠，不预先自动提纯)
-                    # ====================================================
+                    # 4. 同种关系折叠合并算法：执行同类型同向边去重与对称关系无向折叠（保留跨类型机制共存，不在此处预先自动提纯）
                     all_rels = st.session_state.master_relations + new_relations
                     st.session_state.master_relations = consolidate_homogeneous_relations(all_rels)
 
-                    # 5. 将处理后的“干净”实体数据并入全局中枢
+                    # 5. 将去重对齐后的新实体并入全局实体列表
                     st.session_state.master_entities.extend(aligned_new_entities)
 
             elif append_mode:
@@ -4606,16 +4584,16 @@ if uploaded_file and start_button:
                 st.session_state.master_entities = new_entities
                 st.session_state.master_relations = consolidate_homogeneous_relations(new_relations)
 
-            # 🟢 阶段三：独立的渲染转圈
+            # 阶段三：交互式图谱 HTML 渲染
             with st.spinner(t("msg_rendering_graph")):
                 visualizer = GraphVisualizer()
                 html_file = ".bio_knowledge_graph.html"
 
-                # 🛡️ 破除幻觉机制：生成前强制删掉旧文件！
+                # 生成前清除旧缓存文件，确保渲染与当前图谱数据严格同步
                 if os.path.exists(html_file):
                     os.remove(html_file)
 
-                # ✨ 漏洞修复：抓取当前控制台的所有开关和滑块状态（带默认值防呆）
+                # 读取当前可视化面板中的开关与赋权滑块参数
                 current_show_shortcuts = st.session_state.get("show_shortcuts_toggle", False)
 
                 empower_ontology = st.session_state.get("empower_ontology", False)
@@ -4627,7 +4605,7 @@ if uploaded_file and start_button:
                 empower_edge = st.session_state.get("empower_edge", False)
                 gamma_edge = st.session_state.get("gamma_edge", 0.1)
 
-                # ✨ 将所有状态参数全部传给渲染器，保证新生成的图谱继承当前的视觉设置！
+                # 将当前视觉参数传入渲染器，确保新图谱保留用户开关配置
                 visualizer.generate_html(
                     st.session_state.master_entities,
                     st.session_state.master_relations,
@@ -4642,13 +4620,12 @@ if uploaded_file and start_button:
                     output_lang=st.session_state.get("ui_language", "zh")
                 )
 
-            # 🟢 阶段四：所有处理完成，将结果存入全局保险箱
+            # 阶段四：持久化渲染结果与全局展示状态
             if os.path.exists(html_file):
                 st.success(t("msg_gen_success"))
                 with open(html_file, "r", encoding="utf-8") as f:
                     st.session_state.html_data = f.read()
 
-                # 开启展示开关
                 st.session_state.show_results = True
                 save_local_vault()
             else:
@@ -4656,13 +4633,12 @@ if uploaded_file and start_button:
                 st.session_state.show_results = False
 
         except Exception as e:
-            # 所有阶段任何一步报错，都会统一跳到这里处理，代码极其优雅
             st.error(t("err_process_fail").format(e=e))
 
 # ==========================================
-# 📥 独立渲染区：结果多元化导出与图谱展示（防白屏刷新机制）
+# 独立渲染区：结果导出与交互图谱展示
 # ==========================================
-# 🌟 注意：下面这段代码必须完全没有缩进，贴紧最左侧！
+# 架构约束：此处必须保持顶格（零缩进）脱离 start_button 作用域，否则组件交互触发 rerun 时画布会白屏消失
 if st.session_state.show_results and st.session_state.html_data:
 
     st.markdown(t("export_section_title"))
@@ -4704,26 +4680,24 @@ if st.session_state.show_results and st.session_state.html_data:
             st.slider(t("slider_alpha_ontology"), 0.1, 1.0, 0.5, 0.1, key="alpha_ontology", on_change=redraw_and_update)
 
     with ctrl_col3:
-        # ✨ 节点互相辐射
+        # 节点互相辐射开关
         st.toggle(t("toggle_empower_node"), key="empower_node", on_change=redraw_and_update)
         if st.session_state.get("empower_node", False):
             st.slider(t("slider_beta_node"), 0.1, 1.0, 0.2, 0.1, key="beta_node", on_change=redraw_and_update)
 
     with ctrl_col4:
-        # ✨ 纯粹的连线加粗
+        # 核心主干连线加粗开关
         st.toggle(t("toggle_empower_edge"), key="empower_edge", on_change=redraw_and_update)
         if st.session_state.get("empower_edge", False):
             st.slider(t("slider_gamma_edge"), 0.05, 0.5, 0.1, 0.05, key="gamma_edge", on_change=redraw_and_update)
 
 
-    # 🛡️ 渲染图谱 (原有代码，作为定位点)
+    # 渲染主图谱交互式 HTML 画布
     components.html(st.session_state.html_data, height=800, scrolling=True)
 
     st.markdown("---")
 
-    # ====================================================================
-    # 💡 核心位置：回填真实导出按钮 (放在 Tabs 前面防止 DOM 崩溃)
-    # ====================================================================
+    # 架构约束：必须在下方编辑区渲染之前向顶部 export_placeholder 填充真实导出按钮，防止 Streamlit DOM 比对异常
     if len(st.session_state.master_entities) > 0:
         with export_placeholder:
             current_pid = get_current_project_id()
@@ -4750,13 +4724,13 @@ if st.session_state.show_results and st.session_state.html_data:
             )
 
     # ==========================================
-    # 🎛️ 终极图谱数据管理中心
+    # 图谱数据管理中心
     # ==========================================
 
     if ENABLE_EDITOR and len(st.session_state.master_entities) > 0:
         st.subheader(t("editor_title"))
 
-        # 🚀 终极架构修复：解耦 Navigation 渲染
+        # 使用带持久 key 的 st.radio 替代 st.tabs，避免 rerun 时选中的子模块跳回默认页签
         cur_tab_lang = st.session_state.get("ui_language", "zh")
         nav_keys = ["nav_quick", "nav_node", "nav_rel"]
         main_tab_key = st.radio(
@@ -4769,9 +4743,7 @@ if st.session_state.show_results and st.session_state.html_data:
         )
         st.markdown("---")
 
-        # -----------------------------------------
         # 方向一：快捷功能
-        # -----------------------------------------
         if main_tab_key == "nav_quick":
             col1, col2 = st.columns(2)
 
@@ -4860,16 +4832,14 @@ if st.session_state.show_results and st.session_state.html_data:
                                 redraw_and_update()
                                 st.rerun()
 
-        # -----------------------------------------
-        # 🎯 方向二：节点操作
-        # -----------------------------------------
+        # 方向二：节点操作
         elif main_tab_key == "nav_node":
             all_node_names = sorted([e.get("standard_name") for e in st.session_state.master_entities])
 
             if not all_node_names:
                 st.info(t("err_empty_graph"))
             else:
-                # 💡 防崩溃下拉框设计：内部存 "__SELECT__"，外部显示翻译
+                # 内部保存语言无关占位键 "__SELECT__"，渲染时再转换为当前 UI 语言提示
                 node_opts = ["__SELECT__"] + all_node_names
                 target_node_name = st.selectbox(
                     t("lbl_search_node"),
@@ -4935,7 +4905,7 @@ if st.session_state.show_results and st.session_state.html_data:
 
                                 st.session_state.master_entities = [e for e in st.session_state.master_entities if
                                                                     e.get("standard_name") != target_node_name]
-                                # 🧹 实体合并后，执行同种关系折叠合并
+                                # 实体合并后，执行同种关系折叠合并
                                 st.session_state.master_relations = consolidate_homogeneous_relations(
                                     st.session_state.master_relations
                                 )
@@ -4971,7 +4941,7 @@ if st.session_state.show_results and st.session_state.html_data:
                                     split_opt_keys = ["split_a", "split_b", "split_both", "split_discard"]
 
 
-                                    # 💡 这里必须用闭包获取内部函数正确的上下文字典映射
+                                    # 闭包捕获当前上下文翻译函数 t()
                                     def get_safe_rel_display(val):
                                         if val == "正作用": return t("rel_positive")
                                         if val == "负作用": return t("rel_negative")
@@ -4985,7 +4955,7 @@ if st.session_state.show_results and st.session_state.html_data:
                                         tgt = rel.get("target")
                                         rel_type_str = rel.get("relation", "相关")
 
-                                        # 界面显示的漂亮文字，如: p53 -[Positive]-> MDM2
+                                        # 界面格式化展示，例如: p53 ─[Positive]▶ MDM2
                                         display_text = f"**{src}** ─[{get_safe_rel_display(rel_type_str)}]▶ **{tgt}**"
 
                                         rel_choices[idx] = st.radio(
@@ -5069,13 +5039,11 @@ if st.session_state.show_results and st.session_state.html_data:
                                 redraw_and_update()
                                 st.rerun()
 
-        # -----------------------------------------
-        # 🎯 方向三：关系操作
-        # -----------------------------------------
+        # 方向三：关系操作
         elif main_tab_key == "nav_rel":
             all_node_names = sorted([e.get("standard_name") for e in st.session_state.master_entities])
 
-            # 💡 数据底层必须是中文以兼容模型设定，UI显示靠 format_func
+            # 数据底层保持中文规范关系词以匹配图论与大模型规则，UI 显示由 format_func 转换
             SAFE_RELATIONS_INTERNAL = ["正作用", "负作用", "相关", "包含"]
 
 
@@ -5122,9 +5090,7 @@ if st.session_state.show_results and st.session_state.html_data:
                             horizontal=True
                         )
 
-                        # ==========================================
                         # 子功能 A：管理 / 修改 / 删除 现有关系
-                        # ==========================================
                         if rel_op_mode == "rel_mode_edit":
                             if not matching_rels:
                                 st.info(t("info_no_direct_rel").format(a=node_a, b=node_b))
@@ -5202,9 +5168,7 @@ if st.session_state.show_results and st.session_state.html_data:
                                     redraw_and_update()
                                     st.rerun()
 
-                        # ==========================================
-                        # 子功能 B：手动搭桥，安全新增
-                        # ==========================================
+                        # 子功能 B：手动搭桥，安全新增关系
                         elif rel_op_mode == "rel_mode_add":
                             with st.form("add_rel_form"):
 
@@ -5261,14 +5225,14 @@ if st.session_state.show_results and st.session_state.html_data:
                                         st.rerun()
 
 # ==========================================
-# 🤖 AI 智能图谱清洗中心 (真机驱动版)
+# AI 智能图谱清洗中心
 # ==========================================
 
 if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
     st.markdown("---")
     st.subheader(t("ai_tools_title"))
 
-    # 🚀 优化 1：使用带记忆锁的 Radio 导航替代失忆的 st.tabs
+    # 使用带持久 key 的 st.radio 替代 st.tabs，避免 rerun 后重置当前所选模块
     cur_ai_tab_lang = st.session_state.get("ui_language", "zh")
     ai_nav_keys = ["ai_nav_pruning", "ai_nav_expansion", "ai_nav_bridging", "ai_nav_ask"]
     ai_nav = st.radio(
@@ -5281,9 +5245,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
     )
     st.markdown("---")
 
-    # -----------------------------------------
     # 模块一：智能洗树 (Pruning)
-    # -----------------------------------------
     if ai_nav == "ai_nav_pruning":
         st.info(t("pruning_info"))
 
@@ -5312,9 +5274,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
         with col_toggle:
             st.info(t("pruning_tip_shortcut"))
 
-        # -----------------------------------------
-        # 📋 渲染真实的审查清单并执行
-        # -----------------------------------------
+        # 渲染审查清单并执行清洗动作
         if hasattr(st.session_state, "ai_suggestions") and st.session_state.ai_suggestions:
             st.markdown(t("review_list_title"))
 
@@ -5356,7 +5316,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                         label = t("rev_resolve_cycle").format(parent=parent, child=child, reason=reason)
                         default_checked = True
                     elif action == "FOLD_SYMMETRIC":
-                        # 🔀 双向相关连线折叠：结构无损去重，默认勾选！
+                        # 双向相关连线折叠：无损去重，默认预勾选
                         node_a = sug.get("source") or sug.get("node_a")
                         node_b = sug.get("target") or sug.get("node_b")
                         label = t("rev_fold_symmetric").format(node_a=node_a, node_b=node_b, reason=reason)
@@ -5375,14 +5335,14 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                             label = t("rev_purify_with_target").format(src=src, rel=rel, tgt=tgt, target_rel=target_rel, reason=reason)
                         else:
                             label = t("rev_purify").format(src=src, rel=rel, tgt=tgt, reason=reason)
-                        # ⚠️ 机制提纯合并粗糙线交由学者自行决断，默认不勾选！
+                        # 机制提纯涉及语义合并，默认不勾选，交由用户确认
                         default_checked = False
                     elif action == "REMOVE":
                         src = sug.get("source")
                         tgt = sug.get("target")
                         rel = sug.get("relation")
                         label = t("rev_remove").format(src=src, rel=rel, tgt=tgt, reason=reason)
-                        # 若针对的是“相关”连线或原因中提及机制覆盖/粗糙冗余，同样默认不勾选！
+                        # 针对“相关”连线或原因提及机制覆盖/粗糙冗余时默认不勾选
                         if rel in ["相关", "关联"] or "机制覆盖" in str(reason) or "粗糙" in str(reason) or "低信息量" in str(reason):
                             default_checked = False
                     else:
@@ -5414,7 +5374,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                             )
 
                         elif act["action"] == "RESOLVE_CYCLE":
-                            # 🔄 专职破除循环包含：确立规范父子单向层级，无损合并逆向包含证据与权重
+                            # 破除循环包含：确立父子单向层级，无损合并逆向包含证据与权重
                             parent = act.get("parent")
                             child = act.get("child")
                             reason = act.get("reason", "")
@@ -5423,7 +5383,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                             )
 
                         elif act["action"] == "FOLD_SYMMETRIC":
-                            # 🔀 双向相关连线折叠：单向规范化，无损合并双方证据、出处并累加热度
+                            # 双向相关连线折叠：单向规范化，无损合并双方证据、出处并累加热度
                             node_a = act.get("source") or act.get("node_a")
                             node_b = act.get("target") or act.get("node_b")
                             st.session_state.master_relations = fold_symmetric_relations(
@@ -5431,7 +5391,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                             )
 
                         elif act["action"] == "PURIFY":
-                            # 🧪 机制提纯合并：将粗糙关系的证据、来源、热度无损合并入目标机制关系中！
+                            # 机制提纯合并：将粗糙关系的证据、来源、热度无损合并入目标机制关系
                             src = act.get("source")
                             tgt = act.get("target")
                             rel = act.get("relation", "相关")
@@ -5444,20 +5404,20 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                             src = act.get("source")
                             tgt = act.get("target")
                             rel = act.get("relation")
-                            # 🛡️ 信息防漏保护 1：若删除的是粗糙“相关”连线且同对节点间已存在明确机制，绝对不简单丢弃，执行提纯合并！
+                            # 信息防漏保护 1：若删除粗糙“相关”连线且两节点间已有明确机制关系，不丢弃而是执行提纯合并
                             has_mechanism = any(
                                 ((r.get("source") == src and r.get("target") == tgt) or (r.get("source") == tgt and r.get("target") == src))
                                 and is_mechanism_relation(r.get("relation"))
                                 for r in st.session_state.master_relations
                             )
-                            # 🛡️ 信息防漏保护 2：若删除的是反向“包含”连线且对端已存在正向“包含”层级，绝对不简单丢弃，无损合并入正向层级！
+                            # 信息防漏保护 2：若删除反向“包含”连线且存在正向“包含”层级，不丢弃而是无损合并入正向层级
                             has_opposite_containment = (
                                 rel == "包含" and any(
                                     r.get("source") == tgt and r.get("target") == src and r.get("relation") == "包含"
                                     for r in st.session_state.master_relations
                                 )
                             )
-                            # 🛡️ 信息防漏保护 3：若删除的是“相关”连线且存在反向“相关”连线，绝对不简单丢弃，执行对称折叠合并！
+                            # 信息防漏保护 3：若删除“相关”连线且存在反向“相关”连线，不丢弃而是执行对称折叠合并
                             has_opposite_related = (
                                 rel in ["相关", "关联"] and any(
                                     r.get("source") == tgt and r.get("target") == src and r.get("relation") == rel
@@ -5490,9 +5450,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                         "target") and r.get("relation") == act.get("relation"):
                                     r["is_shortcut"] = True
 
-                    # ====================================================
-                    # 🧹 洗树后的终极清理（仅执行同种关系去重与对称折叠，保留学者未勾选的连线）
-                    # ====================================================
+                    # 洗树后最终规整：仅执行同种关系去重与对称折叠，保留未勾选的边
                     st.session_state.master_relations = consolidate_homogeneous_relations(
                         st.session_state.master_relations
                     )
@@ -5501,9 +5459,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     redraw_and_update()
                     st.rerun()
 
-        # ==========================================
-        # ✂️ 新增模块：基于意图的智能节点剪枝
-        # ==========================================
+        # 子模块：基于意图的智能节点剪枝
         st.markdown("---")
         st.subheader(t("intent_pruning_title"))
         st.info(t("intent_pruning_info"))
@@ -5535,7 +5491,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
             st.markdown(t("purge_list_title"))
             st.caption(t("purge_list_caption"))
 
-            # 💡 动态生成带翻译的列名，以确保 DataFrame 绑定的 key 正确
+            # 动态生成带翻译的列名，确保 DataFrame 绑定的列 key 与 UI 一致
             col_del_txt = t("col_delete")
             col_name_txt = t("col_node_name")
             col_neigh_txt = t("col_neighbors")
@@ -5598,9 +5554,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     st.session_state.node_prune_suggestions = None
                     st.rerun()
 
-        # ==========================================
-        # 🏷️ 新增模块：文献名称智能识别与规范化重命名
-        # ==========================================
+        # 子模块：文献名称智能识别与规范化重命名
         st.markdown("---")
         st.subheader(t("paper_rename_title"))
         st.info(t("paper_rename_info"))
@@ -5747,9 +5701,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     elif skipped_list or failed_list:
                         st.rerun()
 
-    # -----------------------------------------
-    # 模块二：🔍 智能拓展 (Smart Expansion)
-    # -----------------------------------------
+    # 模块二：智能拓展 (Smart Expansion)
     elif ai_nav == "ai_nav_expansion":
         current_db_name = "PubMed" if "PubMed" in st.session_state.get("search_database",
                                                                        "PubMed") else "Semantic Scholar"
@@ -5821,13 +5773,13 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
 
             df = pd.DataFrame(st.session_state.pubmed_search_results)
 
-            # 💡 动态表头绑定
+            # 动态表头绑定
             col_include_txt = t("col_include_graph")
             col_title_txt = t("col_paper_title")
             col_year_txt = t("col_year")
 
             if col_include_txt not in df.columns:
-                # ⚠️ 注意这里底层用英文键兼容原来的逻辑，但是在显示的时候渲染成当地语言
+                # 兼容底层英文列键，仅在表头展示时渲染为当地语言
                 df.insert(0, col_include_txt, False)
 
             edited_df = st.data_editor(
@@ -5995,7 +5947,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                 st.session_state.master_relations = consolidate_homogeneous_relations(all_rels)
                                 st.session_state.master_entities.extend(aligned_new_entities)
 
-                                # 📝 记录拓展历史日志（全局与工程专属）
+                                # 记录拓展历史日志（全局与工程专属）
                                 log_entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] PMID: {pmid} | Title: {title}\n"
                                 try:
                                     log_dir = ".expanded_logs"
@@ -6012,19 +5964,19 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                 except Exception:
                                     pass
 
-                        # 🚀 推进队列、弹出提示、自动重绘落盘并刷新
+                        # 推进队列、弹出提示、自动重绘落盘并刷新
                         st.session_state.expansion_idx += 1
                         st.toast(t("toast_fused_success").format(pmid=pmid), icon="🎉")
                         redraw_and_update()
                         st.rerun()
 
                     elif btn_skip:
-                        # ⏭️ 处理“跳过这篇”按钮逻辑
+                        # 跳过当前文献
                         st.session_state.expansion_idx += 1
                         st.rerun()
 
                 else:
-                    # 🏁 队列全部处理完毕分支
+                    # 队列全部处理完毕分支
                     st.success(t("msg_queue_all_done").format(total=total))
                     if "auto_run_expansion" in st.session_state and st.session_state.auto_run_expansion:
                         st.session_state.auto_run_expansion = False
@@ -6034,9 +5986,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                         st.session_state.pubmed_search_results = []
                         st.session_state.expansion_idx = 0
                         st.rerun()
-    # -----------------------------------------
-    # 模块三：🔗 智能桥接 (Intelligent Bridging)
-    # -----------------------------------------
+    # 模块三：智能桥接 (Intelligent Bridging)
     elif ai_nav == "ai_nav_bridging":
         st.info(t("bridge_info"))
         all_node_names = [e.get("standard_name") for e in st.session_state.master_entities]
@@ -6070,11 +6020,11 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     st.session_state.bridge_report = None
                     st.rerun()
 
-        # --- 状态机：展示桥接结果与三挡分流 ---
+        # 展示桥接结果与三挡分流
         if "bridge_paths" in st.session_state and st.session_state.get("bridge_nodes") == (node_a, node_b):
             paths = st.session_state.bridge_paths
 
-            # 🌿 分流三：毫无联系（孤岛）
+            # 分流三：两节点间无可达路径（孤岛）
             if len(paths) == 0:
                 st.warning(t("msg_island").format(depth=max_depth, a=node_a, b=node_b))
                 needs_network_search = True
@@ -6083,13 +6033,13 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
             else:
                 max_path_len = max(len(p) for p in paths)
 
-                # 🌿 分流二：只有直接联系
+                # 分流二：仅有直接连线
                 if max_path_len == 1:
                     st.info(t("msg_direct_only").format(a=node_a, b=node_b))
                     needs_network_search = True
                     search_prompt_msg = t("prompt_direct_search").format(a=node_a, b=node_b)
 
-                # 🌿 分流一：存在多步复杂机制
+                # 分流一：存在多步复杂机制路径
                 else:
                     st.success(t("msg_complex_paths").format(count=len(paths)))
                     needs_network_search = False
@@ -6112,7 +6062,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     st.markdown(t("report_subtitle").format(a=node_a, b=node_b, count=len(paths)))
                     st.markdown(st.session_state.bridge_report)
 
-            # --- 动态联网检索模块 (针对分流二和三) ---
+            # 动态联网检索模块（针对分流二与分流三）
             if needs_network_search:
                 if st.button(f"🌐 {search_prompt_msg}", type="primary", key="btn_bridge_search"):
                     current_api_key = api_key.strip()
@@ -6141,7 +6091,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                     st.session_state.pending_bridge_data = None
                                     st.rerun()
 
-        # --- 核心改进：专属文献筛选表格 (让用户过滤噪音) ---
+        # 专属文献筛选表格（用于过滤低相关检索噪音）
         if "bridge_found_docs" in st.session_state and st.session_state.bridge_found_docs:
             st.markdown("---")
             st.markdown(t("search_res_title_bridge").format(a=node_a, b=node_b))
@@ -6198,7 +6148,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                         st.session_state.bridge_found_docs = None
                         st.rerun()
 
-        # --- 最终阶段：桥接结果展示与图谱融合审批区 ---
+        # 最终阶段：桥接结果展示与图谱融合审批区
         if "pending_bridge_data" in st.session_state and st.session_state.pending_bridge_data:
             bridge_data = st.session_state.pending_bridge_data
             st.markdown("---")
@@ -6261,9 +6211,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                     st.session_state.pending_bridge_data = None
                     st.rerun()
 
-    # -----------------------------------------
-    # 模块四：🤖 问 AI (Ask AI)
-    # -----------------------------------------
+    # 模块四：问 AI (Ask AI)
     elif ai_nav == "ai_nav_ask":
         st.info(t("ask_ai_info"))
 
@@ -6410,7 +6358,7 @@ if ENABLE_AI_CLEANER and len(st.session_state.master_entities) > 0:
                                         st.markdown(explanation)
 
 # ==========================================
-# 📊 页面最底部常驻：前往图谱分析工作台
+# 页面底部常驻导航：前往图谱分析工作台
 # ==========================================
 if len(st.session_state.get("master_entities", [])) > 0:
     st.markdown("---")

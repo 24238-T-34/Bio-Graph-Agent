@@ -1,3 +1,5 @@
+"""输入输出与可视化核心模块：涵盖双引擎 PDF 文本/机制图抽取、PyVis 拓扑图谱渲染、学术标题规范化及文献哈希注册表。"""
+
 import os
 import webbrowser
 import pypdf
@@ -14,6 +16,8 @@ from typing import Optional, List, Dict, Union, Tuple
 # 1. PDF 处理器类 (双引擎增强版)
 # =====================================================================
 class PDFProcessor:
+    """双引擎（PyMuPDF 与 pypdf）PDF 解析器，负责文本切块、摘要提取与机制通路插图嗅探。"""
+
     def __init__(self, chunk_size=1200, overlap=200):
         self.chunk_size = chunk_size
         self.overlap = overlap
@@ -23,7 +27,7 @@ class PDFProcessor:
         print(f"📄 [PDFProcessor] 正在读取文献: {pdf_path}")
         text = ""
 
-        # 🌟 首选引擎：尝试使用容错率极高的 PyMuPDF (fitz)
+        # 首选引擎：优先使用高容错率的 PyMuPDF (fitz)
         try:
             import fitz
             doc = fitz.open(pdf_path)
@@ -43,7 +47,7 @@ class PDFProcessor:
         except Exception as fitz_err:
             print(f"⚠️ [PDFProcessor] PyMuPDF 解析受阻，自动降级至 pypdf 引擎... ({fitz_err})")
 
-            # 🌟 备用引擎：Fallback 回 pypdf
+            # 备用引擎：PyMuPDF 解析失败时降级回退至 pypdf
             try:
                 with open(pdf_path, 'rb') as file:
                     reader = pypdf.PdfReader(file)
@@ -249,7 +253,7 @@ class PDFProcessor:
                             })
                             break
 
-                        # 💡 矢量通路图/单页海报兜底：若命中了关键词或为单页海报，但未找到光栅位图，且页面包含矢量绘图（门槛适中，防止文本页规则线条误判）
+                        # 矢量通路图/单页海报兜底：命中关键词或为单页海报且未捕获位图时，检测矢量绘图路径（适度门槛防止普通文本页误判）
                         dw_count = len(page.get_drawings())
                         is_vector = (is_single_page and dw_count >= 10) or (not is_single_page and dw_count >= 25)
                         if not matched_figures and is_vector:
@@ -288,7 +292,7 @@ class PDFProcessor:
                         })
                         found_raster = True
 
-                    # 💡 矢量机制图/单页海报兜底：兼顾单页图与多页文献，防止普通文本页误判，同时不设过高门槛
+                    # 矢量机制图/单页海报兜底：兼顾单页与多页文献，防止普通文本页规则线条误判
                     if not found_raster:
                         drawings = page.get_drawings()
                         dw_count = len(drawings)
@@ -325,9 +329,11 @@ class PDFProcessor:
 
 
 # =====================================================================
-# 3. 图谱可视化类
+# 2. 图谱可视化引擎
 # =====================================================================
 class GraphVisualizer:
+    """交互式知识图谱与本体着色子图可视化渲染器，基于 PyVis 生成离线 HTML 拓扑网络。"""
+
     def __init__(self, bgcolor="#1a1a1a", font_color="white"):
         self.bgcolor = bgcolor
         self.font_color = font_color
@@ -338,12 +344,13 @@ class GraphVisualizer:
                       empower_node=False, beta_node=0.2,
                       empower_edge=False, gamma_edge=0.1,
                       output_lang="zh"):
+        """生成主图谱交互式 HTML，支持节点热度赋权、包含反哺与机制捷径显隐控制。"""
         print(f"🎨 [GraphVisualizer] 正在绘制动态网络拓扑图...")
         from pyvis.network import Network
         from collections import Counter
         import os
 
-        # 🌐 悬停面板双语词典
+        # 悬停面板双语标签映射
         is_en = "en" in output_lang.lower()
         lbl_std_name = "🏷️ Standard Name" if is_en else "🏷️ 标准名称"
         lbl_aliases = "📚 Aliases" if is_en else "📚 别名"
@@ -356,7 +363,7 @@ class GraphVisualizer:
         lbl_doc_src = "📄 Source" if is_en else "📄 源自"
         lbl_shortcut = "⚠️ [AI judged as mechanism shortcut]" if is_en else "⚠️ [AI 判定为机制捷径]"
 
-        # 🔥 绝杀修复 1 & 2：保持 CDN 和网络配置不变
+        # 使用 remote CDN 加载前端静态资源，保障导出 HTML 跨环境正常打开
         net = Network(
             height="750px",
             width="100%",
@@ -367,9 +374,7 @@ class GraphVisualizer:
         )
         net.force_atlas_2based()
 
-        # ==========================================
-        # 1. 构建超强的信息映射字典 (包含别名和来源)
-        # ==========================================
+        # 1. 构建实体元数据（别名与文献来源）映射字典
         entity_info_map = {}
         for ent in global_entities:
             std_name = ent.get("standard_name", "未知实体")
@@ -378,63 +383,55 @@ class GraphVisualizer:
                 "doc_source": ent.get("doc_source", "未知文献")
             }
 
-        # ==========================================
-        # 2. 🧮 赋权引擎 Phase 0：统计基础节点热度 (保留原有的 weight 机制)
-        # ==========================================
+        # 2. 赋权引擎 Phase 0：统计基础节点热度 (基于边 weight 累加)
         base_heat = Counter()
         for item in global_relations:
             weight = item.get("weight", 1)
             base_heat[item.get("source")] += weight
             base_heat[item.get("target")] += weight
 
-        final_heat = Counter(base_heat)  # 创建快照字典，后续操作在此累加
+        final_heat = Counter(base_heat)  # 创建热度快照字典用于后续叠加赋权
 
-        # ==========================================
-        # 🌟 赋权引擎 Phase 1 & 2：本体聚合与互相辐射
-        # ==========================================
+        # 赋权引擎 Phase 1 & 2：本体包含反哺与邻接节点互相辐射
         for item in global_relations:
             source = item.get("source")
             target = item.get("target")
-            rel_type = item.get("relation", "相关")  # 注意这里使用原来的 key
+            rel_type = item.get("relation", "相关")  # 读取原始关系字段
 
-            # 🛡️ 致命 Bug 修复：拦截自环线！
+            # 过滤自环边，避免力导向布局异常
             if source == target:
                 continue
 
-            # 🛡️ 强转洗净捷径参数，判断该线是否被隐藏
+            # 规范化布尔与字符串形式的捷径标记，判断当前连线是否隐藏
             raw_shortcut = item.get("is_shortcut", False)
             is_shortcut = (str(raw_shortcut).lower() == "true") or (raw_shortcut is True)
             safe_show = (str(show_shortcuts).lower() == "true") or (show_shortcuts is True)
             is_hidden = is_shortcut and not safe_show
 
-            # 【开关 A】：包含关系反哺 (父节点变大)
+            # 开关 A：包含关系反哺 (父节点变大)
             if empower_ontology and rel_type == "包含":
                 final_heat[target] += base_heat[source] * alpha_ontology
 
-            # 【开关 B】：节点互相辐射 (普通连线两端互相做大，排除隐藏线和包含关系)
+            # 开关 B：节点互相辐射 (普通连线两端互增热度，排除隐藏捷径线与包含边)
             if empower_node and rel_type != "包含" and not is_hidden:
                 final_heat[source] += base_heat[target] * beta_node
                 final_heat[target] += base_heat[source] * beta_node
 
-        # ==========================================
-        # 3. 🎨 统一绘制节点 (应用计算好的 final_heat)
-        # ==========================================
+        # 3. 统一绘制节点 (应用计算后的 final_heat)
         for std_name, info in entity_info_map.items():
             heat_val = final_heat[std_name]
             node_title = f"{lbl_std_name} {std_name}\n{lbl_aliases} {', '.join(info['aliases'])}\n{lbl_source} {info['doc_source']}\n{lbl_heat} {heat_val:.1f}"
 
-            # 动态调整大小 (保留原有的缩放比例逻辑)
+            # 动态计算节点尺寸
             node_size = 20 + heat_val * 3
             net.add_node(std_name, label=std_name, title=node_title, color="#4da6ff", size=node_size)
 
-        # ==========================================
-        # 4. 🎨 绘制关系连线 (保留所有防御与颜色逻辑，加入加粗引擎)
-        # ==========================================
+        # 4. 绘制关系连线 (含防自环、隐藏过滤与核心主干加粗)
         for item in global_relations:
             source = item.get("source")
             target = item.get("target")
 
-            # 🛡️ 再次拦截自环线
+            # 过滤自环边
             if source == target:
                 continue
 
@@ -443,25 +440,25 @@ class GraphVisualizer:
             doc_source = item.get("doc_source", "未知文献")
 
 
-            # 🛡️ 终极安全强转 (保持原样)
+            # 兼容布尔与字符串形式的捷径开关参数
             raw_shortcut = item.get("is_shortcut", False)
             is_shortcut = (str(raw_shortcut).lower() == "true") or (raw_shortcut is True)
             safe_show = (str(show_shortcuts).lower() == "true") or (show_shortcuts is True)
 
-            # 拦截被隐藏的捷径
+            # 跳过处于隐藏状态的捷径边
             if is_shortcut and not safe_show:
                 continue
 
-            # 🌟 基础连线宽度 (保留你原有的缩放系数)
+            # 基础连线宽度
             rel_weight = item.get("weight", 1)
             scale_factor = 0.5
             display_width = 1 + (rel_weight * scale_factor)
 
-            # 🔗 【开关 C】：核心主干加粗 (高热度节点间的非包含线变粗)
+            # 开关 C：核心主干加粗 (高热度节点间的非包含连线按端点热度叠加加粗)
             if empower_edge and rel_type != "包含":
                 display_width += gamma_edge * (final_heat[source] + final_heat[target])
 
-            # 🛡️ 防御性编程：幻觉节点探测 (保持原样)
+            # 兜底绘制未在实体字典中登记的游离端点，避免 PyVis add_edge 报节点缺失异常
             for node in [source, target]:
                 if node not in entity_info_map:
                     net.add_node(node, label=node, color="#ff9999", size=20,
@@ -469,15 +466,13 @@ class GraphVisualizer:
                     entity_info_map[node] = {"aliases": [], "doc_source": doc_source}
 
 
-            # 强化悬停提示框
+            # 组装连线悬停说明
             edge_title = f"{lbl_weight}: {rel_weight} {lbl_times}\n{lbl_rel}: {rel_type}\n{lbl_evi}: {evidence}\n{lbl_doc_src}: {doc_source}"
 
             if is_shortcut:
                 edge_title = f"{lbl_shortcut}\n" + edge_title
 
-            # ==========================================
-            # 🎨 视觉分支判断：保持你原有的颜色、虚线与箭头处理
-            # ==========================================
+            # 按关系极性与捷径状态确定边色彩、虚线与箭头样式
             shortcut_color = "#555555"
             force_dashed = True if is_shortcut else False
 
@@ -1049,7 +1044,7 @@ class GraphVisualizer:
             if not src or not tgt or src == tgt:
                 continue
 
-            # 🛡️ 捷径边在通路独立精简子图中不作为连线绘制
+            # 捷径边在通路独立精简子图中不予绘制
             raw_sc = r.get("is_shortcut", False)
             if (str(raw_sc).lower() == "true") or (raw_sc is True):
                 continue
@@ -1244,9 +1239,7 @@ def extract_paper_title_and_pmid(pdf_path: str, max_pages: int = 1, agent=None):
     if doc:
         doc.close()
 
-    # ----------------------------------------------------
     # 预处理：融接跨行折叠的 URL/DOI，清理软连字符与零宽字符
-    # ----------------------------------------------------
     norm_text = re.sub(r'/\s*\n\s*', '/', page_text)
     norm_text = norm_text.replace("\xad", "").replace("\u200b", "").replace("\ufeff", "")
     norm_text = re.sub(r'(\b[a-zA-Z]+)-\s*\n\s*([a-zA-Z]+\b)', r'\1\2', norm_text)
@@ -1256,9 +1249,7 @@ def extract_paper_title_and_pmid(pdf_path: str, max_pages: int = 1, agent=None):
     pmid = None
     doi = None
 
-    # ----------------------------------------------------
     # 阶段一（分支 A，0 Token 优先）：正则扫描 PMID 与 DOI 并请求 PubMed 官方数据
-    # ----------------------------------------------------
     # 1. 扫描 PMID
     pmid_m = re.search(r"\b(?:PMID|PubMed\s*(?:ID)?)[:\s#]*(\d{6,9})\b", norm_text, re.I)
     if not pmid_m:
@@ -1309,9 +1300,7 @@ def extract_paper_title_and_pmid(pdf_path: str, max_pages: int = 1, agent=None):
         except Exception as err:
             print(f"⚠️ [extract_paper_title] DOI 在线检索受阻: {err}")
 
-    # ----------------------------------------------------
-    # 阶段一（分支 B，极低 Token 降级）：无 DOI/PMID 时，从首页头部截取极短切块交由模型快提
-    # ----------------------------------------------------
+    # 阶段一（分支 B，低 Token 降级）：无 DOI/PMID 时从首页头部截取短文本交由模型提取
     if not candidate_title and agent:
         lines = [l.strip() for l in norm_text.split("\n") if l.strip()]
         short_chunk = "\n".join(lines[:10])[:400]
@@ -1324,9 +1313,7 @@ def extract_paper_title_and_pmid(pdf_path: str, max_pages: int = 1, agent=None):
             except Exception as e:
                 print(f"⚠️ [extract_paper_title] 本地模型快提受阻: {e}")
 
-    # ----------------------------------------------------
-    # 阶段二：统一大模型清洗（输入仅候选标题，耗费仅 ~30-50 Token，剥离版权与期刊杂质）
-    # ----------------------------------------------------
+    # 阶段二：大模型统一清洗候选标题（剥离版权与期刊杂质）
     if candidate_title and agent:
         try:
             if hasattr(agent, "clean_and_sanitize_title"):
@@ -1342,9 +1329,7 @@ def extract_paper_title_and_pmid(pdf_path: str, max_pages: int = 1, agent=None):
         except Exception as err:
             print(f"⚠️ [extract_paper_title] 大模型统一清洗受阻: {err}")
 
-    # ----------------------------------------------------
-    # 阶段三：安全护栏校验与文件名外科手术式规范化
-    # ----------------------------------------------------
+    # 阶段三：期刊黑名单校验与文件名安全规范化
     if candidate_title:
         # 防期刊误判与纯栏目名安全护栏
         pure_check = candidate_title.strip(" ._-:").lower()

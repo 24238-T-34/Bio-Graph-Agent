@@ -3,7 +3,8 @@ workbench_engine.py - 图谱分析工作台核心引擎
 包含：
 1. RulePreFilter: 基于生物医学命名法与权威词缀的高速 0-Token 正则预过滤分流器（涵盖分子、细胞、微生物、器官、物种多尺度）
 2. OntologyManager: 本体分类预设配置加载、管理与保存系统
-3. WorkbenchAnalysisEngine: 分级升级状态机（Round 0-3）、多线程并发推理、热度优先级调度、微上下文组装、精准文献回溯、通用生物知识兜底及人工专家覆写
+3. WorkbenchAnalysisEngine: 阶段一分级升级状态机（Round 0-3）、多线程并发推理、热度调度与文献回溯
+4. PathwayDecompositionEngine: 阶段二信号/关系通路图论拆解与闭环反馈建模引擎
 """
 
 import json
@@ -632,13 +633,11 @@ class WorkbenchAnalysisEngine:
         self.stats["total_nodes"] = total_nodes
         self.stats["total_relations"] = total_rels
 
-        # ----------------------------------------------------
         # 阶段 A: 实体分级升级状态机 (Round 0 -> 1 -> 2 -> 3)
-        # ----------------------------------------------------
         if enable_entities and total_nodes > 0:
             log(f"📊 Entity queue ready ({total_nodes} entities), sorted by degree centrality." if is_en else f"📊 实体分析队列已就绪，共计 {total_nodes} 个实体，已按拓扑中心度降序排列。")
 
-            # === 缓存一致性自动体检与愈合 (Auto-Healing Cache Inconsistencies) ===
+            # 缓存一致性自动体检与愈合 (Auto-Healing Cache Inconsistencies)
             healed_ents, healed_rels = self._heal_inconsistent_cache()
             if healed_ents > 0 or healed_rels > 0:
                 log(f"🧹 [Cache Healing] Reset {healed_ents} out-of-ontology entities and {healed_rels} relations for active preset." if is_en else f"🧹 [缓存一致性自动体检] 发现并重置了 {healed_ents} 个非当前预设实体与 {healed_rels} 条非规范机制连线，已将其纳入重审队列。")
@@ -656,7 +655,7 @@ class WorkbenchAnalysisEngine:
                         "status": "uncertain"
                     }
 
-            # === Round 0: 快速规则匹配 (0 Token, 极速预过滤) ===
+            # Round 0: 快速规则匹配 (0 Token 预过滤)
             r0_hits = 0
             if enable_round0_rules:
                 log("⚡ [Stage 1: Nomenclature Recognition] Screening biomedical nomenclature & affixes..." if is_en else "⚡ [阶段一: 命名规范识别] 正在依据生物医学命名规范与权威词缀高速解析...")
@@ -691,7 +690,7 @@ class WorkbenchAnalysisEngine:
                 self.stats["round0_hits"] = r0_hits
                 log(f"✅ [Stage 1 Complete] Successfully identified {r0_hits} entities via nomenclature rules." if is_en else f"✅ [阶段一完成] 命名规范与词缀规则成功解析 {r0_hits} 个实体。")
 
-            # === Round 1: 微上下文分析 (ThreadPoolExecutor 并发) ===
+            # Round 1: 微上下文分析 (ThreadPoolExecutor 并发)
             if enable_round1_context and self.llm_agent:
                 r1_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r1 = len(r1_candidates)
@@ -737,7 +736,7 @@ class WorkbenchAnalysisEngine:
 
                 log(f"✅ [Stage 2 Complete] Resolved {self.stats['round1_hits']} entities." if is_en else f"✅ [阶段二完成] 局部拓扑推理成功解析 {self.stats['round1_hits']} 个实体。")
 
-            # === Round 2: 文献正则精准回溯 (ThreadPoolExecutor 并发) ===
+            # Round 2: 文献正则精准回溯 (ThreadPoolExecutor 并发)
             if enable_round2_regex and self.llm_agent and self.paper_full_texts:
                 r2_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r2 = len(r2_candidates)
@@ -785,7 +784,7 @@ class WorkbenchAnalysisEngine:
 
                 log(f"✅ [Stage 3 Complete] Resolved {self.stats['round2_hits']} entities from paper text." if is_en else f"✅ [阶段三完成] 文献全文溯源成功解析 {self.stats['round2_hits']} 个实体。")
 
-            # === Round 3: 通用常识兜底 (ThreadPoolExecutor 并发) ===
+            # Round 3: 通用常识兜底 (ThreadPoolExecutor 并发)
             if enable_round3_world and self.llm_agent:
                 r3_candidates = [n for n in sorted_nodes if self.entity_annotations.get(n, {}).get("status") == "uncertain"]
                 total_r3 = len(r3_candidates)
@@ -829,9 +828,7 @@ class WorkbenchAnalysisEngine:
 
                 log(f"✅ [Stage 4 Complete] Resolved {self.stats['round3_hits']} entities via domain prior knowledge." if is_en else f"✅ [阶段四完成] 领域先验知识研判成功解析 {self.stats['round3_hits']} 个实体。")
 
-        # ----------------------------------------------------
         # 阶段 B: 关系机制深层分析与机制动词归纳 (ThreadPoolExecutor 并发)
-        # ----------------------------------------------------
         if enable_relations and total_rels > 0 and self.llm_agent:
             target_relations = []
             valid_rels = set(self.ontology.get("relation_categories", {}).keys())
@@ -884,9 +881,7 @@ class WorkbenchAnalysisEngine:
 
             log(f"✅ [Relation Distillation Complete] Successfully distilled {self.stats['analyzed_relations']} mechanism verbs and categories." if is_en else f"✅ [关系机制分析完成] 成功提炼 {self.stats['analyzed_relations']} 条深层机制动词与类别。")
 
-        # ----------------------------------------------------
         # 阶段 C: 统计与指标计算
-        # ----------------------------------------------------
         valid_cats = set(self.ontology.get("entity_categories", {}).keys())
         resolved_cnt = sum(1 for a in self.entity_annotations.values() if a.get("status") == "resolved" and a.get("primary_type") in valid_cats and a.get("primary_type") != "Uncertain")
         uncertain_cnt = total_nodes - resolved_cnt
@@ -959,14 +954,14 @@ class WorkbenchAnalysisEngine:
 class PathwayDecompositionEngine:
     """
     工作台第二阶段：信号/关系通路拆解与建模核心引擎 (Pathway Decomposition Engine)
-    重构准则：
+    核心设计准则：
     1. 图谱不变性 (Graph Invariance)：严格从大图谱已知真实实体与关系中诱导有向子网络，绝不改写或虚构关系
     2. 严格有向性与动力学反馈循环 (Strict Directed Feedback Loops)：
        - 环路上每一条边必须是具备明确调控方向的有向功能边 (正作用/负作用/机制动词)
        - 坚决剔除包含“包含”、“语义相关”、“同义分类”的伪环，杜绝将单向“促进”或对称“相关”误判为“自促进”
     3. 文献来源清洗与工程权威对齐 (Canonical Literature Alignment)：
        - 拆分 | 等拼接符，过滤 AI分析/规则推导等噪音，严格映射至工程真实导入的 analyzed_files
-    4. 极简学术规范大模型总结 (Academic Naming & Concise Mechanistic Summary)：
+    4. 学术命名与机制阐释 (Academic Naming & Concise Mechanistic Summary)：
        - 输出专业学术命名 (LaTeX 形式，如 $\\text{CRL5}^{\\text{SOCS4}}$ 介导的泛素化降解途径与神经退行抗性)
        - 2~3 句精炼机制阐释 (若涉及真实闭环，适当融入动力学分析)
     5. 独立交互子图落盘与持久化存储 (projects/<pid>/pathways/)
@@ -1116,7 +1111,7 @@ class PathwayDecompositionEngine:
         if not relations:
             return []
 
-        # 0. 🛡️ 捷径边不视为有效关系：洗树/人工标记为捷径边的关系在通路拆解中直接忽略
+        # 0. 捷径边不视为有效关系：洗树/人工标记为捷径边的关系在通路拆解中直接忽略
         relations = [
             r for r in relations
             if not ((r.get("is_shortcut") is True) or (str(r.get("is_shortcut", "")).lower() == "true"))
@@ -1233,15 +1228,15 @@ class PathwayDecompositionEngine:
         """
         基于动力学语义阻抗与 MMR 累积惩罚的严格有向级联诱导 (Strict Directed Cascade Induction with Impedance & MMR Diversity)
         - 节点 100% 取自已知图谱，关系 100% 直取自 master_relations
-        - 生化动力学语义阻抗建模：因果调控 R=1.0 (超导体流速快)；弱关联 R=2.5；包含从属 R=10.0 (高阻抗，保底连通不夺舍)
-        - 修复 downstream[:5] 字典序机械截断 Bug：按边导纳 1/R 与节点度数排序探索
-        - MMR 累积路径惩罚调度：动态衰减已走过节点对后续通路的吸引力，自然逼出第二、第三条平行黄金主轴
+        - 生化动力学语义阻抗建模：因果调控 R=1.0 (高导纳)；弱关联 R=2.5；包含从属 R=10.0 (高阻抗，仅作连通兜底)
+        - 按边导纳 1/R 与节点度数优先级探索下游传导路径
+        - MMR 累积路径惩罚调度：动态衰减已走过节点对后续通路的吸引力，探索差异化的平行主轴
         - 父子节点层级容器化：包含从属不作伪因果箭头，识别为空间场域/复合物容器
         """
         if not relations or not seeds:
             return []
 
-        # 0. 🛡️ 捷径边不视为有效关系：洗树/人工标记为捷径边的关系在通路拆解中直接忽略
+        # 0. 捷径边不视为有效关系：洗树/人工标记为捷径边的关系在通路拆解中直接忽略
         relations = [
             r for r in relations
             if not ((r.get("is_shortcut") is True) or (str(r.get("is_shortcut", "")).lower() == "true"))
@@ -1880,7 +1875,7 @@ class PathwayDecompositionEngine:
             prog(1.0, "分析完成 (无有效通路)" if not is_en else "Completed (No relations)")
             return []
 
-        # 0. 🛡️ 捷径边在通路建模全流程中不视为有效关系
+        # 0. 捷径边在通路建模全流程中不视为有效关系
         relations = [
             r for r in relations
             if not ((r.get("is_shortcut") is True) or (str(r.get("is_shortcut", "")).lower() == "true"))

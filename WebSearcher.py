@@ -1,3 +1,5 @@
+"""生物医学文献检索模块：封装 PubMed、Semantic Scholar 检索接口及自动降级路由。"""
+
 import requests
 import xml.etree.ElementTree as ET
 import time
@@ -6,6 +8,8 @@ import re
 
 
 class PubMedSearcher:
+    """基于 NCBI E-utilities API 的 PubMed 文献检索与摘要抓取客户端。"""
+
     def __init__(self, email="zouyuhandd@126.com"):
         """
         初始化 PubMed 搜索器。
@@ -89,7 +93,6 @@ class PubMedSearcher:
         根据指定的 PMID，抓取完整的文献摘要文本。
         NCBI 的 efetch 抓取摘要最好用 XML 格式解析。
         """
-        # print(f"📥 [WebSearcher] 正在下载摘要 (PMID: {pmid})...")
         fetch_url = f"{self.base_url}efetch.fcgi"
         fetch_params = {
             "db": "pubmed",
@@ -119,11 +122,13 @@ class PubMedSearcher:
 
 
 class SemanticScholarSearcher:
+    """基于 Semantic Scholar Graph API 的多学科文献检索与本地摘要缓存客户端。"""
+
     def __init__(self):
         self.base_url = "https://api.semanticscholar.org/graph/v1/paper"
         self.session = requests.Session()
 
-        # 🛡️ 伪装术：换上真实的 Chrome 浏览器身份，摆脱 python-requests 的原罪
+        # 使用标准浏览器 User-Agent 请求头，降低 API 拦截率
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Accept": "application/json"
@@ -138,6 +143,7 @@ class SemanticScholarSearcher:
         return q
 
     def search_articles(self, query: str, max_results: int = 10, **kwargs):
+        """清洗布尔检索式后查询 Semantic Scholar，并缓存摘要以供后续提取。"""
         clean_q = self._clean_query(query)
         print(f"🔍 [WebSearcher] S2 正在查询: {clean_q} ...")
 
@@ -150,7 +156,7 @@ class SemanticScholarSearcher:
 
         try:
             res = None
-            # 延长退避时间，给服务器喘息的空间
+            # 遇 429 限流时进行线性退避重试
             for attempt in range(3):
                 res = self.session.get(search_url, params=params, timeout=10)
                 if res.status_code == 200:
@@ -162,7 +168,7 @@ class SemanticScholarSearcher:
                 else:
                     break
 
-            # 🚀 降级触发点：如果重试 3 次还是 429，抛出异常，让外部切回 PubMed！
+            # 连续 429 限流重试耗尽后抛出异常，触发上层路由降级至 PubMed
             if res.status_code == 429:
                 raise Exception("Semantic Scholar 限流过于严重。")
 
@@ -202,19 +208,21 @@ class SemanticScholarSearcher:
             return results
 
         except Exception as e:
-            # 向外抛出特定错误，触发 PubMed 兜底机制
+            # 向上抛出异常，触发上层 PubMed 降级机制
             print(f"❌ [WebSearcher] S2 检索彻底失败: {e}")
             raise e
 
     def fetch_abstract(self, pmid: str):
+        """从本地缓存中返回对应 paperId 的摘要文本。"""
         return self.abstract_cache.get(pmid, "无可用摘要。")
 
 
 # ==========================================
-# 🚀 统一路由工厂 (带智能降级兜底)
+# 统一检索路由与自动降级代理
 # ==========================================
-# 我们在外部包装一个代理类，来实现无缝降级！
 class SmartSearchRouter:
+    """多数据源文献检索路由代理：优先使用指定引擎，限流或异常时自动降级至 PubMed。"""
+
     def __init__(self, preferred_db="PubMed"):
         self.preferred_db = preferred_db
         self.pubmed = PubMedSearcher()
@@ -222,18 +230,19 @@ class SmartSearchRouter:
         self.current_engine = self.s2 if "Semantic Scholar" in preferred_db else self.pubmed
 
     def search_articles(self, query: str, max_results: int = 10, **kwargs):
+        """使用当前激活的检索引擎执行检索；若 Semantic Scholar 失败则永久切换为 PubMed 重试。"""
         try:
-            # 尝试用首选引擎搜索
+            # 尝试使用首选引擎检索
             return self.current_engine.search_articles(query, max_results, **kwargs)
         except Exception as e:
             if self.current_engine == self.s2:
                 print("🔄 [容灾系统] Semantic Scholar 崩溃或限流，正在紧急自动降级至 PubMed 检索！")
-                self.current_engine = self.pubmed  # 永久切换本轮实例的引擎为 PubMed
+                self.current_engine = self.pubmed  # 本轮实例永久降级切换为 PubMed
                 return self.current_engine.search_articles(query, max_results, **kwargs)
             return []
 
     def fetch_abstract(self, pmid: str):
-        # 使用当前正在服役的引擎去拿摘要
+        """使用当前激活的检索引擎抓取指定文献摘要。"""
         return self.current_engine.fetch_abstract(pmid)
 
 
@@ -243,9 +252,7 @@ def get_searcher(database_name="PubMed"):
     """
     return SmartSearchRouter(database_name)
 
-# ==========================================
-# 🧪 本地直接运行测试 (Test Block)
-# ==========================================
+# 本地直接运行测试入口
 if __name__ == "__main__":
     searcher = PubMedSearcher()
 

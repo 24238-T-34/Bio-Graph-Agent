@@ -1,3 +1,5 @@
+"""大模型智能体交互模块：封装 OpenAI 兼容接口调用、实体关系抽取与反思、图谱清洗诊断及工作台推理能力。"""
+
 import json
 import re
 import time
@@ -5,13 +7,15 @@ from openai import OpenAI
 
 
 class BioBrainAgent:
+    """生物医学知识图谱多任务大模型智能体，负责抽取、对齐、洗树、桥接、视觉转译与假说裁决。"""
+
     def __init__(self, api_key, base_url="https://openrouter.ai/api/v1", model="tencent/hy3-preview"):
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.model = model
         print(f"🔧 [System] 已加载底层模型: {self.model}")
 
     def _clean_json_string(self, raw_str):
-        # 💡 真正的安全气囊：直接判断传进来的 raw_str 是不是空的就行了
+        """校验模型返回内容非空并剥离 Markdown JSON 代码围栏标记。"""
         if raw_str is None:
             raise Exception("大模型未能正常返回内容（返回值为空），可能是 API 被限流或网络超时，请检查 API Key 或稍后再试。")
 
@@ -61,7 +65,7 @@ class BioBrainAgent:
                     time.sleep(sleep_time)
                     continue
                 else:
-                    # 🔥 核心防线：如果上面这步崩了且不可重试或耗尽重试次数，在终端提示
+                    # 不可重试异常或重试次数耗尽时输出终端日志并向上抛出
                     print(f"\n🚨 [LLM API 核心报错] 接口请求失败了！真实死因 -> {e}")
                     raise e
         if last_exception:
@@ -266,7 +270,7 @@ class BioBrainAgent:
           }}
         ]"""
 
-        # 📜 日志埋点 1
+        # 日志埋点 1：记录实体初次提取阶段启动
         print("   └─ 🧠 [Step 1/2] 正在进行实体初次提取...")
         try:
             raw_s1 = self._ask_llm(prompt_s1, text)
@@ -291,7 +295,7 @@ class BioBrainAgent:
         
         请直接输出清洗、合并、精简后的最终 JSON 数组，保持与初次提取相同的格式。绝对不要有其他废话。"""
 
-        # 📜 日志埋点 2
+        # 日志埋点 2：记录实体自我反思纠错阶段
         if use_reflection:
             print("    └─ 🪞 [Step 1.5/2] 正在进行大脑自我反思纠错...")
             prompt_s1_5 = prompt_s1_5 + "\n⚠️ 致命警告：不管你有没有发现错误，你的回复必须且只能是一个合法的 JSON 数组 (JSON Array)。如果没有需要修改的地方，请直接返回原始的 JSON 数组。绝不允许输出任何解释性文字！"
@@ -332,7 +336,7 @@ class BioBrainAgent:
           {"source": "标准实体A", "target": "标准实体B", "relation": "正作用/负作用/相关/包含", "evidence": "英文原文"}
         ]"""
 
-        # 📜 日志埋点 3
+        # 日志埋点 3：记录实体关系抽取阶段启动
         print("   └─ 🔗 [Step 2/2] 正在抽取实体间的调控关系网...")
         relation_input = f"【原始文献】:\n{text}\n\n【确定的实体字典】:\n{json.dumps(entities_list, ensure_ascii=False)}"
 
@@ -361,7 +365,7 @@ class BioBrainAgent:
             )
             reply = response.choices[0].message.content.strip().upper()
 
-            # 如果判定是摘要，直接把【一字未改】的原始文本退回去！0损耗！
+            # 若判定为有效摘要，无损返回原始文本
             if "YES" in reply:
                 return raw_abstract
             else:
@@ -399,7 +403,7 @@ class BioBrainAgent:
         if not master_entities or not new_entities:
             return {}
 
-        # 💡 核心优化：把 entities 里的 aliases (别名) 也提取出来，发给大模型作为重要的对齐参考！
+        # 提取实体标准名与别名列表，辅助大模型完成跨文献同义词对齐
         master_list = [{"name": e.get("standard_name"), "type": e.get("type", "未知"), "aliases": e.get("aliases", [])}
                        for e in master_entities]
         new_list = [{"name": e.get("standard_name"), "type": e.get("type", "未知"), "aliases": e.get("aliases", [])} for e
@@ -498,7 +502,7 @@ class BioBrainAgent:
         如果传入了 context_relations，大模型将进行深度背景理解。
         """
         if context_relations:
-            # 🌐 模式 3：背景搜索 (结合图谱现有关系)
+            # 模式 3：背景搜索（结合图谱现有关系上下文构建机制检索式）
             system_prompt = """你是一个顶级的计算生物学与文献检索专家。
             用户将提供他们希望检索的【核心实体】，以及这些实体在当前图谱中的【已有关系网络（背景上下文）】。
             你的任务是：深刻理解这些背景逻辑，为这些实体构建一个高度专业的 PubMed 布尔检索式（Boolean Query）。
@@ -511,7 +515,7 @@ class BioBrainAgent:
             """
             user_content = f"【希望拓展的核心实体】：\n{json.dumps(nodes_info, ensure_ascii=False)}\n\n【已知图谱上下文】：\n{json.dumps(context_relations, ensure_ascii=False)}"
         else:
-            # 🧠 模式 2：智能搜索 (仅扩充同义词)
+            # 模式 2：智能搜索（仅扩充同义词）
             system_prompt = """你是一个顶级的生物医学文献检索专家。
             用户将提供几个他们希望在 PubMed 中检索的核心生物学实体（包含标准名称和已知别名）。
             你的任务是：为这些实体构建一个高度专业的 PubMed 布尔检索式（Boolean Query）。
@@ -758,7 +762,7 @@ class BioBrainAgent:
         【终极完全体 + 动态分流】：区分节点和关系的模板逻辑。
         """
         lang_str = "中文" if "zh" in output_lang else "English"
-        # ✨ 根据传入的类型，动态组装不同的排版紧身衣
+        # 根据元素类型（节点或关系连线）选择对应的解释输出模板
         if element_type == "节点":
             template_block = """
         <OUTPUT_TEMPLATE>
@@ -907,7 +911,7 @@ class BioBrainAgent:
         return ents, rels
 
     # =========================================================================
-    # 🧬 [Workbench & Pathway Analysis 专属大模型能力扩展]
+    # Workbench 与通路分析专用大模型推理能力
     # =========================================================================
 
     def classify_workbench_entity_round1(self, node_name: str, micro_ctx: dict, cat_str: str, allowed_ids: list, language: str = "zh") -> dict:

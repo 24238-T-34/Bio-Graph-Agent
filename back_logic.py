@@ -1,3 +1,5 @@
+"""生物知识图谱后端核心流水线：包含拓扑关系规整提纯引擎、抽取总调度管道与路径挖掘器。"""
+
 from LLM_SYS import BioBrainAgent
 from IO_SYS import GraphVisualizer,PDFProcessor
 import os
@@ -6,7 +8,7 @@ import collections
 import concurrent.futures
 
 # =====================================================================
-# 0. 拓扑关系规整与提纯引擎（无向折叠、同种合并与机制提纯）
+# 1. 拓扑关系规整与提纯引擎（无向折叠、同种合并与机制提纯）
 # =====================================================================
 def is_symmetric_relation(rel_type: str) -> bool:
     """
@@ -340,7 +342,7 @@ def merge_coarse_relation_into_target(relations: list, src: str, tgt: str, coars
         # 4. 只有在成功吸收合并入目标机制后，才剔除粗糙关系！
         relations.pop(coarse_idx)
     else:
-        # 🛡️ 安全防漏保护：若未找到目标机制关系，坚决不 pop，原样安全保留该粗糙关系！
+        # 防漏保护：未找到可吸收的目标机制关系时保留该粗糙关系，防止证据丢失
         print(f"   ⚠️ [提纯防漏] 未在 '{s_clean}' 与 '{t_clean}' 之间找到可吸收的目标机制关系，安全保留粗糙连线。")
 
     return relations
@@ -481,9 +483,11 @@ def merge_hierarchy_relation(relations: list, parent: str, child: str, reason: s
 
 
 # =====================================================================
-# 4. 系统总调度管道（核心：增量式累加记忆）
+# 2. 系统总调度管道（增量式累加记忆库与抽取流水线）
 # =====================================================================
 class BioGraphPipeline:
+    """文献解析与知识图谱增量构建调度管道，串联视觉转译、实体反思抽取、关系抽提与规范合并。"""
+
     def __init__(self, api_key, model="tencent/hy3-preview",base_url = "https://openrouter.ai/api/v1"):
         self.processor = PDFProcessor()
         # 把前端传进来的 model 继续传给大模型智能体
@@ -549,7 +553,7 @@ class BioGraphPipeline:
             s_std = std_map.get(s_clean.lower())
             t_std = std_map.get(t_clean.lower())
 
-            # 🛡️ 校验两端节点：若端点未在已登记实体库中，坚决拦截
+            # 校验两端节点是否已在实体库中登记，未登记者予以拦截
             if not s_std or not t_std:
                 print(f"   ⚠️ [关系防线] 拦截非法关系（端点未在实体字典中登记）: '{s}' -> '{t}'")
                 continue
@@ -646,7 +650,7 @@ class BioGraphPipeline:
                         evidence = str(rel.get("evidence", ""))
                         search_scope = f"{chunk_text}\n{evidence}"
                         if self._is_entity_grounded_in_text(node_name, search_scope):
-                            # 🎉 正则兜底命中！第一轮漏检的文献真实体，立刻落实回填为正规实体
+                            # 正则回溯命中原文实体，将首轮漏检实体补全回填至实体库
                             print(f"   🔍 [正则兜底命中] 成功在文献中匹配到端点 '{node_name}'，已自动落实为真实实体！")
                             rescued_ent = {
                                 "standard_name": node_name,
@@ -659,7 +663,7 @@ class BioGraphPipeline:
                             rel[role] = node_name
                             recovered_entities_count += 1
                         else:
-                            # 🚫 文献无据，纯属模型幻觉捏造
+                            # 原文与证据均无支撑，判定为模型幻觉并剔除该关系
                             print(f"   🛡️ [幻觉终审拦截] 端点 '{node_name}' 未在文献原文中找到任何文字支撑，已安全剔除虚构关系: '{s_raw}' -> '{t_raw}'")
                             rel_valid = False
                             break
@@ -678,6 +682,7 @@ class BioGraphPipeline:
         return ents, valid_relations
 
     def run(self, pdf_path, start_page=0, end_page=None, is_summary_only=False,use_reflection=True,source_name="未知文献",entity_lang="关闭 (保持原文语言)",output_lang="zh",progress_callback=None,concurrency=4,vision_strategy="off",vision_keyword="",vision_model=None,enable_relation_grounding=True,enable_abstract_entities=False,enable_concept_synthesis=False):
+        """执行单篇 PDF 文献的全流程解析，返回抽取并规范化后的全局实体与关系列表。"""
         print("🚀 [Pipeline] 启动全自动化生物知识图谱构建系统...")
 
         current_source = os.path.basename(pdf_path)
@@ -690,9 +695,7 @@ class BioGraphPipeline:
 
         is_en = "en" in output_lang.lower()
 
-        # ---------------------------------------------------------
-        # 📷 前置视觉转译流水线 (Upfront Vision Transcription)
-        # ---------------------------------------------------------
+        # 前置视觉转译流水线 (Upfront Vision Transcription)
         vision_chunks = []
         vision_chunk_sources = []
         self.last_figure_transcriptions = {}
@@ -789,9 +792,7 @@ class BioGraphPipeline:
                 if vision_strategy == "match" and vision_keyword:
                     print(f"ℹ️ [Pipeline] 未在选定页码中匹配到关键词 '{vision_keyword}' 的关联插图。")
 
-        # ---------------------------------------------------------
-        # 🚀 模式一：仅摘要模式 (混合双打流)
-        # ---------------------------------------------------------
+        # 模式一：仅摘要模式 (正则捕获 + 大模型全量兜底)
         if is_summary_only:
             # start_page 在前端传过来时减了1，这里加1是为了人类阅读直观
             print(f"⚡ 开启摘要模式，仅在第 {start_page + 1} 到 {end_page} 页中寻找摘要...")
@@ -834,16 +835,12 @@ class BioGraphPipeline:
 
             text_chunks = [final_text] if final_text else []
 
-        # ---------------------------------------------------------
-        # 🐢 模式二：全文解析模式 (传统的暴力分块)
-        # ---------------------------------------------------------
+        # 模式二：全文解析模式 (滑动窗口分块)
         else:
             print(f"🐢 开启普通全文分块模式 (第 {start_page + 1} 到 {end_page} 页)...")
             text_chunks = self.processor.extract_chunks(pdf_path, start_page, end_page)
 
-        # =========================================================
-        # 融合视觉块与文本块，构建统一分析输入流
-        # =========================================================
+        # 融合视觉转译块与文本块，构建统一分析输入流
         chunks = vision_chunks + text_chunks
         chunk_sources = vision_chunk_sources + [source_name] * len(text_chunks)
         total_chunks = len(chunks)
@@ -851,11 +848,7 @@ class BioGraphPipeline:
         if not chunks:
             return self.global_entities, self.global_relations
 
-        # =============================================================
-        # 🚀 切块级局部高纯度闭环提取流水线 (Chunk-Centric Localized Pipeline)
-        # 彻底解决两阶段全局大字典污染导致的幻觉激增问题！
-        # 每个切块独立提取本地实体，并严格仅基于本地实体推演该切块的关系
-        # =============================================================
+        # 切块级局部闭环提取流水线：每个切块独立抽取本地实体并仅基于本地实体推演关系，避免跨切块全局字典污染引发幻觉
         default_reason = "No detailed explanation" if is_en else "无详细解释"
         source_prefix = "Source" if is_en else "源自"
         worker_count = max(1, min(int(concurrency), total_chunks))
@@ -892,7 +885,7 @@ class BioGraphPipeline:
                             original_reason = rel.get("reason", default_reason)
                             rel["reason"] = f"{original_reason} [{source_prefix}: {source_tag}]"
 
-                # 3. 🔍 切块结束后的终审拦截与正则文献兜底追溯落实
+                # 3. 切块结束后的终审拦截与正则文献兜底追溯落实
                 ents, rels = self._ground_and_recover_chunk_hallucinations(
                     chunk_text=chunk_text,
                     ents=ents,
@@ -964,9 +957,11 @@ class BioGraphPipeline:
 
 
 # =====================================================================
-# 🧠 图谱挖掘引擎：负责在已有知识图谱中寻找拓扑路径
+# 3. 图谱挖掘引擎：在已有知识图谱中搜索拓扑路径
 # =====================================================================
 class GraphMiner:
+    """图谱拓扑路径挖掘器，用于在已有生物调控网络中检索两节点间的潜在机制通路。"""
+
     @staticmethod
     def find_paths(relations, start_node, end_node, max_depth=4, exclude_shortcuts=True):
         """
@@ -975,13 +970,13 @@ class GraphMiner:
         :param start_node: 起点名称
         :param end_node: 终点名称
         :param max_depth: 最大搜索深度
-        :param exclude_shortcuts: 💡 是否屏蔽被洗树功能降级的捷径边（默认 True，逼迫算法寻找深层机制）
+        :param exclude_shortcuts: 是否屏蔽被洗树功能降级的捷径边（默认 True，迫使算法寻找深层机制路径）
         :return: list of paths
         """
         # 1. 构建双向邻接表 (Adjacency List)
         adj = collections.defaultdict(list)
         for rel in relations:
-            # 🛡️ 核心屏蔽网：如果是捷径边，直接当它不存在！
+            # 屏蔽已被标记为捷径的边，确保仅沿实质机制路径搜索
             if exclude_shortcuts and rel.get("is_shortcut", False):
                 continue
 
@@ -1025,9 +1020,7 @@ class GraphMiner:
         valid_paths.sort(key=len)
         return valid_paths
 
-# =====================================================================
-# ⚙️ 启动入口
-# =====================================================================
+# 本地直接运行示例入口
 if __name__ == "__main__":
     MY_API_KEY = ""
     PDF_FILE = "sample_paper.pdf"  # 请确保这个文件存在
